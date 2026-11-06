@@ -1,0 +1,52 @@
+{
+  "name": "kjedeklar",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "run-p dev:convex dev:next",
+    "dev:next": "next dev",
+    "dev:convex": "convex dev --env-file .env.convex-dev.local --tail-logs pause-on-deploy",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "typecheck": "next typegen && tsc --noEmit -p tsconfig.json && tsc --noEmit -p convex/tsconfig.json",
+    "convex:setup:local": "node scripts/local-convex.mjs dev setup",
+    "convex:deploy:local": "node scripts/local-convex.mjs dev deploy",
+    "convex:deploy:test": "node scripts/local-convex.mjs test deploy",
+    "seed:dev": "convex run ops/seed:seedDev --env-file .env.convex-dev.local",
+    "test:unit": "vitest run --project unit --project convex",
+    "test:integration": "node scripts/local-convex.mjs test deploy && vitest run --project integration",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@convex-dev/better-auth": "0.13.0",
+    "better-auth": "1.7.18",
+    "convex": "1.49.0",
+    "convex-helpers": "0.1.134",
+    "next": "16.4.5",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "server-only": "0.0.1",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@edge-runtime/vm": "5.0.0",
+    "@playwright/test": "1.65.0",
+    "@tailwindcss/turbopack": "4.3.5",
+    "@types/node": "24.19.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "convex-test": "0.0.67",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.4.5",
+    "npm-run-all2": "9.0.4",
+    "tailwindcss": "4.3.5",
+    "typescript": "5.9.3",
+    "vite": "8.3.6",
+    "vitest": "5.1.0"
+  },
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=24 <25"
+  }
+}

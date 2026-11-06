@@ -1,0 +1,57 @@
+# Lokal utvikling og CI. Ingen kundedata. Images er låst til eksakt revisjon + digest.
+# Convex self-hosted publiseres bare som rullerende revisjoner; vi velger bevisst en
+# revisjon som er minst to uker gammel og oppgraderer kontrollert (se README).
+x-convex-backend: &convex-backend
+  image: ghcr.io/convex/convex-backend:1447815c8c697c55a35ab0fff64aa7580ca01cc8@sha256:d52c213b4c24b49f5b60bd2ca4eec66f164e137e37c5237e924da2489ce357a1
+  stop_grace_period: 10s
+  stop_signal: SIGINT
+  healthcheck:
+    test: curl -f http://localhost:3210/version
+    interval: 2s
+    start_period: 10s
+    retries: 30
+
+services:
+  # Dev-backend: data beholdes i et navngitt volum.
+  convex:
+    <<: *convex-backend
+    ports:
+      - "127.0.0.1:3210:3210"
+      - "127.0.0.1:3211:3211"
+    volumes:
+      - convex-dev-data:/convex/data
+    environment:
+      INSTANCE_NAME: kjedeklar-dev
+      CONVEX_CLOUD_ORIGIN: http://127.0.0.1:3210
+      CONVEX_SITE_ORIGIN: http://127.0.0.1:3211
+      DISABLE_BEACON: "true"
+      DO_NOT_REQUIRE_SSL: "true"
+      REDACT_LOGS_TO_CLIENT: "true"
+
+  # Separat test-backend for integrasjons- og e2e-tester. Data ligger i tmpfs og
+  # forsvinner når containeren stoppes.
+  convex-test:
+    <<: *convex-backend
+    ports:
+      - "127.0.0.1:3220:3210"
+      - "127.0.0.1:3221:3211"
+    tmpfs:
+      - /convex/data
+    environment:
+      INSTANCE_NAME: kjedeklar-test
+      # Backenden henter sin egen JWKS via CONVEX_SITE_ORIGIN fra innsiden av
+      # containeren, der portene alltid er 3210/3211. Vertsmaskinen bruker 3220/3221.
+      CONVEX_CLOUD_ORIGIN: http://127.0.0.1:3210
+      CONVEX_SITE_ORIGIN: http://127.0.0.1:3211
+      DISABLE_BEACON: "true"
+      DO_NOT_REQUIRE_SSL: "true"
+      REDACT_LOGS_TO_CLIENT: "true"
+
+  mailpit:
+    image: axllent/mailpit:v1.32.0@sha256:0790692be935ea4420d085694f7985b1f692ca6a8771ab0e0bd8ba75ac180498
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
+
+volumes:
+  convex-dev-data:
