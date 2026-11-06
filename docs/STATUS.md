@@ -5,7 +5,7 @@ Startpakke opprettet 6. november 2026. Dokumentasjonen ble samme dag skrevet om 
 | Oppgave | Status | Verifisering | Begrensning |
 |---|---|---|---|
 | 01 | Implementert, verifisert lokalt og i CI (PR #1, review-endringer rettet) | Lint, typecheck, 35 enhets-/convex-test-tester, 9 integrasjonstester mot lokal test-backend, 3 Playwright-tester og build er grønne fra ren start. CI var grønn på første versjon av PR-en | Kun lokal backend. Ingen Convex Cloud-deployment |
-| 02 | Implementert. Venter på grønn CI etter rettelse av JWKS-ratebegrensning | Lokalt: lint, typecheck, 69 enhets-/convex-test-tester og build. CI (PR #2): 69 enhetstester og 19 integrasjonstester mot lokal backend, `convex/_generated` er uendret. E2E: 3 av 4 grønne i første kjøring, 1 rettet | Integrasjon og e2e er ikke kjørt lokalt (Docker mangler) |
+| 02 | Implementert. Integrasjon verifisert lokalt med Docker; e2e ikke kjørt lokalt ennå | Lokalt: lint, typecheck, 69 enhets-/convex-test-tester og build. CI (PR #2): 69 enhetstester og 19 integrasjonstester mot lokal backend, `convex/_generated` er uendret. E2E: 3 av 4 grønne i første kjøring, 1 rettet | Integrasjon og e2e er ikke kjørt lokalt (Docker mangler) |
 
 Oppdater ved hver oppgave. Bruk «implementert», «verifisert» og «ekstern avklaring» presist. Et lokalt fake-resultat betyr ikke at en ekstern integrasjon er godkjent.
 
@@ -106,8 +106,8 @@ pnpm lint                         OK
 pnpm typecheck                    OK
 pnpm test:unit                    69/69 bestått
 pnpm build                        OK (med offentlige lokale NEXT_PUBLIC_*-verdier)
-pnpm test:integration             IKKE KJØRT LOKALT (Docker mangler)
-pnpm test:e2e                     IKKE KJØRT LOKALT (Docker mangler)
+pnpm test:integration             IKKE KJØRT (Docker manglet da). Se lokal kjøring 7.11 under
+pnpm test:e2e                     IKKE KJØRT LOKALT
 ```
 CI på PR #2, første kjøring (commit abe0fe0):
 ```text
@@ -125,6 +125,27 @@ Andre kjøring (commit 658dc85): integrasjonstesten for samtidige kall feilet me
 - Rettelse: `customRules: { "/convex/jwks": false }` i `convex/auth.ts`. Endepunktet er offentlig, leser bare og har ingen brukerdata.
 - Ny regresjonstest: 120 JWKS-oppslag i bolker på 30 gir bare 200.
 - CI skriver nå ut logger fra de lokale Convex-backendene ved feil.
+
+Lokal kjøring med Docker (7.11.2026, Docker-VM med 2 CPU-er):
+```text
+docker compose up -d --wait convex convex-test mailpit   OK
+pnpm convex:deploy:local                                  OK
+git diff --exit-code convex/_generated                    OK (ekte codegen = håndskrevet endring)
+pnpm seed:dev                                             OK
+pnpm test:integration                                     19/20. Samtidighetstesten feilet (se under)
+```
+Funn med backend-logger (`convex logs --jsonl`): JWKS-oppslagene ga nå 200, så rettelsen over virket. Det som feilet, var `organizations/queries:current`: 8 av 76 kall avbrøt med `Function execution timed out (maximum duration: 1s)` før de hadde lest et eneste dokument. Årsaken er kapasitet i testmiljøet:
+- Backenden kjører med standardverdier mange V8-isolater parallelt.
+- På 2 CPU-er overbookes de, og veggklokketiden for brukerkode passerer grensen på 1 s. Uten konkurranse tar kallet 0,1–0,2 s.
+- Det skyldes ikke tung import: en bunt med bare `createClient` er 218 kB, mot 228 kB for hele query-bunten.
+
+Rettelse i `compose.yml` for begge lokale backender: `APPLICATION_MAX_CONCURRENT_QUERIES/MUTATIONS/V8_ACTIONS = 4`. Overskytende kall venter da i kø. Tidsgrensen for funksjoner er ikke hevet, og testen sender fortsatt 24 samtidige kall.
+
+Etter rettelsen:
+```text
+samtidighetstesten alene        5/5 kjøringer grønne (før: 1 av 3)
+pnpm test:integration           20/20, to kjøringer på rad
+```
 Mutasjonskontroll med convex-test: koden ble sabotert midlertidig på fem måter, og testene feilet hver gang:
 - medlemskap lesbart på tvers;
 - inaktivt medlemskap godtatt;
@@ -141,11 +162,12 @@ Ingen menneskelig prøve i nettleser. Slik prøver du selv:
 3. Sett en cookie `organizationId=<id til Fjordlys>` i devtools, og last `/` på nytt. Du skal fortsatt havne i Nordlys.
 
 ### Ikke verifisert / begrensninger
-- Integrasjons- og e2e-testene er bare verifisert i CI, ikke lokalt. E2E venter på ny CI-kjøring etter rettelsen.
+- E2E er ikke kjørt lokalt ennå (Playwright-Chromium er ikke installert på maskinen). Integrasjon er kjørt lokalt med Docker.
 - Probe-testen for `ops/seed:seedDev` er svak: funksjonen har i tillegg miljøsperre, så den ville feilet på test-backenden selv om den var offentlig.
 - Fra klient gir kall til interne funksjoner og komponentfunksjoner en generell feil (`REDACT_LOGS_TO_CLIENT`). Testene kontrollerer avslag og effekt, ikke feilteksten.
 - Det finnes ingen offentlige mutasjoner ennå, så negative skrive- og slettetester mot backend venter til første kundetabell. Registeret og `tenant-tables.ts` kjører dem automatisk når den kommer.
 - Isolasjonen er i applikasjonslaget. Deploy/admin key, interne funksjoner og dashboard kan omgå den (se beslutning 0002).
+- Til oppgave 25: samtidighetsgrensen gjelder bare lokale backender. Convex Cloud har egne grenser; ytelse under last må vurderes der.
 - Til oppgave 03: Better Auth finner ikke klient-IP i Convex sine HTTP-actions og faller tilbake til én delt teller per sti. Innloggingsbegrensningen (3 per 10 s) er derfor trolig felles for alle brukere, ikke per IP. Dette må avklares og settes opp (`advanced.ipAddress`) før pilot.
 
 ## Åpne eksterne avklaringer
