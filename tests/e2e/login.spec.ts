@@ -3,17 +3,14 @@ import type { TenantFixture } from "../helpers/local-backend";
 
 const fixture = (): TenantFixture => JSON.parse(process.env.E2E_FIXTURE ?? "{}");
 
-/**
- * Logger inn bruker A via forsiden, slik en bruker ville gjort. Next.js dev
- * kompilerer sider ved første besøk, så omdirigeringen får romslig tid i CI.
- */
+/** Logger inn bruker A via forsiden, slik en bruker ville gjort. */
 async function logInAsA(page: Page, fx: TenantFixture) {
   await page.goto("/");
   await expect(page).toHaveURL(/\/logg-inn$/);
   await page.getByLabel("E-post").fill(fx.userA.email);
   await page.getByLabel("Passord").fill(fx.password);
   await page.getByRole("button", { name: "Logg inn" }).click();
-  await expect(page).toHaveURL(new RegExp(`/o/${fx.orgA}$`), { timeout: 20_000 });
+  await expect(page).toHaveURL(new RegExp(`/o/${fx.orgA}$`));
 }
 
 test("uinnlogget bruker sendes til innlogging", async ({ page }) => {

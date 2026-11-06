@@ -247,6 +247,28 @@ describe("tenant-isolasjon mot lokal Convex-backend", () => {
     expect((await env.a.query(current, org(env.fx.orgA))).id).toBe(env.fx.orgA);
   });
 
+  test("uinnloggede tokenoppslag kan ikke blokkere token for innloggede brukere", async () => {
+    // Regresjon: tokenendepunktet delte én ratebegrensningsteller for alle. 120
+    // oppslag uten sesjon ville brukt den opp, og innloggede brukere ble sendt ut.
+    const statuses: number[] = [];
+    for (let batch = 0; batch < 4; batch++) {
+      const responses = await Promise.all(
+        Array.from({ length: 30 }, () =>
+          fetch(`${TEST_BACKEND.siteUrl}/api/auth/convex/token`, {
+            headers: { origin: TEST_BACKEND.appOrigin },
+          }),
+        ),
+      );
+      statuses.push(...responses.map((r) => r.status));
+    }
+    expect(statuses.filter((s) => s === 429)).toEqual([]);
+    const own = await fetch(`${TEST_BACKEND.siteUrl}/api/auth/convex/token`, {
+      headers: { cookie: env.sessionA.cookie, origin: TEST_BACKEND.appOrigin },
+    });
+    expect(own.status).toBe(200);
+    expect(((await own.json()) as { token?: string }).token).toBeTruthy();
+  });
+
   test("åpen registrering er slått av", async () => {
     const response = await fetch(`${TEST_BACKEND.siteUrl}/api/auth/sign-up/email`, {
       method: "POST",

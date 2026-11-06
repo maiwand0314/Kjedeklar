@@ -5,7 +5,7 @@ Startpakke opprettet 6. november 2026. Dokumentasjonen ble samme dag skrevet om 
 | Oppgave | Status | Verifisering | Begrensning |
 |---|---|---|---|
 | 01 | Implementert, verifisert lokalt og i CI (PR #1, review-endringer rettet) | Lint, typecheck, 35 enhets-/convex-test-tester, 9 integrasjonstester mot lokal test-backend, 3 Playwright-tester og build er grønne fra ren start. CI var grønn på første versjon av PR-en | Kun lokal backend. Ingen Convex Cloud-deployment |
-| 02 | Implementert. Integrasjon verifisert lokalt med Docker; e2e ikke kjørt lokalt ennå | Lokalt: lint, typecheck, 69 enhets-/convex-test-tester og build. CI (PR #2): 69 enhetstester og 19 integrasjonstester mot lokal backend, `convex/_generated` er uendret. E2E: 3 av 4 grønne i første kjøring, 1 rettet | Integrasjon og e2e er ikke kjørt lokalt (Docker mangler) |
+| 02 | Implementert og verifisert lokalt med Docker. CI grønn på 092bfb0 og 30d3c66 | Lokalt: lint, typecheck, 69 enhets-/convex-test-tester og build. CI (PR #2): 69 enhetstester og 19 integrasjonstester mot lokal backend, `convex/_generated` er uendret. E2E: 3 av 4 grønne i første kjøring, 1 rettet | Integrasjon og e2e er ikke kjørt lokalt (Docker mangler) |
 
 Oppdater ved hver oppgave. Bruk «implementert», «verifisert» og «ekstern avklaring» presist. Et lokalt fake-resultat betyr ikke at en ekstern integrasjon er godkjent.
 
@@ -146,6 +146,24 @@ Etter rettelsen:
 samtidighetstesten alene        5/5 kjøringer grønne (før: 1 av 3)
 pnpm test:integration           20/20, to kjøringer på rad
 ```
+
+E2E lokalt (Playwright-Chromium installert 7.11.2026):
+- **Med `next dev` var den nye URL/cookie-testen ustabil** (2 av 3 kjøringer feilet). Navigeringen ble avbrutt (`net::ERR_ABORTED`), fordi utviklerserveren kompilerer ruter ved første besøk og laster siden på nytt.
+  - Rettelse: e2e kjører nå mot produksjonsbygg (`next build && next start`) i `playwright.config.ts`. Den forlengede tidsgrensen for omdirigering (20 s) er fjernet igjen.
+- **Med produksjonsbygg feilet fortsatt 1 av 5 kjøringer.** Etter innlogging ble brukeren sendt tilbake til `/logg-inn`. Backend-loggen viste `GET /api/auth/convex/token` med 429.
+  - Next.js henter Convex-token for hver sidevisning. Endepunktet delte én ratebegrensningsteller for alle, fordi det ikke finnes noen klient-IP.
+  - Telleren ga 429 selv ved om lag 20 oppslag per 10 s, og hvem som helst kunne fylle den og sende alle innloggede brukere ut.
+  - Rettelse: `"/convex/token": false` i `customRules`. Endepunktet krever gyldig sesjonscookie, og innlogging er fortsatt begrenset.
+  - Ny regresjonstest: 120 oppslag uten sesjon gir ingen 429, og en innlogget bruker får fortsatt token. Testen feilet uten rettelsen (21 av 120 fikk 429).
+
+Sluttresultat lokalt (Docker, 7.11.2026):
+```text
+pnpm lint / pnpm typecheck      OK
+pnpm test:unit                  69/69
+pnpm test:integration           21/21, to kjøringer på rad
+pnpm test:e2e                   4/4, seks kjøringer på rad (mot produksjonsbygg)
+pnpm build                      OK
+```
 Mutasjonskontroll med convex-test: koden ble sabotert midlertidig på fem måter, og testene feilet hver gang:
 - medlemskap lesbart på tvers;
 - inaktivt medlemskap godtatt;
@@ -162,13 +180,12 @@ Ingen menneskelig prøve i nettleser. Slik prøver du selv:
 3. Sett en cookie `organizationId=<id til Fjordlys>` i devtools, og last `/` på nytt. Du skal fortsatt havne i Nordlys.
 
 ### Ikke verifisert / begrensninger
-- E2E er ikke kjørt lokalt ennå (Playwright-Chromium er ikke installert på maskinen). Integrasjon er kjørt lokalt med Docker.
 - Probe-testen for `ops/seed:seedDev` er svak: funksjonen har i tillegg miljøsperre, så den ville feilet på test-backenden selv om den var offentlig.
 - Fra klient gir kall til interne funksjoner og komponentfunksjoner en generell feil (`REDACT_LOGS_TO_CLIENT`). Testene kontrollerer avslag og effekt, ikke feilteksten.
 - Det finnes ingen offentlige mutasjoner ennå, så negative skrive- og slettetester mot backend venter til første kundetabell. Registeret og `tenant-tables.ts` kjører dem automatisk når den kommer.
 - Isolasjonen er i applikasjonslaget. Deploy/admin key, interne funksjoner og dashboard kan omgå den (se beslutning 0002).
 - Til oppgave 25: samtidighetsgrensen gjelder bare lokale backender. Convex Cloud har egne grenser; ytelse under last må vurderes der.
-- Til oppgave 03: Better Auth finner ikke klient-IP i Convex sine HTTP-actions og faller tilbake til én delt teller per sti. Innloggingsbegrensningen (3 per 10 s) er derfor trolig felles for alle brukere, ikke per IP. Dette må avklares og settes opp (`advanced.ipAddress`) før pilot.
+- **Til oppgave 03 (viktig før pilot):** Better Auth finner ikke klient-IP i Convex sine HTTP-actions og faller tilbake til én delt teller per sti. Innloggingsbegrensningen (3 per 10 s) er derfor felles for alle brukere, ikke per IP. Den databasebaserte telleren gir også feilaktige 429 under samtidige kall. JWKS og token er unntatt i oppgave 02. Klient-IP-oppsett (`advanced.ipAddress`, IP-videresending fra Next.js) og lagringsvalg for ratebegrensningen må løses i oppgave 03.
 
 ## Åpne eksterne avklaringer
 - Convex DPA, underleverandører og plassering av backup, logg og support (beslutning 0001). Må lukkes før ekte kundedata.

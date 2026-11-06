@@ -17,11 +17,15 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  // Produksjonsbygg, ikke `next dev`: utviklerserveren kompilerer ruter ved første
+  // besøk og kan laste siden på nytt midt i en navigering (ERR_ABORTED). Et bygg
+  // er også nærmere det brukerne får. Offentlige variabler bakes inn ved bygg,
+  // derfor egen byggmappe for test-backenden.
   webServer: {
-    command: `pnpm exec next dev -p ${PORT}`,
+    command: `pnpm exec next build && pnpm exec next start -p ${PORT}`,
     url: `http://localhost:${PORT}/logg-inn`,
     reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    timeout: 300_000,
     env: {
       NEXT_DIST_DIR: ".next-e2e",
       NEXT_PUBLIC_CONVEX_URL: "http://127.0.0.1:3220",
