@@ -5,7 +5,7 @@ Startpakke opprettet 6. november 2026. Dokumentasjonen ble samme dag skrevet om 
 | Oppgave | Status | Verifisering | Begrensning |
 |---|---|---|---|
 | 01 | Implementert, verifisert lokalt og i CI (PR #1, review-endringer rettet) | Lint, typecheck, 35 enhets-/convex-test-tester, 9 integrasjonstester mot lokal test-backend, 3 Playwright-tester og build er grønne fra ren start. CI var grønn på første versjon av PR-en | Kun lokal backend. Ingen Convex Cloud-deployment |
-| 02 | Implementert. Lokalt verifisert uten Docker; integrasjon og e2e kjøres i CI på PR-en | Lint, typecheck, 69 enhets-/convex-test-tester og build er grønne lokalt. Integrasjon (19) og e2e (4) er ikke kjørt lokalt | Docker mangler på utviklermaskinen der oppgaven ble gjort |
+| 02 | Implementert. Integrasjon verifisert i CI; e2e venter på ny CI-kjøring | Lokalt: lint, typecheck, 69 enhets-/convex-test-tester og build. CI (PR #2): 69 enhetstester og 19 integrasjonstester mot lokal backend, `convex/_generated` er uendret. E2E: 3 av 4 grønne i første kjøring, 1 rettet | Integrasjon og e2e er ikke kjørt lokalt (Docker mangler) |
 
 Oppdater ved hver oppgave. Bruk «implementert», «verifisert» og «ekstern avklaring» presist. Et lokalt fake-resultat betyr ikke at en ekstern integrasjon er godkjent.
 
@@ -106,9 +106,17 @@ pnpm lint                         OK
 pnpm typecheck                    OK
 pnpm test:unit                    69/69 bestått
 pnpm build                        OK (med offentlige lokale NEXT_PUBLIC_*-verdier)
-pnpm test:integration             IKKE KJØRT LOKALT (Docker mangler). Kjøres i CI
-pnpm test:e2e                     IKKE KJØRT LOKALT (Docker mangler). Kjøres i CI
+pnpm test:integration             IKKE KJØRT LOKALT (Docker mangler)
+pnpm test:e2e                     IKKE KJØRT LOKALT (Docker mangler)
 ```
+CI på PR #2, første kjøring (commit abe0fe0):
+```text
+git diff --exit-code convex/_generated   OK (den håndskrevne endringen stemmer)
+pnpm test:unit                           69/69 bestått
+pnpm test:integration                    19/19 bestått mot lokal Convex-backend i Docker
+pnpm test:e2e                            3/4. Den nye URL/cookie-testen feilet
+```
+E2E-feilen: etter innlogging ble siden stående på `/` lenger enn standardgrensen på 5 s, fordi Next.js i utviklermodus kompilerte `/` første gang. Testene logger nå inn via `/` med felles hjelper, og omdirigeringen får 20 s.
 Mutasjonskontroll med convex-test: koden ble sabotert midlertidig på fem måter, og testene feilet hver gang:
 - medlemskap lesbart på tvers;
 - inaktivt medlemskap godtatt;
@@ -125,7 +133,7 @@ Ingen menneskelig prøve i nettleser. Slik prøver du selv:
 3. Sett en cookie `organizationId=<id til Fjordlys>` i devtools, og last `/` på nytt. Du skal fortsatt havne i Nordlys.
 
 ### Ikke verifisert / begrensninger
-- Integrasjons- og e2e-testene er bare verifisert i CI, ikke lokalt.
+- Integrasjons- og e2e-testene er bare verifisert i CI, ikke lokalt. E2E venter på ny CI-kjøring etter rettelsen.
 - Probe-testen for `ops/seed:seedDev` er svak: funksjonen har i tillegg miljøsperre, så den ville feilet på test-backenden selv om den var offentlig.
 - Fra klient gir kall til interne funksjoner og komponentfunksjoner en generell feil (`REDACT_LOGS_TO_CLIENT`). Testene kontrollerer avslag og effekt, ikke feilteksten.
 - Det finnes ingen offentlige mutasjoner ennå, så negative skrive- og slettetester mot backend venter til første kundetabell. Registeret og `tenant-tables.ts` kjører dem automatisk når den kommer.
