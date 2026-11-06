@@ -7,6 +7,7 @@ import { spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { ConvexHttpClient } from "convex/browser";
+import { ConvexError } from "convex/values";
 
 export const TEST_BACKEND = {
   url: "http://127.0.0.1:3220",
@@ -63,23 +64,30 @@ export function createTenantFixture(): TenantFixture {
   return { ...fixture, password };
 }
 
-/** Logger inn via Better Auth på test-backenden og returnerer en Convex-JWT. */
-export async function signInForToken(email: string, password: string): Promise<string> {
+export type Session = {
+  /** Better Auth-sesjonscookie, slik nettleseren ville sendt den. */
+  cookie: string;
+  /** Convex-JWT utstedt for sesjonen. */
+  token: string;
+};
+
+/** Logger inn via Better Auth på test-backenden og returnerer cookie og Convex-JWT. */
+export async function signIn(email: string, password: string): Promise<Session> {
   // Better Auth sin innloggingsratebegrensning er på også i test. Ved 429 venter
   // vi den tiden serveren oppgir i stedet for å skru vernet av.
-  let signIn: Response;
+  let response: Response;
   for (let attempt = 0; ; attempt++) {
-    signIn = await fetch(`${TEST_BACKEND.siteUrl}/api/auth/sign-in/email`, {
+    response = await fetch(`${TEST_BACKEND.siteUrl}/api/auth/sign-in/email`, {
       method: "POST",
       headers: { "content-type": "application/json", origin: TEST_BACKEND.appOrigin },
       body: JSON.stringify({ email, password }),
     });
-    if (signIn.status !== 429 || attempt >= 3) break;
-    const retryAfter = Number(signIn.headers.get("x-retry-after") ?? "10");
+    if (response.status !== 429 || attempt >= 3) break;
+    const retryAfter = Number(response.headers.get("x-retry-after") ?? "10");
     await new Promise((r) => setTimeout(r, (Math.min(retryAfter, 20) + 1) * 1000));
   }
-  if (!signIn.ok) throw new Error(`Innlogging feilet: ${signIn.status}`);
-  const cookie = signIn.headers
+  if (!response.ok) throw new Error(`Innlogging feilet: ${response.status}`);
+  const cookie = response.headers
     .getSetCookie()
     .map((c) => c.split(";")[0])
     .join("; ");
@@ -88,15 +96,68 @@ export async function signInForToken(email: string, password: string): Promise<s
   });
   const { token } = (await tokenResponse.json()) as { token?: string };
   if (!token) throw new Error("Fikk ikke Convex-token.");
-  return token;
+  return { cookie, token };
+}
+
+/** Logger inn og returnerer bare Convex-JWT. */
+export async function signInForToken(email: string, password: string): Promise<string> {
+  return (await signIn(email, password)).token;
+}
+
+export function clientWithToken(token: string) {
+  const client = new ConvexHttpClient(TEST_BACKEND.url);
+  client.setAuth(token);
+  return client;
 }
 
 export async function clientFor(email: string, password: string) {
-  const client = new ConvexHttpClient(TEST_BACKEND.url);
-  client.setAuth(await signInForToken(email, password));
-  return client;
+  return clientWithToken(await signInForToken(email, password));
 }
 
 export function anonymousClient() {
   return new ConvexHttpClient(TEST_BACKEND.url);
+}
+
+export type TwoTenants = {
+  fx: TenantFixture;
+  sessionA: Session;
+  sessionB: Session;
+  /** Klient innlogget som bruker A (aktiv i org A, inaktiv i org C). */
+  a: ConvexHttpClient;
+  /** Klient innlogget som bruker B (aktiv i org B og org C). */
+  b: ConvexHttpClient;
+  anonymous: ConvexHttpClient;
+};
+
+/**
+ * Gjenbrukbar oppsett for to kunder med ekte innloggede brukere mot lokal
+ * test-backend. Hver kall gir en fersk fixture med unik suffix.
+ */
+export async function setupTwoTenants(): Promise<TwoTenants> {
+  const fx = createTenantFixture();
+  const sessionA = await signIn(fx.userA.email, fx.password);
+  const sessionB = await signIn(fx.userB.email, fx.password);
+  return {
+    fx,
+    sessionA,
+    sessionB,
+    a: clientWithToken(sessionA.token),
+    b: clientWithToken(sessionB.token),
+    anonymous: anonymousClient(),
+  };
+}
+
+/** Feilkoden fra en ConvexError, `OK` ved suksess, ellers `ERROR:<melding>`. */
+export async function errorOf(
+  promise: Promise<unknown>,
+): Promise<{ code: string; data?: unknown }> {
+  try {
+    await promise;
+  } catch (error) {
+    if (error instanceof ConvexError) {
+      return { code: (error.data as { code: string }).code, data: error.data };
+    }
+    return { code: `ERROR:${(error as Error).message}` };
+  }
+  return { code: "OK" };
 }

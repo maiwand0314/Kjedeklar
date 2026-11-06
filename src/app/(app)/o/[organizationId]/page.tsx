@@ -1,13 +1,13 @@
 import { notFound, redirect } from "next/navigation";
 import { api } from "@/convex/_generated/api";
-import type { Id } from "@/convex/_generated/dataModel";
 import { fetchAuthQuery, isAuthenticated } from "@/lib/auth-server";
 import { errorCode } from "@/lib/convex-errors";
 import { LogoutButton } from "@/modules/auth/components/logout-button";
 
 /**
  * Beskyttet side. Organisasjons-id i URL er bare en kandidat: Convex verifiserer
- * medlemskap. Fremmed, ukjent eller ugyldig id gir samme «Ikke funnet».
+ * medlemskap. Fremmed, ukjent, inaktiv eller ugyldig id gir samme «Ikke funnet»
+ * (404). Ingen cookie eller annen klientverdi brukes som valgt organisasjon.
  */
 export default async function OrganizationPage({
   params,
@@ -18,7 +18,7 @@ export default async function OrganizationPage({
   let organization: { id: string; name: string; role: string };
   try {
     organization = await fetchAuthQuery(api.organizations.queries.current, {
-      organizationId: organizationId as Id<"organizations">,
+      organizationId,
     });
   } catch (error) {
     if (errorCode(error) === "UNAUTHENTICATED") redirect("/logg-inn");

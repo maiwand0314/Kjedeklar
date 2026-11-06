@@ -24,8 +24,9 @@ export default defineConfig({
           name: "integration",
           include: ["tests/integration/**/*.test.ts"],
           environment: "node",
-          testTimeout: 30_000,
-          hookTimeout: 60_000,
+          // Innloggingsbegrensningen i Better Auth kan gi ventetid mellom innlogginger.
+          testTimeout: 60_000,
+          hookTimeout: 90_000,
           fileParallelism: false,
         },
       },

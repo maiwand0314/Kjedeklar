@@ -3,20 +3,19 @@
  * skal lages med disse, ikke med rå `query`/`mutation`/`action` (ESLint håndhever).
  *
  * Kjeden er alltid: verifisert Better Auth-sesjon → aktivt medlemskap i
- * organisasjonen → rolle → `ctx.tenant`. Organisasjons-id fra klienten er bare en
- * kandidat. `ctx.db` erstattes med en innpakket versjon (RLS-hjelper fra
- * convex-helpers) som avviser dokumenter fra andre organisasjoner, med
- * default-deny for tabeller uten regel.
+ * organisasjonen → aktiv organisasjon → rolle → `ctx.tenant`. Organisasjons-id
+ * fra klienten (URL, cookie, argument) er bare en kandidat. `ctx.db` erstattes
+ * med en innpakket versjon med reglene i `./rls.ts` (default-deny).
  *
  * Begrensning: Convex har ikke radpolicyer i databasen. Interne funksjoner,
  * deploy/admin key og dashboardtilgang går utenom dette vernet.
+ * Se docs/decisions/0002-tenant-boundary.md.
  */
 import {
   customMutation,
   customQuery,
 } from "convex-helpers/server/customFunctions";
 import {
-  type Rules,
   wrapDatabaseReader,
   wrapDatabaseWriter,
 } from "convex-helpers/server/rowLevelSecurity";
@@ -31,6 +30,7 @@ import {
 } from "../_generated/server";
 import { authComponent } from "../auth";
 import { appError, notFound, unauthenticated } from "./errors";
+import { RLS_CONFIG, tenantRules, userRules } from "./rls";
 
 export type Role = Doc<"memberships">["role"];
 
@@ -48,11 +48,15 @@ export type TenantTable = {
     : never;
 }[TableNames];
 
-type RuleCtx = Record<string, never>;
-const RLS_CONFIG = { defaultPolicy: "deny" } as const;
-const deny = async () => false;
+/** Roller som får lese kundedata. Kun `admin` i MVP; utvid når nye roller innføres. */
+const READ_ROLES: readonly Role[] = ["admin"];
+/** Roller som får endre kundedata. Kun `admin` i MVP. */
+const WRITE_ROLES: readonly Role[] = ["admin"];
 
-/** Henter verifisert bruker-id fra Better Auth-sesjonen, eller kaster. */
+/**
+ * Henter verifisert bruker-id fra Better Auth-sesjonen via komponentens API, eller
+ * kaster. Appens kode leser aldri Better Auth-tabellene direkte.
+ */
 export async function requireUserId(ctx: QueryCtx): Promise<string> {
   const user = await authComponent.safeGetAuthUser(ctx);
   if (!user) throw unauthenticated();
@@ -60,15 +64,22 @@ export async function requireUserId(ctx: QueryCtx): Promise<string> {
 }
 
 /**
- * Verifiserer aktivt medlemskap i en aktiv organisasjon. Ukjent, fremmed og
- * inaktiv organisasjon gir samme NOT_FOUND, så eksistens ikke røpes.
+ * Verifiserer aktivt medlemskap i en aktiv organisasjon. Kandidaten kan være en
+ * hvilken som helst streng: ugyldig format, id fra en annen tabell, slettet,
+ * ukjent, fremmed og inaktiv organisasjon gir alle samme NOT_FOUND, så verken
+ * data eller eksistens røpes.
  */
 export async function resolveTenant(
   ctx: QueryCtx,
-  organizationId: Id<"organizations">,
+  candidateOrganizationId: string,
   allowedRoles: readonly Role[],
 ): Promise<Tenant> {
   const userId = await requireUserId(ctx);
+  const organizationId = ctx.db.normalizeId(
+    "organizations",
+    candidateOrganizationId,
+  );
+  if (!organizationId) throw notFound();
   const membership = await ctx.db
     .query("memberships")
     .withIndex("by_organizationId_and_userId", (q) =>
@@ -88,53 +99,18 @@ export async function resolveTenant(
 }
 
 /**
- * RLS-regler for tenantfunksjoner. Nye kundetabeller MÅ få en regel her
- * (typisk `sameTenant`), ellers nektes all tilgang (default-deny).
- * Medlemskap og organisasjoner kan ikke endres fra tenantfunksjoner; det skjer
- * bare via interne funksjoner (bootstrap/invitasjon).
+ * Organisasjonskandidaten tas imot som streng, ikke `v.id(...)`. Da gir et
+ * ugyldig format samme nøytrale NOT_FOUND som en fremmed organisasjon, i stedet
+ * for en valideringsfeil som skiller seg ut.
  */
-export function tenantRules(tenant: Tenant): Rules<RuleCtx, DataModel> {
-  const sameTenant = async (
-    _ctx: RuleCtx,
-    doc: { organizationId: Id<"organizations"> },
-  ) => doc.organizationId === tenant.organizationId;
-  return {
-    organizations: {
-      read: async (_ctx, doc) => doc._id === tenant.organizationId,
-      modify: deny,
-      insert: deny,
-    },
-    memberships: { read: sameTenant, modify: deny, insert: deny },
-  };
-}
+const tenantArgs = { organizationId: v.string() };
 
-/** Regler for brukerfunksjoner uten valgt organisasjon (f.eks. organisasjonsvelger). */
-function userRules(
-  userId: string,
-  activeOrganizationIds: ReadonlySet<string>,
-): Rules<RuleCtx, DataModel> {
-  return {
-    organizations: {
-      read: async (_ctx, doc) => activeOrganizationIds.has(doc._id),
-      modify: deny,
-      insert: deny,
-    },
-    memberships: {
-      read: async (_ctx, doc) => doc.userId === userId,
-      modify: deny,
-      insert: deny,
-    },
-  };
-}
-
-const tenantArgs = { organizationId: v.id("organizations") };
-
-/** Lesing av kundedata. Tillatte roller: kun `admin` i MVP; utvid listen når nye roller innføres. */
+/** Lesing av kundedata. */
 export async function tenantQueryInput(
   ctx: QueryCtx,
-  { organizationId }: { organizationId: Id<"organizations"> },
+  { organizationId }: { organizationId: string },
 ) {
-  const tenant = await resolveTenant(ctx, organizationId, ["admin"]);
+  const tenant = await resolveTenant(ctx, organizationId, READ_ROLES);
   const db = wrapDatabaseReader({}, ctx.db, tenantRules(tenant), RLS_CONFIG);
   return { ctx: { tenant, db }, args: {} };
 }
@@ -144,12 +120,12 @@ export const tenantQuery = customQuery(query, {
   input: tenantQueryInput,
 });
 
-/** Endring av kundedata. Bare redigerende roller (kun `admin` i MVP). */
+/** Endring av kundedata. Bare redigerende roller. */
 export async function tenantMutationInput(
   ctx: MutationCtx,
-  { organizationId }: { organizationId: Id<"organizations"> },
+  { organizationId }: { organizationId: string },
 ) {
-  const tenant = await resolveTenant(ctx, organizationId, ["admin"]);
+  const tenant = await resolveTenant(ctx, organizationId, WRITE_ROLES);
   const db = wrapDatabaseWriter({}, ctx.db, tenantRules(tenant), RLS_CONFIG);
   return { ctx: { tenant, db }, args: {} };
 }
@@ -160,33 +136,36 @@ export const tenantMutation = customMutation(mutation, {
 });
 
 /** Innlogget bruker uten valgt organisasjon. Ser bare egne medlemskap. */
+export async function userQueryInput(ctx: QueryCtx) {
+  const userId = await requireUserId(ctx);
+  const memberships = await ctx.db
+    .query("memberships")
+    .withIndex("by_userId", (q) => q.eq("userId", userId))
+    .collect();
+  const active = new Set<string>(
+    memberships
+      .filter((m) => m.status === "active")
+      .map((m) => m.organizationId),
+  );
+  const db = wrapDatabaseReader(
+    {},
+    ctx.db,
+    userRules(userId, active),
+    RLS_CONFIG,
+  );
+  return { ctx: { userId, db }, args: {} };
+}
+
 export const userQuery = customQuery(query, {
   args: {},
-  input: async (ctx) => {
-    const userId = await requireUserId(ctx);
-    const memberships = await ctx.db
-      .query("memberships")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .collect();
-    const active = new Set<string>(
-      memberships
-        .filter((m) => m.status === "active")
-        .map((m) => m.organizationId),
-    );
-    const db = wrapDatabaseReader(
-      {},
-      ctx.db,
-      userRules(userId, active),
-      RLS_CONFIG,
-    );
-    return { ctx: { userId, db }, args: {} };
-  },
+  input: userQueryInput,
 });
 
 /**
  * Laster et kundeeid dokument og kontrollerer at det tilhører gjeldende tenant.
  * Erstatter sammensatte fremmednøkler: bruk for hver id som kommer inn som
- * argument eller skal lagres som referanse.
+ * argument eller skal lagres som referanse. Ugyldig format, id fra en annen
+ * tabell, slettet og fremmed dokument gir samme NOT_FOUND.
  */
 export async function getOwned<T extends TenantTable>(
   ctx: { db: GenericDatabaseReader<DataModel>; tenant: Tenant },

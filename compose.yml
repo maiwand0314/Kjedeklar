@@ -1,6 +1,16 @@
 # Lokal utvikling og CI. Ingen kundedata. Images er låst til eksakt revisjon + digest.
 # Convex self-hosted publiseres bare som rullerende revisjoner; vi velger bevisst en
 # revisjon som er minst to uker gammel og oppgraderer kontrollert (se README).
+# Samtidighet: standardverdiene lar backenden kjøre mange V8-isolater parallelt.
+# I en Docker-VM med få CPU-er overbookes de, og veggklokketiden passerer
+# 1-sekundsgrensen for queries ("Function execution timed out") under samtidige
+# kall. Med en lav grense venter overskytende kall i kø i stedet. Det gjør lokal
+# backend og CI forutsigbare uten å heve tidsgrensen for funksjoner.
+x-convex-concurrency: &convex-concurrency
+  APPLICATION_MAX_CONCURRENT_QUERIES: "4"
+  APPLICATION_MAX_CONCURRENT_MUTATIONS: "4"
+  APPLICATION_MAX_CONCURRENT_V8_ACTIONS: "4"
+
 x-convex-backend: &convex-backend
   image: ghcr.io/convex/convex-backend:1447815c8c697c55a35ab0fff64aa7580ca01cc8@sha256:d52c213b4c24b49f5b60bd2ca4eec66f164e137e37c5237e924da2489ce357a1
   stop_grace_period: 10s
@@ -21,6 +31,7 @@ services:
     volumes:
       - convex-dev-data:/convex/data
     environment:
+      <<: *convex-concurrency
       INSTANCE_NAME: kjedeklar-dev
       CONVEX_CLOUD_ORIGIN: http://127.0.0.1:3210
       CONVEX_SITE_ORIGIN: http://127.0.0.1:3211
@@ -39,6 +50,7 @@ services:
       - /convex/data
     environment:
       INSTANCE_NAME: kjedeklar-test
+      <<: *convex-concurrency
       # Backenden henter sin egen JWKS via CONVEX_SITE_ORIGIN fra innsiden av
       # containeren, der portene alltid er 3210/3211. Vertsmaskinen bruker 3220/3221.
       CONVEX_CLOUD_ORIGIN: http://127.0.0.1:3210

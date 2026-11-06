@@ -11,6 +11,7 @@
 import type * as auth from "../auth.js";
 import type * as http from "../http.js";
 import type * as lib_errors from "../lib/errors.js";
+import type * as lib_rls from "../lib/rls.js";
 import type * as lib_tenant from "../lib/tenant.js";
 import type * as ops_guard from "../ops/guard.js";
 import type * as ops_organizations from "../ops/organizations.js";
@@ -29,6 +30,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   http: typeof http;
   "lib/errors": typeof lib_errors;
+  "lib/rls": typeof lib_rls;
   "lib/tenant": typeof lib_tenant;
   "ops/guard": typeof ops_guard;
   "ops/organizations": typeof ops_organizations;

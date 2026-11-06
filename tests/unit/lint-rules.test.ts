@@ -43,3 +43,51 @@ describe("ESLint: tenantvern", () => {
     ).toHaveLength(0);
   });
 });
+
+describe("ESLint: Better Auth-komponenten", () => {
+  const readUsers =
+    'import { components } from "../_generated/api";\nexport const users = components;\n';
+
+  test.each(["convex/organizations/probe.ts", "convex/lib/probe.ts", "convex/ops/probe.ts"])(
+    "direkte bruk av komponenten avvises i %s",
+    async (filePath) => {
+      expect((await restrictedImportErrors(readUsers, filePath)).length).toBeGreaterThan(0);
+    },
+  );
+
+  test("convex/auth.ts er eneste sted som kobler til komponenten", async () => {
+    expect(
+      await restrictedImportErrors('import { components } from "./_generated/api";\nexport const c = components;\n', "convex/auth.ts"),
+    ).toHaveLength(0);
+  });
+
+  test("convex/auth.ts kan fortsatt ikke lage rå offentlige funksjoner", async () => {
+    expect(
+      (await restrictedImportErrors('import { query } from "./_generated/server";\nexport const q = query;\n', "convex/auth.ts")).length,
+    ).toBeGreaterThan(0);
+  });
+});
+
+describe("ESLint: Next.js er bare en klient av offentlige funksjoner", () => {
+  test.each([
+    ['import { internal } from "@/convex/_generated/api";', "internal"],
+    ['import { components } from "@/convex/_generated/api";', "components"],
+    ['import { query } from "@/convex/_generated/server";', "query"],
+    ['import { getOwned } from "@/convex/lib/tenant";', "getOwned"],
+    ['import { createWorkspace } from "@/convex/ops/organizations";', "createWorkspace"],
+    ['import { createAuth } from "@/convex/auth";', "createAuth"],
+    ['import { internal } from "../../convex/_generated/api";', "internal"],
+  ])("%s avvises i src/", async (importLine, name) => {
+    const errors = await restrictedImportErrors(`${importLine}\nexport const x = ${name};\n`, "src/app/probe.tsx");
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  test("offentlige funksjoner og typer er tillatt i src/", async () => {
+    expect(
+      await restrictedImportErrors(
+        'import { api } from "@/convex/_generated/api";\nimport type { Id } from "@/convex/_generated/dataModel";\nexport const x: [typeof api, Id<"organizations"> | null] = [api, null];\n',
+        "src/app/probe.tsx",
+      ),
+    ).toHaveLength(0);
+  });
+});

@@ -27,6 +27,19 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
     rateLimit: {
       enabled: true,
       storage: "database",
+      customRules: {
+        // Unntak fra ratebegrensningen. Uten klient-IP havner alle forespørsler
+        // i én delt teller per sti. Den lot hvem som helst blokkere innlogget
+        // bruk for alle, og ga feilaktige 429/500 under samtidige kall.
+        // Innlogging (/sign-in) er fortsatt begrenset.
+        // - JWKS: Convex-backenden henter offentlige nøkler herfra for å
+        //   verifisere hvert token. Offentlig, leser bare, ingen brukerdata.
+        "/convex/jwks": false,
+        // - Token: Next.js henter Convex-token for hver sidevisning. Krever en
+        //   gyldig sesjonscookie (tilfeldig, ikke gjettbar), så begrensningen
+        //   beskytter ikke mot gjetting, men åpnet for tjenestenekt.
+        "/convex/token": false,
+      },
     },
     plugins: [convex({ authConfig })],
   });
