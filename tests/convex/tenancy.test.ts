@@ -1,11 +1,11 @@
 import { describe, expect, test } from "vitest";
 import { wrapDatabaseReader, wrapDatabaseWriter } from "convex-helpers/server/rowLevelSecurity";
 import { api } from "../../convex/_generated/api";
+import { tenantRules } from "../../convex/lib/rls";
 import {
   getOwned,
   tenantMutationInput,
   tenantQueryInput,
-  tenantRules,
   type Tenant,
 } from "../../convex/lib/tenant";
 import {
