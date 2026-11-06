@@ -5,7 +5,7 @@ Startpakke opprettet 6. november 2026. Dokumentasjonen ble samme dag skrevet om 
 | Oppgave | Status | Verifisering | Begrensning |
 |---|---|---|---|
 | 01 | Implementert, verifisert lokalt og i CI (PR #1, review-endringer rettet) | Lint, typecheck, 35 enhets-/convex-test-tester, 9 integrasjonstester mot lokal test-backend, 3 Playwright-tester og build er grønne fra ren start. CI var grønn på første versjon av PR-en | Kun lokal backend. Ingen Convex Cloud-deployment |
-| 02 | Implementert. Integrasjon verifisert i CI; e2e venter på ny CI-kjøring | Lokalt: lint, typecheck, 69 enhets-/convex-test-tester og build. CI (PR #2): 69 enhetstester og 19 integrasjonstester mot lokal backend, `convex/_generated` er uendret. E2E: 3 av 4 grønne i første kjøring, 1 rettet | Integrasjon og e2e er ikke kjørt lokalt (Docker mangler) |
+| 02 | Implementert. Venter på grønn CI etter rettelse av JWKS-ratebegrensning | Lokalt: lint, typecheck, 69 enhets-/convex-test-tester og build. CI (PR #2): 69 enhetstester og 19 integrasjonstester mot lokal backend, `convex/_generated` er uendret. E2E: 3 av 4 grønne i første kjøring, 1 rettet | Integrasjon og e2e er ikke kjørt lokalt (Docker mangler) |
 
 Oppdater ved hver oppgave. Bruk «implementert», «verifisert» og «ekstern avklaring» presist. Et lokalt fake-resultat betyr ikke at en ekstern integrasjon er godkjent.
 
@@ -117,6 +117,14 @@ pnpm test:integration                    19/19 bestått mot lokal Convex-backend
 pnpm test:e2e                            3/4. Den nye URL/cookie-testen feilet
 ```
 E2E-feilen: etter innlogging ble siden stående på `/` lenger enn standardgrensen på 5 s, fordi Next.js i utviklermodus kompilerte `/` første gang. Testene logger nå inn via `/` med felles hjelper, og omdirigeringen får 20 s.
+
+Andre kjøring (commit 658dc85): integrasjonstesten for samtidige kall feilet med `InvalidAuthHeader: Could not fetch JWKS … HTTP 500`. Funn og rettelse:
+- Convex-backenden henter offentlige nøkler fra `/api/auth/convex/jwks` for å verifisere token. Better Auths ratebegrensning gjaldt også dette endepunktet.
+- Forespørslene har ingen klient-IP, så alle havnet i én delt teller, lagret i én databaserad.
+- Samtidige verifiseringer ga derfor skrivekonflikter (HTTP 500). Over 100 oppslag per 10 s ville gitt avslag, og hvem som helst kunne brukt opp telleren og blokkert innlogget bruk for alle.
+- Rettelse: `customRules: { "/convex/jwks": false }` i `convex/auth.ts`. Endepunktet er offentlig, leser bare og har ingen brukerdata.
+- Ny regresjonstest: 120 JWKS-oppslag i bolker på 30 gir bare 200.
+- CI skriver nå ut logger fra de lokale Convex-backendene ved feil.
 Mutasjonskontroll med convex-test: koden ble sabotert midlertidig på fem måter, og testene feilet hver gang:
 - medlemskap lesbart på tvers;
 - inaktivt medlemskap godtatt;
@@ -138,6 +146,7 @@ Ingen menneskelig prøve i nettleser. Slik prøver du selv:
 - Fra klient gir kall til interne funksjoner og komponentfunksjoner en generell feil (`REDACT_LOGS_TO_CLIENT`). Testene kontrollerer avslag og effekt, ikke feilteksten.
 - Det finnes ingen offentlige mutasjoner ennå, så negative skrive- og slettetester mot backend venter til første kundetabell. Registeret og `tenant-tables.ts` kjører dem automatisk når den kommer.
 - Isolasjonen er i applikasjonslaget. Deploy/admin key, interne funksjoner og dashboard kan omgå den (se beslutning 0002).
+- Til oppgave 03: Better Auth finner ikke klient-IP i Convex sine HTTP-actions og faller tilbake til én delt teller per sti. Innloggingsbegrensningen (3 per 10 s) er derfor trolig felles for alle brukere, ikke per IP. Dette må avklares og settes opp (`advanced.ipAddress`) før pilot.
 
 ## Åpne eksterne avklaringer
 - Convex DPA, underleverandører og plassering av backup, logg og support (beslutning 0001). Må lukkes før ekte kundedata.

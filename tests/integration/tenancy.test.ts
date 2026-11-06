@@ -228,6 +228,25 @@ describe("tenant-isolasjon mot lokal Convex-backend", () => {
     expect((await errorOf(env.a.query(current, org(env.fx.orgB)))).code).toBe("NOT_FOUND");
   });
 
+  test("JWKS-endepunktet tåler samtidige oppslag og kan ikke brukes opp av klienter", async () => {
+    // Regresjon: en delt ratebegrensningsteller på JWKS ga HTTP 500 under samtidige
+    // tokenverifiseringer, og over 100 oppslag per 10 s ville blokkert alle brukere.
+    const statuses: number[] = [];
+    for (let batch = 0; batch < 4; batch++) {
+      const responses = await Promise.all(
+        Array.from({ length: 30 }, () => fetch(`${TEST_BACKEND.siteUrl}/api/auth/convex/jwks`)),
+      );
+      for (const r of responses) {
+        statuses.push(r.status);
+        const body = (await r.json()) as { keys?: unknown[] };
+        expect(body.keys?.length).toBeGreaterThan(0);
+      }
+    }
+    expect(statuses.filter((s) => s !== 200)).toEqual([]);
+    // Innlogget bruk virker fortsatt etter 120 oppslag.
+    expect((await env.a.query(current, org(env.fx.orgA))).id).toBe(env.fx.orgA);
+  });
+
   test("åpen registrering er slått av", async () => {
     const response = await fetch(`${TEST_BACKEND.siteUrl}/api/auth/sign-up/email`, {
       method: "POST",

@@ -27,6 +27,15 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
     rateLimit: {
       enabled: true,
       storage: "database",
+      customRules: {
+        // Convex-backenden henter offentlige nøkler herfra for å verifisere hvert
+        // token. Forespørslene har ingen klient-IP og havner i én delt teller.
+        // Med ratebegrensning ville samtidige verifiseringer gi skrivekonflikter
+        // (HTTP 500), og hvem som helst kunne brukt opp telleren og blokkert
+        // innlogget bruk for alle. Endepunktet er offentlig, leser bare og har
+        // ingen brukerdata.
+        "/convex/jwks": false,
+      },
     },
     plugins: [convex({ authConfig })],
   });
