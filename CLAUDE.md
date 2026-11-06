@@ -134,7 +134,7 @@ Lokal dev-backend og test-backend er separate instanser. `seed:dev` og test-rese
 
 ## Arbeidsflyt per oppgave
 1. Les instrukser og relevant eksisterende kode; oppsummer kort og fortsett innenfor avklart scope. Ikke gjett på udokumenterte API-er.
-2. Arbeid på én branch per oppgave, f.eks. `feature/01-foundation`. Repoet er `github.com/maiwand0314/Kjedeklar` (privat). Push branchen når oppgaven er verifisert; ikke merge til `main` eller deploy uten at det er del av den aktuelle bestillingen.
+2. Arbeid på én branch per oppgave, f.eks. `feature/01-foundation`. Repoet er `github.com/maiwand0314/Kjedeklar` (privat). Push branchen når oppgaven er verifisert; ikke merge til `main` eller deploy uten at det er del av den aktuelle bestillingen. Commits og PR-er skal ikke ha Claude som medforfatter: ingen `Co-Authored-By: Claude`-linjer og ingen «Generated with Claude Code».
 3. Implementer bare oppgaven. Skriv meningsfulle tester av risiko og akseptkriterier, inkludert feiltilfeller. Ingen test som bare speiler implementasjonen.
 4. Kjør relevante sjekker og fullfør dem. Ved blokkert ekstern tjeneste bruker du fake for lokal verifikasjon og dokumenterer nøyaktig hva som ikke er integrasjonstestet. Aldri skjul feil eller svekk tenantvern/tester for å få grønt.
 5. Oppsummer endring, tester, gjenværende avklaringer og manuell prøve. Oppdater STATUS. Stopp før neste oppgave. Den andre utvikleren gjennomgår diff før merge.
