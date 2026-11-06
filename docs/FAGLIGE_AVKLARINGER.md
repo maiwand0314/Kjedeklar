@@ -40,24 +40,27 @@ EU/EØS er deres produktkrav for kundeinnhold, ikke en universell GDPR-regel. Et
 
 [Datatilsynets omtale av artikkel 28 og databehandleravtaler](https://www.datatilsynet.no/personvern-pa-ulike-omrader/skole-barn-unge/bruk-av-google-chromebook-og-g-suite-for-education-og-andre-skytjenester-i-grunnskolen/google-som-databehandler/) beskriver grunnprinsippet om garantier og avtale; skoleeksemplet er ikke en sektorregel som skal kopieres inn i Kjedeklars vilkår.
 
-Hetzner har dokumenterte lokasjoner i Tyskland/Finland, men velg faktisk lokasjon og undersøk backup-, logg- og supportoppsett. Kilder: [lokasjoner](https://docs.hetzner.com/cloud/general/locations/), [backup-lokasjon](https://docs.hetzner.com/cloud/servers/backups-snapshots/faq/).
+Convex Cloud er valgt som backend med region `aws-eu-west-1` (Irland), se [beslutning 0001](decisions/0001-convex-eu.md). Convex-dokumentasjonen sier at all infrastruktur for deploymenten ligger i valgt region, men nevner ikke konkret backup, logger, metrikker eller supporttilgang. Convex Inc. er et amerikansk selskap. Før ekte kundedata må DPA, underleverandører, overføringsgrunnlag, supporttilgang og backup-/loggplassering bekreftes skriftlig. Regionen kan ikke endres for en eksisterende deployment. Kilder: [Convex regions](https://docs.convex.dev/production/regions), [Convex EU-region](https://ship.convex.dev/changelog/eu-region-hosting-dublin).
+
+Next.js og PDF-worker skal hostes i EU/EØS; valget tas i oppgave 25. Ved eventuell selvhosting av Convex eller annen VPS-drift (f.eks. Hetzner Tyskland/Finland) må faktisk lokasjon, backup-, logg- og supportoppsett undersøkes. Kilder: [Hetzner lokasjoner](https://docs.hetzner.com/cloud/general/locations/), [Hetzner backup-lokasjon](https://docs.hetzner.com/cloud/servers/backups-snapshots/faq/).
 
 Azure OpenAI er en kandidat, ikke forhåndsgodkjent: [deploytyper og inferensområde](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/concepts/deployment-types). Global er ikke avgrenset til EU; Data Zone og regionale typer har andre grenser. Bekreft modelltilgjengelighet, kontoavtaler, misbruksmonitorering og eventuell supportbehandling før ekte data. Ingen automatisk fallback. Dersom hele EU/EØS-kravet ikke kan underbygges, bruk manuell malgenerering og hold AI av.
 
 Scaleway TEM er SMTP-kandidat; les [gjeldende tjenestedokumentasjon](https://www.scaleway.com/en/docs/transactional-email/) og kontrakt før valg. EU-lokasjon for selve SMTP-tjenesten sier ikke hvor kundens mottakers e-postsystem behandler meldingen. Avklar kravet for mottakerstyrt e-post, send minimalt innhold og ikke e-post leverandørdata i MVP.
 
-Kode og syntetiske tester kan ligge i GitHub/Claude Code; kundedata og produksjonshemmeligheter skal ikke inn i kodeagent, git eller CI. Hvis kravet også gjelder kildekode og utviklingsmetadata må utviklerplattformene vurderes separat før de tas i bruk.
+Kode og syntetiske tester kan ligge i GitHub/Claude Code, og lokal/CI-backend for Convex kjører uten kundedata; kundedata og produksjonshemmeligheter skal ikke inn i kodeagent, git eller CI. Hvis kravet også gjelder kildekode og utviklingsmetadata må utviklerplattformene vurderes separat før de tas i bruk.
 
 ## Tekniske primærkilder
 - [Next.js installasjon og krav](https://nextjs.org/docs/app/getting-started/installation)
-- [Better Auth installasjon og Drizzle-adapter](https://better-auth.com/docs/installation)
-- [Drizzle-migrasjoner](https://orm.drizzle.team/docs/migrations)
-- [PostgreSQL RLS](https://www.postgresql.org/docs/current/ddl-rowsecurity.html): eier/superuser/BYPASSRLS kan omgå vanlige policyer; FORCE, roller og runtime-tester er derfor del av arkitekturen.
+- [Convex dokumentasjon](https://docs.convex.dev/) og [Convex regions](https://docs.convex.dev/production/regions)
+- [Convex local deployments](https://docs.convex.dev/cli/local-deployments) og [åpen Convex-backend](https://github.com/get-convex/convex-backend)
+- [Better Auth + Convex](https://www.better-auth.com/docs/integrations/convex)
+- Convex har ikke radpolicyer i databasen. Tenantvern håndheves i funksjonslaget (egne funksjonsbyggere, RLS-hjelper fra `convex-helpers`, `getOwned`) og må bevises med negative tester mot lokal backend.
 
 ## Avklaringer som ikke kan løses ved å generere kode
 1. Virksomhetens fullmakt/tilhørighet ved pilotopprettelse og kundens bekreftelse av pliktgrunnlag.
 2. Faglig godkjenning og lisens for reelle risikodata og metode. Begrens første pilot til dokumentert dekning; øvrige tilfeller må være synlig ukjent.
-3. Avtalte leverandører med faktiske dataflyter, kundedokumenter, lagringstider og slettingsprosess.
+3. Avtalte leverandører (Convex, hosting for Next.js/PDF-worker, SMTP, eventuell AI) med faktiske dataflyter, kundedokumenter, lagringstider og slettingsprosess.
 4. Hvem hos kunden som gjennomgår, signerer og publiserer dokumentet eksternt.
 
 Før disse er avklart kan dere bygge og demonstrere hele systemet med syntetiske data. Ikke merk dem ferdige bare fordi Claude har skrevet et dokumentutkast.

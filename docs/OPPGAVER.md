@@ -7,7 +7,7 @@ Planen har 29 små implementasjons-/verifikasjonsoppgaver. De fleste er estimert
 | Nr. | Oppgave | Aktiv tid | Ferdig når |
 |---|---|---|---|
 | 01 | [Kjørbart prosjektskjelett](oppgaver/01-foundation.md) | 3–5 t | Login, to syntetiske tenants og grønn CI |
-| 02 | [Bevis tenant-isolasjonen](oppgaver/02-tenant-isolation.md) | 2–4 t | Isolasjon og DB-roller er negativtestet |
+| 02 | [Bevis tenant-isolasjonen](oppgaver/02-tenant-isolation.md) | 2–4 t | Isolasjon og tilgangsgrenser er negativtestet |
 | 03 | [Invitasjon, verifisering og kontogjenoppretting](oppgaver/03-auth-lifecycle.md) | 2–4 t | Invite og reset fungerer lokalt |
 | 04 | [Norsk appskall og navigasjon](oppgaver/04-app-shell.md) | 2–3 t | Norsk responsivt appskall |
 | 05 | [Transaksjonell revisjonslogg](oppgaver/05-audit.md) | 2–4 t | Atomisk audit med begrensede rettigheter |
@@ -17,7 +17,7 @@ Planen har 29 små implementasjons-/verifikasjonsoppgaver. De fleste er estimert
 | 09 | [Leverandørregister med manuell registrering](oppgaver/09-suppliers.md) | 2–3 t | Leverandør og årets innkjøp kan redigeres |
 | 10 | [CSV-opplasting og forhåndsvisning](oppgaver/10-csv-preview.md) | 2–3 t | CSV kan normaliseres uten lagringsendring |
 | 11 | [Bekreftet, idempotent CSV-import](oppgaver/11-csv-import.md) | 2–4 t | Bekreftet import tåler retry |
-| 12 | [Varige bakgrunnsjobber](oppgaver/12-jobs.md) | 2–4 t | Worker tåler crash og isolerer tenants |
+| 12 | [Varige bakgrunnsjobber](oppgaver/12-jobs.md) | 2–4 t | Jobber tåler feil/retry og isolerer tenants |
 | 13 | [Brreg-beriking av leverandører](oppgaver/13-brreg-enrichment.md) | 2–3 t | Beriking bevarer brukerrettelser |
 | 14 | [Versjonerte risikodata og faglig metodekontrakt](oppgaver/14-risk-data.md) | 2–4 t | Dataversjoner kan valideres/aktiveres |
 | 15 | [Deterministisk risikomotor](oppgaver/15-risk-engine.md) | 2–4 t | Regler gir reproduserbar screening |
@@ -37,7 +37,7 @@ Planen har 29 små implementasjons-/verifikasjonsoppgaver. De fleste er estimert
 | 29 | [Samlet pilotprøve og konkret lanseringsbeslutning](oppgaver/29-pilot.md) | 2–4 t | Pilotstatus har evidens og åpne avklaringer |
 
 ## Hva første oppgave betyr
-Første kveld leverer en tynn, kjørbar grunnmur med database, auth, organisasjon/medlemskap, grunnleggende RLS og CI. Den forsøker ikke å gjøre komplett sikkerhet, alle invitasjonsflyter eller drift ferdig. Oppgave 02–05 bygger dette videre før kundens forretningsdata introduseres. Hvis den første kvelden stopper på en pakke-/miljøfeil, fullfør samme avgrensede oppgave neste gang fremfor å kutte test eller isolasjon.
+Første kveld leverer en tynn, kjørbar grunnmur med lokal Convex-backend, auth, organisasjon/medlemskap, tenant-byggeklosser og CI. Den forsøker ikke å gjøre komplett sikkerhet, alle invitasjonsflyter eller drift ferdig. Oppgave 02–05 bygger dette videre før kundens forretningsdata introduseres. Hvis den første kvelden stopper på en pakke-/miljøfeil, fullfør samme avgrensede oppgave neste gang fremfor å kutte test eller isolasjon.
 
 ## Milepæler
 - **Etter 05:** lokal teknisk grunnmur, kontrollert innlogging og revisjonslogg.
@@ -49,7 +49,7 @@ Første kveld leverer en tynn, kjørbar grunnmur med database, auth, organisasjo
 Oppgave 28s kilde-/lisensarbeid kan undersøkes tidlig av et teammedlem. Produksjonsaktivering skjer først når datakontrakten, metoden og ekte fagreview finnes. Denne kalenderavhengigheten bør ikke oppdages først etter at hele UI-et er bygget.
 
 ## Gjennomgang før merge
-Den andre utvikleren vurderer diff, akseptkriterier, migrasjoner/RLS, audit og faktiske testresultater. Ikke aksepter «testene burde passere». Når ekstern tilgang mangler kan syntetisk lokal verifikasjon være ferdig, mens ekstern oppgave fortsatt er åpen. Ikke slå av test eller sikkerhetsregel for å få grønt.
+Den andre utvikleren vurderer diff, akseptkriterier, Convex-skjema/tenantvern, audit og faktiske testresultater. Ikke aksepter «testene burde passere». Når ekstern tilgang mangler kan syntetisk lokal verifikasjon være ferdig, mens ekstern oppgave fortsatt er åpen. Ikke slå av test eller sikkerhetsregel for å få grønt.
 
 ## Etter MVP
 Senere oppgaver kan bygges som separate små løp: leverandørskjema med tokenlenker/filkontroll, oversettelse/purring, faktisk signering, fast offentlig publiseringslenke, informasjonskrav med lovlig fristbehandling, årshjul, abonnement og deretter én regnskapsintegrasjon om gangen. Bekreft API-vilkår, sertifisering og produksjonstilgang når en slik integrasjon faktisk prioriteres; antatt behandlingstid fra konseptet er ikke en verifisert avhengighet i denne MVP-en.

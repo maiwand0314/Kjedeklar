@@ -7,72 +7,77 @@ MVP: oppstart med Brreg, veiledende pliktvurdering, CSV-import, leverandørregis
 
 Utenfor MVP: leverandørportal/spørreskjema, automatisk oversettelse og purring, regnskapsintegrasjoner, sanksjonsscreening, BankID, digital signering, offentlig publiseringsside, informasjonsinnboks, betalingsintegrasjon og automatisk årshjul. Kunden håndterer signering, publisering og informasjonskrav utenfor systemet. Ikke bygg disse funksjonene uten en egen oppgave.
 
-Les `docs/ARKITEKTUR.md`, `docs/DATAMODELL.md`, `docs/FAGLIGE_AVKLARINGER.md` og den aktuelle oppgaven under `docs/oppgaver/`. `docs/OPPGAVER.md` er oversikt. Opprett bare skjema og moduler som trengs i aktuell oppgave. Oppdater `docs/STATUS.md` ved avslutning med verifisert status, kjørte kommandoer og gjenstående begrensninger.
+Les `docs/ARKITEKTUR.md`, `docs/DATAMODELL.md`, `docs/FAGLIGE_AVKLARINGER.md`, `docs/decisions/0001-convex-eu.md` og den aktuelle oppgaven under `docs/oppgaver/`. `docs/OPPGAVER.md` er oversikt. Opprett bare tabeller, funksjoner og moduler som trengs i aktuell oppgave. Oppdater `docs/STATUS.md` ved avslutning med verifisert status, kjørte kommandoer og gjenstående begrensninger.
 
 ## Teknologi
-- Én modulær monolitt: Next.js App Router, React, TypeScript strict, Node.js 24 LTS, pnpm.
+- Én kodebase: Next.js App Router som grensesnitt, Convex som database og backend, React, TypeScript strict, Node.js 24 LTS, pnpm.
+- Convex Cloud i region `aws-eu-west-1` (Irland) for staging og produksjon. Lokalt og i CI kjøres Convex sin åpne backend i Docker. Selvhostet Convex på EU/EØS-VPS er en senere mulighet; ikke bruk cloud-eksklusive funksjoner uten en beslutning i `docs/decisions/`.
 - Tailwind CSS og shadcn/ui; React Hook Form og Zod der skjema trenger det.
-- PostgreSQL 18, Drizzle ORM og eksplisitte SQL-migrasjoner for RLS/roller/rettigheter.
-- Better Auth med Drizzle-adapter og egne kontrollerte Membership/Organization-modeller. Ikke implementer passordhashing eller sesjoner selv. Ikke bland inn organisasjonsplugin med overlappende medlemskap uten en godkjent arkitekturbeslutning.
-- Vitest, reell PostgreSQL for integrasjonstester, Playwright for viktige brukerflyter og PDF med lokal Chromium.
-- Docker Compose lokalt og ved første drift. Separat worker fra samme repo for varige jobber via en liten Job-tabell med leasing; ingen Redis i MVP.
-- Nodemailer over godkjent EU/EØS-SMTP. Mailpit kun lokalt. AI bak egen adapter, deaktivert som standard.
-- Velg stabile kompatible pakkeversjoner i oppgave 01, dokumenter dem og commit pnpm-lock.yaml. Ingen prerelease og ingen `latest`-tagger i driftsfiler. Les installert dokumentasjon før du gjenbruker API-er fra hukommelsen.
+- Convex-skjema med validatorer (`convex/schema.ts`), queries, mutasjoner, actions, scheduler og fillagring. Komponenter: `@convex-dev/better-auth`, og `@convex-dev/workpool` fra oppgave 12. `convex-helpers` for egne funksjonsbyggere og RLS-hjelper.
+- Better Auth via `@convex-dev/better-auth`, med egne kontrollerte `organizations`/`memberships`-tabeller i appens skjema. Ikke implementer passordhashing eller sesjoner selv. Ikke bland inn Better Auths organisasjonsplugin med overlappende medlemskap uten en godkjent arkitekturbeslutning.
+- Vitest for ren logikk, `convex-test` for raske funksjonstester, integrasjonstester mot lokal Convex-backend, Playwright for viktige brukerflyter. PDF med lokal Chromium i en egen Node-worker (oppgave 24).
+- Docker Compose lokalt for Convex-backend og Mailpit. Varige jobber via Convex scheduler/workpool og en liten `jobs`-tabell; ingen Redis, ingen egen kø-infrastruktur.
+- Nodemailer i Convex Node-actions over godkjent EU/EØS-SMTP. Mailpit kun lokalt. AI bak egen adapter i Convex-actions, deaktivert som standard.
+- Velg stabile kompatible pakkeversjoner i oppgave 01, dokumenter dem og commit pnpm-lock.yaml. Pakker under 1.0 (f.eks. `@convex-dev/better-auth`) låses eksakt. Ingen prerelease og ingen `latest`-tagger, heller ikke for Docker-images. Les installert dokumentasjon før du gjenbruker API-er fra hukommelsen.
 
 ## Struktur
 ```text
+convex/
+  schema.ts               # alle tabeller og indekser
+  convex.config.ts        # komponenter
+  auth.config.ts, auth.ts # Better Auth i Convex
+  http.ts                 # auth-ruter og smale HTTP-endepunkter
+  lib/                    # tenant.ts (tenantQuery/Mutation/Action), rls.ts, getOwned, errors, audit
+  organizations/          # medlemskap, pliktvurdering, virksomhetsprofil
+  suppliers/              # leverandører, import, Brreg-beriking
+  risk/                   # dataversjoner, vurderinger (bruker ren motor fra src/domain/risk)
+  diligence/              # egen virksomhet, funn, tiltak og resultater
+  statements/             # grunnlag, utkast, versjoner, PDF-metadata
+  audit/
+  jobs/
+  ai/                     # ingen klienttilgang til nøkler eller provider
+  email/
+  integrations/brreg/
+  ops/                    # interne funksjoner: bootstrap, seed, vedlikehold
 src/
-  app/                     # ruter, layouts og HTTP-adaptere
+  app/                    # ruter, layouts og HTTP-adaptere
     (auth)/
     (app)/
     api/auth/[...all]/
-  components/ui/           # delte UI-primitiver
-  modules/
-    organizations/        # medlemskap, pliktvurdering, virksomhetsprofil
-    suppliers/            # leverandører, import, Brreg-beriking
-    risk/                 # ren regelmotor, dataversjoner, vurderinger
-    diligence/            # egen virksomhet, funn, tiltak og resultater
-    statements/           # grunnlag, utkast, versjoner, PDF
-    audit/
-  server/
-    auth/                  # Better Auth, sesjon, kontrollert onboarding
-    db/schema/
-    tenancy/               # requireMembership, withTenant, autorisasjon
-    integrations/brreg/
-    ai/                    # ingen klienttilgang til nøkler eller provider
-    email/
-    jobs/
-  worker.ts
-drizzle/                   # migrasjoner, inkludert SQL-policyer
-risk-data/                 # JSON/CSV + manifest, eksplisitt demo/produksjon
-tests/{unit,integration,e2e,fixtures}/
+  components/ui/          # delte UI-primitiver
+  modules/<domene>/components/
+  domain/                 # ren TypeScript uten Convex/Next, f.eks. risk/ og import/
+  lib/                    # auth-klient, Convex-provider
+worker/                   # PDF-worker fra oppgave 24
+risk-data/                # JSON/CSV + manifest, eksplisitt demo/produksjon
+tests/{unit,convex,integration,e2e,fixtures}/
 scripts/
 docs/{oppgaver,decisions}/
 .github/workflows/ci.yml
 ```
-Modulene bruker ved behov `schema.ts`, `service.ts`, `repository.ts`, `validation.ts` og `components/`. Ikke opprett tomme lag automatisk. Servermoduler merkes `server-only`; den rene regelmotoren skal kunne testes uten Next.js eller database.
+Convex-moduler deles ved behov i `queries.ts`, `mutations.ts`, `actions.ts`, `model.ts` (hjelpere som tar `ctx`) og `validators.ts`. Ikke opprett tomme filer automatisk. Forretningsregler ligger i Convex-funksjoner eller `src/domain/`, ikke i React-komponenter. Den rene regelmotoren i `src/domain/risk/` skal kunne testes uten Next.js og Convex.
 
 ## Multi-tenant er et ufravikelig sikkerhetskrav
-1. `organization_id NOT NULL` på alle kundeeide rader, også Job, AiRun, import, vurdering, rapportversjon, eksport og audit. Organization er selv tenantroten. Auth-identiteter er globale; de gir ikke i seg selv tilgang til kundedata.
-2. Hent userId fra verifisert sesjon. Valgt organisasjon er en kandidat, aldri et tilgangsbevis. Kontroller aktivt medlemskap og rolle på server for hver operasjon, også Server Actions, nedlasting og worker.
-3. Bruk `withTenant(session, organizationId, callback)` som verifiserer medlemskap og utfører alle dataspørringer i samme transaksjon med `set_config('app.organization_id', value, true)`. Bruk transaksjonslokal kontekst, aldri varig SET på en gjenbrukt forbindelse. Ikke importer et ubeskyttet forretnings-DB-objekt i ruter.
-4. SELECT/INSERT/UPDATE/DELETE-policyer med både USING og WITH CHECK. ENABLE og FORCE RLS. Runtime er ikke superuser, tabell-eier eller BYPASSRLS og har ikke DDL/TRUNCATE. Migrasjonslegitimasjon brukes aldri av appen.
-5. Auth og medlemskapsoppslag har et smalt separat grensesnitt/DB-rolle uten leserettigheter til forretningsdata. Medlemskap kan bare opprettes gjennom kontrollert bootstrap/invitasjon. Dokumenter eventuell SECURITY DEFINER-funksjon, fast search_path, eksakte grants og test misbruk; foretrekk vanlig avgrenset rolle.
-6. Bruk sammensatte nøkler/FK-er `(organization_id, id)` slik at en rad ikke kan referere til en annen tenants leverandør/rapport. Unike leverandøridentiteter gjelder innenfor tenant, ikke på tvers av kunder. Globalt org.nr.-oppslag er aldri kundetilgang.
-7. Ingen global cache for kundeinnhold. Private HTTP-svar/PDF bruker no-store; kundespesifikke cache-nøkler må inkludere organisasjon og autorisasjonskontekst. Krysskundefeil skal ikke røpe at en ressurs eksisterer.
-8. Integrasjonstester kjører som faktisk runtime-rolle og prøver uautorisert lesing, skriving, relasjonskobling, eksport, jobbkjøring og gjenbruk av pool-forbindelse mellom to organisasjoner. RLS er et ekstra vern; en kompromittert server med runtime-nøkkel er ikke avverget av tenant-konteksten alene.
+1. `organizationId: v.id("organizations")` er påkrevd på alle kundeeide dokumenter, også jobs, aiRuns, import, vurdering, rapportversjon, eksport og audit. `organizations` er selv tenantroten. Auth-identiteter er globale; de gir ikke i seg selv tilgang til kundedata.
+2. Bruker-id hentes fra verifisert Better Auth-sesjon i Convex (`ctx.auth`/komponentens `getAuthUser`). Valgt organisasjon fra URL, cookie eller argument er en kandidat, aldri et tilgangsbevis. Kontroller aktivt medlemskap og rolle i Convex for hver operasjon, også ved nedlasting, scheduler-jobber og PDF-worker.
+3. Alle offentlige Convex-funksjoner med kundedata lages med `tenantQuery`, `tenantMutation` eller `tenantAction` fra `convex/lib/tenant.ts`. De verifiserer bruker → aktivt medlemskap → rolle, setter `ctx.tenant = { organizationId, userId, role }` og gir en innpakket `ctx.db` som avviser dokumenter fra andre organisasjoner. Rå `query`/`mutation`/`action` fra `_generated/server` brukes bare i `convex/lib/` og for funksjoner uten kundedata; ESLint håndhever dette. Actions får aldri direkte `ctx.db`; de kaller interne queries/mutasjoner som eksplisitt får `organizationId` fra den verifiserte konteksten.
+4. Alle indekser på kundetabeller starter med `organizationId`. Spørringer bruker `withIndex` med `organizationId`, aldri ubegrenset `.collect()` over en tabell eller `filter` som eneste tenantavgrensning.
+5. Interne funksjoner (`internalQuery`/`internalMutation`/`internalAction`) kan bare kalles fra annen Convex-kode eller med deploy/admin key. Medlemskap kan bare opprettes gjennom kontrollert bootstrap/invitasjon. Deploy key og admin key er migrasjons-/operatørlegitimasjon: aldri i Next.js, nettleser, PDF-worker eller logger.
+6. Convex har ikke fremmednøkler. Hver id som kommer inn eller lagres som referanse, lastes via `getOwned(ctx, table, id)` som kontrollerer `organizationId` mot `ctx.tenant`. Unike leverandøridentiteter gjelder innenfor tenant, ikke på tvers av kunder, og håndheves med indeksoppslag i samme mutasjon. Globalt org.nr.-oppslag er aldri kundetilgang.
+7. Ingen global cache for kundeinnhold. Private HTTP-svar/PDF bruker `Cache-Control: no-store`; kundespesifikke cache-nøkler må inkludere organisasjon og autorisasjonskontekst. Krysskundefeil gir samme nøytrale «Ikke funnet» og skal ikke røpe at en ressurs eksisterer. Ingen `storage.getUrl`-lenker til kundefiler.
+8. Integrasjonstester kjører mot lokal Convex-backend med ekte innloggede testbrukere og prøver uautorisert lesing, skriving, relasjonskobling, eksport, jobbkjøring og samtidige kall mellom to organisasjoner. `convex-test` er rask støtte, ikke eneste bevis. Convex har ingen radpolicyer i databasen: en lekket deploy key, feil i en intern funksjon eller dashboardtilgang kan omgå skillet. Beskriv aldri isolasjonen som databasehåndhevet.
 
 ## Revisjonslogg og historikk
 Oppgave 01–04 er en lokal grunnmur uten kundedata; oppgave 05 etablerer domenets audit og kobler også eksisterende organisasjons-/medlemskapsendringer. Ingen pilot før dette er gjort. Authbibliotekets sikkerhetsmekanismer og trygg logging gjelder fra første oppgave.
-- En forretningsendring og dens AuditEvent lagres i samme transaksjon; ved auditfeil rulles endringen tilbake.
-- Logg aktør (bruker/system), tenant, UTC-tid fra server/DB, hendelsestype, objektreferanse, requestId, begrenset diff og begrunnelse der det kreves.
-- Runtime kan ikke UPDATE/DELETE audit. Logg aldri passord, sesjonstoken, API-nøkler, full e-posttekst eller unødvendige personopplysninger. Diff er en eksplisitt tillatt feltliste.
+- En forretningsendring og dens `auditEvents`-dokument skrives i samme Convex-mutasjon; kaster audit-skrivingen, rulles hele mutasjonen tilbake. Actions som endrer data gjør det gjennom én mutasjon som også skriver audit.
+- Logg aktør (bruker/system), tenant, UTC-tid fra server (`Date.now()` i mutasjonen), hendelsestype, objektreferanse, requestId, begrenset diff og begrunnelse der det kreves.
+- Ingen funksjon oppdaterer eller sletter `auditEvents`, og RLS-hjelperen nekter endring av tabellen fra tenantfunksjoner. Logg aldri passord, sesjonstoken, API-nøkler, full e-posttekst eller unødvendige personopplysninger. Diff er en eksplisitt tillatt feltliste.
 - Vurderinger, manuelle overstyringer, godkjente dataversjoner og rapportversjoner bevares som historikk; nye input må ikke omskrive gamle resultater. Bevar kilde-, metode- og inputversjoner.
-- Append-only på applikasjonsnivå er ikke beskyttelse mot DB-administrator. Påstå ikke at loggen er uforanderlig i absolutt forstand. Kontrollert sletting/pseudonymisering skjer gjennom dokumentert vedlikeholdsprosess med avklart lagringstid og egen autorisasjon.
+- Append-only på applikasjonsnivå er ikke beskyttelse mot noen med deploy key eller dashboardtilgang. Påstå ikke at loggen er uforanderlig i absolutt forstand. Kontrollert sletting/pseudonymisering skjer gjennom dokumentert vedlikeholdsprosess med avklart lagringstid og egen autorisasjon.
 
 ## Risiko og faglig riktighet
 - Scoring er deterministisk og regelbasert; AI får aldri sette/godkjenne score eller endre regler.
-- Skill `screening_level` (lav/moderat/høy/ukjent), `data_quality` og brukerens dokumenterte vurdering. Nivåene er prioriteringsstøtte, ikke en statistisk sannsynlighet eller juridisk fasit.
+- Skill `screeningLevel` (lav/moderat/høy/ukjent), `dataQuality` og brukerens dokumenterte vurdering. Nivåene er prioriteringsstøtte, ikke en statistisk sannsynlighet eller juridisk fasit.
 - Innkjøpsbeløp påvirker bare sortering innenfor samme nivå. Det skal aldri redusere eller heve faglig risikonivå.
 - Ukjent/manglende/utgått kilde, ukjent produksjonsland og ukjent bransje må vises eksplisitt og kreve oppfølging. Ingen stille lavrisiko-default. En kjent høy faktor skal fortsatt være høy selv om andre data mangler.
 - Skill leverandørens registreringsland fra kjent produksjons-/arbeidsland og fra ukjent oppstrøms kjede. Norsk adresse innebærer ikke norsk produksjon.
@@ -85,51 +90,51 @@ Oppgave 01–04 er en lokal grunnmur uten kundedata; oppgave 05 etablerer domene
 - Hele kjerneflyten skal fungere uten AI. Bruk providerinterface og fake i tester. Ingen fallback til et annet land eller en annen provider ved feil.
 - Reelle data sendes bare til dokumentert godkjent behandling i EU/EØS. Kontroller inferens, lagring, misbrukslogger, supporttilgang, underleverandører og avtaler; regionnavn eller DPA alene er ingen garanti. Er kravet ikke avklart, forblir AI av.
 - Minimer data. Ikke send kontaktpersoner eller komplette regnskaps-/leverandørlister når oppgaven kan løses med anonyme relevante felter. Ikke logg fulle prompts med kundedata.
-- Leverandørnavn, CSV-felter og fritekst er ubetrodd innhold. AI har ikke verktøy, URL-henting, SQL eller utførende rettigheter. Valider strukturert output med Zod. Output er alltid forslag med inputreferanser, modell, promptversjon og tidspunkt.
+- Leverandørnavn, CSV-felter og fritekst er ubetrodd innhold. AI har ikke verktøy, URL-henting, databasetilgang eller utførende rettigheter. Valider strukturert output med Zod. Output er alltid forslag med inputreferanser, modell, promptversjon og tidspunkt.
 - Bruk token-/kostnadsbudsjett per tenant, eksplisitt brukerhandling, timeout og begrensede retries. AI-feil må ikke miste menneskets arbeid.
 - Ikke finn på tiltak, policyer, resultater, kontrollbesøk, signaturer eller at ingen brudd finnes. Manglende opplysninger blir synlige hull, aldri oppdiktede avsnitt.
 - Redegjørelsen må skille screening fra bekreftede funn og bygge på egen virksomhet, rutiner, faktiske/potensielle konsekvenser, tiltak og resultater. Bruker godkjenner grunnlaget.
 - Intern godkjenning er ikke underskrift. PDF merkes `Utkast – ikke signert` eller `Til ekstern signering – ikke signert`. Ingen innebygd publisering i MVP. Forklar kundens neste steg uten å hevde at eksport oppfyller loven alene.
 
 ## Personvern og drift
-- Kundedata, sikkerhetskopier, logger, e-postbehandling, AI og ekstern overvåking skal følge det avtalte EU/EØS-kravet. Bruk ingen ekstern analytics eller frontend-CDN/fonttjeneste med dataflyt uten vurdering.
-- Bare syntetiske data i git, CI, fixtures, screenshots og Claude Code. Ikke lim kundeeksporter eller produksjonshemmeligheter inn i kodeagenten. Secrets valideres ved oppstart og sjekkes aldri inn.
-- TLS, HttpOnly/Secure/SameSite-cookies, origin/CSRF-kontroll, innloggingsratebegrensning, safe logging og gjenopprettbar backup før pilot.
-- Importer begrenses til 2 MiB / 2 000 rader i MVP. Vis norske tall og NOK; lagre beløp i heltallsøre/bigint og datoer eksplisitt. Tidsstempler lagres i UTC, presenteres i Europe/Oslo. Rapportperioder er datoer, ikke UTC-midnatt beregnet fra brukerens nettleser.
-- Ingen rå CSV eller nedlastede PDF-er i åpent webområde. PDF rendres uten eksterne nettverkskall, med lokal font og HTML-escaping. Eksport av regnearkvennlige felt må hindre formelinjeksjon.
+- Kundedata, sikkerhetskopier, logger, fillagring, e-postbehandling, AI og ekstern overvåking skal følge det avtalte EU/EØS-kravet. Convex-deployments for staging/prod opprettes i `aws-eu-west-1`; Convex-avklaringene i `docs/decisions/0001-convex-eu.md` må være lukket før ekte kundedata. Bruk ingen ekstern analytics eller frontend-CDN/fonttjeneste med dataflyt uten vurdering.
+- Bare syntetiske data i git, CI, fixtures, screenshots og Claude Code. Ikke lim kundeeksporter, Convex-eksporter eller produksjonshemmeligheter inn i kodeagenten. Secrets valideres ved oppstart og sjekkes aldri inn. Convex-miljøvariabler settes per deployment, ikke i kode.
+- TLS, HttpOnly/Secure/SameSite-cookies, origin/CSRF-kontroll, innloggingsratebegrensning, safe logging og gjenopprettbar backup (Convex-eksport) før pilot.
+- Importer begrenses til 2 MiB / 2 000 rader i MVP. Vis norske tall og NOK; lagre beløp som heltall i øre (`v.int64()`, `bigint` i TypeScript) og datoer eksplisitt som `YYYY-MM-DD`-strenger. Tidsstempler lagres som UTC-millisekunder satt på serveren, presenteres i Europe/Oslo. Rapportperioder er datoer, ikke UTC-midnatt beregnet fra brukerens nettleser.
+- Ingen rå CSV i lagring, og ingen PDF-er tilgjengelige via offentlige URL-er. PDF rendres uten eksterne nettverkskall, med lokal font og HTML-escaping. Eksport av regnearkvennlige felt må hindre formelinjeksjon.
 - E-post krever verifisert avsender, SPF/DKIM/DMARC og håndtering av returmeldinger. Ved lokal utvikling brukes bare Mailpit, aldri ekte mottakere.
 
 ## Konvensjoner
-- Engelsk kode/tabellnavn, norsk bokmål i UI, feilmeldinger og hjelpetekster. Profesjonelt rolig grensesnitt, responsivt, tastaturbetjenbart, synlige etiketter og feilmeldinger; risiko vises med tekst, ikke bare farge.
-- Zod ved alle eksterne grenser. Parameterisert SQL. Forretningsregler i service/domene, ikke i React-komponenter. Kortfattede feil til bruker og requestId til feilsøking.
-- Bruk databaseconstraints for integritet, optimistisk låsing der to utviklere/brukere kan overskrive samme vurdering, og idempotens for import/jobber/AI/PDF.
+- Engelsk kode/tabellnavn (camelCase i Convex), norsk bokmål i UI, feilmeldinger og hjelpetekster. Profesjonelt rolig grensesnitt, responsivt, tastaturbetjenbart, synlige etiketter og feilmeldinger; risiko vises med tekst, ikke bare farge.
+- Convex-validatorer (`v.*`) på alle funksjonsargumenter og returverdier; Zod ved øvrige eksterne grenser (CSV, Brreg, AI-output, miljøvariabler). Forretningsregler i Convex-funksjoner/`src/domain/`, ikke i React-komponenter. Kortfattede feil til bruker (`ConvexError` med kode) og requestId til feilsøking.
+- Integritet håndheves i mutasjoner: validatorer, `getOwned`, indeksbaserte unikhetssjekker. Bruk `rowVersion` for optimistisk låsing der to brukere kan overskrive samme vurdering, og idempotensnøkler for import/jobber/AI/PDF. Hold mutasjoner innenfor Convex sine transaksjonsgrenser; store importer deles i batcher.
 - Ikke innfør ny infrastruktur, generell pluginplattform eller store abstraksjoner uten et faktisk behov i oppgaven.
 
 ## Kommandoavtale
 Oppgave 01 skal opprette disse scriptnavnene; de er planlagte frem til det er gjort. Script for senere moduler opprettes når modulen bygges. Ikke påstå at en kommando har kjørt før den faktisk er kjørt.
 ```bash
 pnpm install --frozen-lockfile
-docker compose up -d db mailpit
-pnpm db:migrate
-pnpm db:seed:dev
-pnpm dev
+docker compose up -d convex mailpit
+pnpm convex:deploy:local   # skjema og funksjoner til lokal Convex-backend
+pnpm seed:dev
+pnpm dev                   # Next.js + convex dev mot lokal backend
 pnpm lint
 pnpm typecheck
-pnpm test:unit
-pnpm test:integration
+pnpm test:unit             # Vitest: ren logikk og convex-test
+pnpm test:integration      # mot separat lokal test-backend
 pnpm test:e2e
 pnpm build
-# fra oppgave 12:
-pnpm worker
 # fra oppgave 14:
 pnpm risk-data:validate
 pnpm risk-data:import -- --file <manifest-path>
+# fra oppgave 24:
+pnpm worker
 ```
-`db:migrate` bruker egen migrasjonsrolle. App/test bruker runtime-rolle. `db:seed:dev` og testreset nekter å kjøre mot produksjon. Test-DB skal være separat og opprettes etter dokumentert kommando i README; migrasjoner testes fra tom DB i CI. Aldri automatisk schema push i produksjon.
+Lokal dev-backend og test-backend er separate instanser. `seed:dev` og test-reset nekter å kjøre mot annet enn lokale backend-URL-er, og test-reset finnes bare når backenden er merket som testmiljø. Admin key for lokal backend genereres etter dokumentert kommando i README. Deploy til Convex Cloud skjer bare via eksplisitt CI-/operatørsteg med deploy key; aldri `convex dev` eller automatisk deploy mot produksjon. Skjemaendringer som krever datamigrering gjøres med eksplisitte, testede migreringsfunksjoner.
 
 ## Arbeidsflyt per oppgave
 1. Les instrukser og relevant eksisterende kode; oppsummer kort og fortsett innenfor avklart scope. Ikke gjett på udokumenterte API-er.
-2. Arbeid på én branch per oppgave, f.eks. `feature/01-foundation`. Ikke lag et eksternt repo eller push/deploy uten at det er del av den aktuelle bestillingen.
+2. Arbeid på én branch per oppgave, f.eks. `feature/01-foundation`. Repoet er `github.com/maiwand0314/Kjedeklar` (privat). Push branchen når oppgaven er verifisert; ikke merge til `main` eller deploy uten at det er del av den aktuelle bestillingen.
 3. Implementer bare oppgaven. Skriv meningsfulle tester av risiko og akseptkriterier, inkludert feiltilfeller. Ingen test som bare speiler implementasjonen.
-4. Kjør relevante sjekker og fullfør dem. Ved blokkert ekstern tjeneste bruker du fake for lokal verifikasjon og dokumenterer nøyaktig hva som ikke er integrasjonstestet. Aldri skjul feil eller svekk RLS/tester for å få grønt.
+4. Kjør relevante sjekker og fullfør dem. Ved blokkert ekstern tjeneste bruker du fake for lokal verifikasjon og dokumenterer nøyaktig hva som ikke er integrasjonstestet. Aldri skjul feil eller svekk tenantvern/tester for å få grønt.
 5. Oppsummer endring, tester, gjenværende avklaringer og manuell prøve. Oppdater STATUS. Stopp før neste oppgave. Den andre utvikleren gjennomgår diff før merge.
