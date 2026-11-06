@@ -10,7 +10,7 @@ import { ensurePasswordUser } from "./users";
  * lokal URL). Unik suffix per testkjøring gjør reset unødvendig.
  *
  * - Bruker A: aktivt medlem av org A, inaktivt medlem av org C.
- * - Bruker B: aktivt medlem av org B.
+ * - Bruker B: aktivt medlem av org B og org C.
  */
 export const createTenantFixture = internalAction({
   args: { suffix: v.string(), password: v.string() },
@@ -27,15 +27,19 @@ export const createTenantFixture = internalAction({
     const emailB = `b-${suffix}@tenant-b.example`;
     const userA = await ensurePasswordUser(ctx, { email: emailA, name: "Test A", password });
     const userB = await ensurePasswordUser(ctx, { email: emailB, name: "Test B", password });
-    const ensure = internal.ops.organizations.ensureOrganizationWithMember;
-    const orgA: Id<"organizations"> = await ctx.runMutation(ensure, {
-      name: `Org A ${suffix}`, country: "NO", userId: userA, membershipStatus: "active",
+    const { createWorkspace, setMembership } = internal.ops.organizations;
+    const orgA: Id<"organizations"> = await ctx.runMutation(createWorkspace, {
+      name: `Org A ${suffix}`, country: "NO", userId: userA,
     });
-    const orgB: Id<"organizations"> = await ctx.runMutation(ensure, {
-      name: `Org B ${suffix}`, country: "NO", userId: userB, membershipStatus: "active",
+    const orgB: Id<"organizations"> = await ctx.runMutation(createWorkspace, {
+      name: `Org B ${suffix}`, country: "NO", userId: userB,
     });
-    const orgC: Id<"organizations"> = await ctx.runMutation(ensure, {
-      name: `Org C ${suffix}`, country: "NO", userId: userA, membershipStatus: "inactive",
+    // Org C eies av B; A får et inaktivt medlemskap der.
+    const orgC: Id<"organizations"> = await ctx.runMutation(createWorkspace, {
+      name: `Org C ${suffix}`, country: "NO", userId: userB,
+    });
+    await ctx.runMutation(setMembership, {
+      organizationId: orgC, userId: userA, status: "inactive",
     });
     return {
       userA: { email: emailA, userId: userA },

@@ -3,7 +3,7 @@
  * Bruker Convex CLI med admin key fra .env.convex-test.local for interne
  * fixtures, og ekte Better Auth-innlogging for brukerkall.
  */
-import { execFileSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { ConvexHttpClient } from "convex/browser";
@@ -30,12 +30,18 @@ export function assertTestBackendConfigured() {
 /** Kjører en intern funksjon på test-backenden via Convex CLI. */
 export function runInternal<T>(functionName: string, args: Record<string, unknown>): T {
   assertTestBackendConfigured();
-  const out = execFileSync(
+  const result = spawnSync(
     "pnpm",
     ["exec", "convex", "run", functionName, JSON.stringify(args), "--env-file", TEST_BACKEND.envFile],
     { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
   );
-  return JSON.parse(out) as T;
+  const stdout = result.stdout.trim();
+  if (result.status !== 0 || !stdout) {
+    throw new Error(
+      `convex run ${functionName} feilet (status ${result.status}): ${result.stderr.trim() || "(ingen stderr)"}`,
+    );
+  }
+  return JSON.parse(stdout) as T;
 }
 
 export type TenantFixture = {

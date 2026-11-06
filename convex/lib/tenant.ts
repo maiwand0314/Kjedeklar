@@ -129,7 +129,7 @@ function userRules(
 
 const tenantArgs = { organizationId: v.id("organizations") };
 
-/** Lesing av kundedata. Alle aktive roller. */
+/** Lesing av kundedata. Tillatte roller: kun `admin` i MVP; utvid listen når nye roller innføres. */
 export async function tenantQueryInput(
   ctx: QueryCtx,
   { organizationId }: { organizationId: Id<"organizations"> },

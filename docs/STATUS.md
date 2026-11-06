@@ -4,7 +4,7 @@ Startpakke opprettet 6. november 2026. Dokumentasjonen ble samme dag skrevet om 
 
 | Oppgave | Status | Verifisering | Begrensning |
 |---|---|---|---|
-| 01 | Implementert og verifisert lokalt (branch `feature/01-foundation`) | Lint, typecheck, 24 enhets-/convex-test-tester, 9 integrasjonstester mot lokal test-backend, 3 Playwright-tester og build er grønne fra ren start (6.11.2026) | Kun lokal backend. CI-workflow er skrevet, men har ikke kjørt på GitHub før branchen pushes. Ingen Convex Cloud-deployment |
+| 01 | Implementert, verifisert lokalt og i CI (PR #1, review-endringer rettet) | Lint, typecheck, 35 enhets-/convex-test-tester, 9 integrasjonstester mot lokal test-backend, 3 Playwright-tester og build er grønne fra ren start. CI var grønn på første versjon av PR-en | Kun lokal backend. Ingen Convex Cloud-deployment |
 
 Oppdater ved hver oppgave. Bruk «implementert», «verifisert» og «ekstern avklaring» presist. Et lokalt fake-resultat betyr ikke at en ekstern integrasjon er godkjent.
 
@@ -34,7 +34,7 @@ pnpm convex:deploy:local                                OK (Convex functions rea
 pnpm seed:dev                                           OK (2 syntetiske org/brukere)
 pnpm lint                                               OK
 pnpm typecheck                                          OK
-pnpm test:unit                                          24/24 bestått
+pnpm test:unit                                          35/35 bestått (etter review)
 pnpm test:integration                                   9/9 bestått
 pnpm test:e2e                                           3/3 bestått
 pnpm build                                              OK
@@ -44,16 +44,22 @@ Ekstra kontroller:
 - Et bevisst brudd på ESLint-regelen ga feil.
 - `curl` mot `/api/auth/sign-up/email` ga 400.
 
+### Rettet etter review (PR #1)
+- Bootstrap matchet organisasjon på navn. Nå oppretter `ops/organizations:createWorkspace` alltid en ny organisasjon, og `setMembership` krever eksplisitt `organizationId`. Seed er idempotent via brukerens medlemskap (indeks). Det er test på at samme navn gir to organisasjoner. Den ubegrensede `.collect()` er fjernet.
+- `returns`-validatorer er lagt til på `current` og `listMine`.
+- ESLint stopper også `queryGeneric`/`mutationGeneric`/`actionGeneric`/`httpActionGeneric` fra `convex/server`. Ny negativ lint-test (`tests/unit/lint-rules.test.ts`) feilet før rettelsen og passerer etter.
+- Hemmeligheter settes via stdin (`convex env set NAME`), ikke som argument. Utlogging viser feilmelding hvis den feiler. Kommentaren om roller i `tenantQuery` er rettet.
+- Funnet underveis: Convex CLI viser bare navn i `env list` når den kjøres av en AI-agent. Oppsettsskriptet trodde da at `BETTER_AUTH_SECRET` manglet, og byttet den ved hver deploy, noe som gjorde token-utstedelse ugyldig. Sjekken godtar nå begge formatene. Verifisert med to deploys og to seed-kjøringer på rad (2 organisasjoner) og to integrasjonskjøringer på rad.
+
 ### Manuell prøve
 Login → beskyttet side → fremmed org («Ikke funnet») → utlogging er kjørt automatisk i Playwright. Ingen menneskelig prøve i nettleser er gjort ennå. Slik prøver du selv: følg «Kom i gang» i README og logg inn med passordet i `.env.convex-dev.local`.
 
 ### Ikke verifisert / begrensninger
-- CI har ikke kjørt på GitHub ennå.
 - Convex Cloud (EU) er ikke satt opp. Det skjer i oppgave 25 og krever konto.
 - `@convex-dev/better-auth` er under 1.0. Self-hosted Convex-image er en rullerende revisjon som er bevisst valgt og låst.
 - Ratebegrensning er på, men ikke eksplisitt testet. Det hører til oppgave 03. Integrasjonstesten venter og prøver på nytt ved 429.
 - Feilmeldinger fra backend til klient er redigert bort (`REDACT_LOGS_TO_CLIENT`). Kall til interne funksjoner fra klient gir derfor en generell «Server Error», ikke en egen kode.
-- Revisjonslogg (oppgave 05), invitasjon/reset (03) og full isolasjonsherding med negativ lint-test (02) er ikke gjort.
+- Revisjonslogg (oppgave 05), invitasjon/reset (03) og øvrig isolasjonsherding (02) er ikke gjort.
 
 ## Åpne eksterne avklaringer
 - Convex DPA, underleverandører og plassering av backup, logg og support (beslutning 0001). Må lukkes før ekte kundedata.

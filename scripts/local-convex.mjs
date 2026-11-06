@@ -61,7 +61,8 @@ function adminKey() {
 
 const convex = (args, opts = {}) =>
   execFileSync("pnpm", ["exec", "convex", ...args, "--env-file", envFile], {
-    stdio: opts.capture ? ["ignore", "pipe", "inherit"] : "inherit",
+    input: opts.input,
+    stdio: [opts.input === undefined ? "ignore" : "pipe", opts.capture ? "pipe" : "inherit", "inherit"],
     encoding: "utf8",
   });
 
@@ -97,12 +98,18 @@ if (targetName === "dev" && !existsSync(".env.local")) {
 
 // 3. Miljøvariabler på deploymenten. Hemmeligheter genereres lokalt og vises ikke.
 const existing = convex(["env", "list"], { capture: true });
-const has = (name) => existing.split("\n").some((l) => l.startsWith(`${name}=`));
+// `env list` viser enten NAME=verdi eller bare NAME (f.eks. når CLI-en kjøres av en
+// AI-agent). Begge betyr at variabelen finnes; da skal hemmeligheten ikke byttes,
+// ellers blir eksisterende sesjoner og signeringsnøkler ugyldige.
+const has = (name) =>
+  existing.split("\n").some((l) => l.trim() === name || l.startsWith(`${name}=`));
 const setEnv = (name, value) => convex(["env", "set", name, value], { capture: true });
-if (!has("BETTER_AUTH_SECRET")) setEnv("BETTER_AUTH_SECRET", randomBytes(32).toString("base64"));
+// Hemmeligheter sendes via stdin, ikke som argument, så de ikke vises i prosesslisten.
+const setSecret = (name, value) => convex(["env", "set", name], { capture: true, input: value });
+if (!has("BETTER_AUTH_SECRET")) setSecret("BETTER_AUTH_SECRET", randomBytes(32).toString("base64"));
 setEnv("SITE_URL", target.appUrl);
 setEnv("KJEDEKLAR_ENV", target.env);
-if (seedPassword) setEnv("SEED_USER_PASSWORD", seedPassword);
+if (seedPassword) setSecret("SEED_USER_PASSWORD", seedPassword);
 console.log(`Lokal Convex-backend (${targetName}) er konfigurert: ${target.url}`);
 
 if (command === "deploy") {

@@ -9,18 +9,28 @@ const rawConvexFunctions = {
     "Bruk tenantQuery/tenantMutation/userQuery fra convex/lib/tenant.ts. Rå offentlige Convex-funksjoner omgår tenantvernet (CLAUDE.md, multi-tenant punkt 3).",
 };
 
+const genericConvexFunctions = {
+  name: "convex/server",
+  importNames: ["queryGeneric", "mutationGeneric", "actionGeneric", "httpActionGeneric"],
+  message:
+    "Generiske Convex-byggere gir rå offentlige funksjoner. Bruk tenant-byggeklossene i convex/lib/tenant.ts.",
+};
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
   {
     files: ["convex/**/*.ts"],
     rules: {
-      "no-restricted-imports": ["error", { patterns: [rawConvexFunctions] }],
+      "no-restricted-imports": [
+        "error",
+        { paths: [genericConvexFunctions], patterns: [rawConvexFunctions] },
+      ],
     },
   },
   {
     // Eneste sted som får pakke inn rå funksjoner.
-    files: ["convex/lib/tenant.ts"],
+    files: ["convex/lib/**/*.ts"],
     rules: { "no-restricted-imports": "off" },
   },
   globalIgnores([

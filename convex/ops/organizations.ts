@@ -1,51 +1,78 @@
 import { v } from "convex/values";
-import { internalMutation } from "../_generated/server";
-
-const statusValidator = v.union(v.literal("active"), v.literal("inactive"));
+import { internalMutation, internalQuery } from "../_generated/server";
 
 /**
- * Kontrollert bootstrap av workspace og medlemskap. Intern: kan bare kalles fra
- * annen Convex-kode eller med admin/deploy key, aldri fra klient eller Next.js.
- * Idempotent på organisasjonsnavn + bruker.
+ * Kontrollert bootstrap av workspace og medlemskap. Alle funksjonene er interne:
+ * de kan bare kalles fra annen Convex-kode eller med admin/deploy key, aldri fra
+ * klient eller Next.js.
+ *
+ * Navn er ikke en identitet. En organisasjon identifiseres bare med sin id, og
+ * medlemskap legges alltid til en eksplisitt organizationId.
  */
-export const ensureOrganizationWithMember = internalMutation({
-  args: {
-    name: v.string(),
-    country: v.string(),
-    userId: v.string(),
-    membershipStatus: statusValidator,
-  },
+
+const membershipStatus = v.union(v.literal("active"), v.literal("inactive"));
+
+/** Oppretter alltid en ny organisasjon med brukeren som aktiv admin. */
+export const createWorkspace = internalMutation({
+  args: { name: v.string(), country: v.string(), userId: v.string() },
   returns: v.id("organizations"),
   handler: async (ctx, args) => {
-    const organizations = await ctx.db.query("organizations").collect();
-    let organization = organizations.find((o) => o.name === args.name);
-    const organizationId =
-      organization?._id ??
-      (await ctx.db.insert("organizations", {
-        name: args.name,
-        country: args.country,
-        status: "active",
-      }));
-    organization ??= (await ctx.db.get("organizations", organizationId))!;
+    const organizationId = await ctx.db.insert("organizations", {
+      name: args.name,
+      country: args.country,
+      status: "active",
+    });
+    await ctx.db.insert("memberships", {
+      organizationId,
+      userId: args.userId,
+      role: "admin",
+      status: "active",
+    });
+    return organizationId;
+  },
+});
 
-    const membership = await ctx.db
+/** Setter medlemskap i en eksplisitt, eksisterende organisasjon. Idempotent. */
+export const setMembership = internalMutation({
+  args: {
+    organizationId: v.id("organizations"),
+    userId: v.string(),
+    status: membershipStatus,
+  },
+  returns: v.id("memberships"),
+  handler: async (ctx, args) => {
+    const organization = await ctx.db.get("organizations", args.organizationId);
+    if (!organization) throw new Error("Organisasjonen finnes ikke.");
+    const existing = await ctx.db
       .query("memberships")
       .withIndex("by_organizationId_and_userId", (q) =>
-        q.eq("organizationId", organizationId).eq("userId", args.userId),
+        q.eq("organizationId", args.organizationId).eq("userId", args.userId),
       )
       .unique();
-    if (!membership) {
-      await ctx.db.insert("memberships", {
-        organizationId,
-        userId: args.userId,
-        role: "admin",
-        status: args.membershipStatus,
-      });
-    } else if (membership.status !== args.membershipStatus) {
-      await ctx.db.patch("memberships", membership._id, {
-        status: args.membershipStatus,
-      });
+    if (existing) {
+      if (existing.status !== args.status) {
+        await ctx.db.patch("memberships", existing._id, { status: args.status });
+      }
+      return existing._id;
     }
-    return organizationId;
+    return await ctx.db.insert("memberships", {
+      organizationId: args.organizationId,
+      userId: args.userId,
+      role: "admin",
+      status: args.status,
+    });
+  },
+});
+
+/** Organisasjoner der brukeren har medlemskap (alle statuser). For seed-idempotens. */
+export const organizationIdsForUser = internalQuery({
+  args: { userId: v.string() },
+  returns: v.array(v.id("organizations")),
+  handler: async (ctx, { userId }) => {
+    const memberships = await ctx.db
+      .query("memberships")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .take(100);
+    return memberships.map((m) => m.organizationId);
   },
 });

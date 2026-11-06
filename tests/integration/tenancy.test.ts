@@ -73,14 +73,13 @@ describe("tenant-isolasjon mot lokal Convex-backend", () => {
 
   test("interne funksjoner kan ikke kalles av innlogget bruker", async () => {
     const internalBootstrap = makeFunctionReference<"mutation">(
-      "ops/organizations:ensureOrganizationWithMember",
+      "ops/organizations:createWorkspace",
     );
     const code = await errorCodeOf(
       a.mutation(internalBootstrap, {
         name: "Kapret",
         country: "NO",
         userId: fx.userA.userId,
-        membershipStatus: "active",
       }),
     );
     // Backenden skjuler detaljer (REDACT_LOGS_TO_CLIENT); det viktige er avslag

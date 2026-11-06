@@ -35,12 +35,18 @@ export const seedDev = internalAction({
         name: f.name,
         password,
       });
-      await ctx.runMutation(internal.ops.organizations.ensureOrganizationWithMember, {
-        name: f.organization,
-        country: "NO",
-        userId,
-        membershipStatus: "active",
-      });
+      // Idempotent via brukerens medlemskap (indeks), ikke organisasjonsnavn.
+      const existing = await ctx.runQuery(
+        internal.ops.organizations.organizationIdsForUser,
+        { userId },
+      );
+      if (existing.length === 0) {
+        await ctx.runMutation(internal.ops.organizations.createWorkspace, {
+          name: f.organization,
+          country: "NO",
+          userId,
+        });
+      }
     }
     return fixtures.map((f) => ({ email: f.email, organization: f.organization }));
   },
