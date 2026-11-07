@@ -348,6 +348,7 @@ E2E-testen `tests/e2e/audit.spec.ts` endrer navnet i Innstillinger og bekrefter 
 - **Append-only gjelder bare i appen:** deploy key, admin key og Convex-dashboardet kan endre loggen. Det er ingen ekstern, uforanderlig kopi.
 - **`requestId`** er per hendelse, ikke per forespørsel. Convex eksponerer ikke en id per forespørsel.
 - **Lagringstid og pseudonymisering** avklares i oppgave 27; til da slettes ingen revisjonslogg.
+- **Registeret for logging av mutasjoner** sjekker per fil, ikke per mutasjon. Når første forretningsmutasjon kommer, skal det få en kjørbar sjekk per mutasjon i convex-test (review av PR #6).
 
 ## Åpne eksterne avklaringer
 - Convex DPA, underleverandører og plassering av backup, logg og support (beslutning 0001). Må lukkes før ekte kundedata.

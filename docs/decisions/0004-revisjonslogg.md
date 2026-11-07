@@ -37,7 +37,7 @@
 
 ## Append-only i appen
 - RLS-reglene nekter endring av `auditEvents` i alle byggeklosser: tenant, bruker og invitasjon. Tenantfunksjoner kan bare legge til i egen organisasjon. Invitasjonsaksept kan bare legge til i invitasjonens organisasjon og kan ikke lese loggen.
-- En statisk test (`tests/unit/audit-append-only.test.ts`) feiler hvis noen Convex-fil gjør `patch`/`replace`/`delete` på `auditEvents`, eller setter inn rader utenfor `convex/lib/audit.ts`.
+- En statisk test (`tests/unit/audit-append-only.test.ts`) feiler hvis noen Convex-fil gjør `patch`/`replace`/`delete` på `auditEvents`, eller setter inn rader utenfor `convex/lib/audit.ts`. Den krever også at alle `db.patch`/`db.replace`/`db.delete` i `convex/` navngir tabellen. Formen uten tabellnavn (`db.delete(id)`) ville ellers kunne slette en logglinje uten at testen ser det.
 - Registeret over offentlige funksjoner har bare en lesefunksjon for loggen. Det finnes ingen kundeknapp for å endre eller slette historikk.
 - **Nye mutasjoner må logge:** `tests/helpers/audited-mutations.ts` klassifiserer hver mutasjon som `logged` eller `exempt` med begrunnelse. `tests/unit/audit-registry.test.ts` feiler for en mutasjon som ikke er klassifisert, og for en `logged`-mutasjon i en fil som ikke skriver revisjonslogg.
 
