@@ -1,5 +1,8 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "../_generated/server";
+import { writeAudit } from "../lib/audit";
+
+const system = { type: "system" } as const;
 
 /**
  * Kontrollert bootstrap av workspace og medlemskap. Alle funksjonene er interne:
@@ -17,16 +20,17 @@ export const createWorkspace = internalMutation({
   args: { name: v.string(), country: v.string(), userId: v.string() },
   returns: v.id("organizations"),
   handler: async (ctx, args) => {
-    const organizationId = await ctx.db.insert("organizations", {
-      name: args.name,
-      country: args.country,
-      status: "active",
+    const organization = { name: args.name, country: args.country, status: "active" as const };
+    const organizationId = await ctx.db.insert("organizations", organization);
+    const membership = { organizationId, userId: args.userId, role: "admin" as const, status: "active" as const };
+    const membershipId = await ctx.db.insert("memberships", membership);
+    await writeAudit(ctx, {
+      organizationId, actor: system, eventType: "organization.provisioned", entityType: "organization",
+      entityId: organizationId, after: organization,
     });
-    await ctx.db.insert("memberships", {
-      organizationId,
-      userId: args.userId,
-      role: "admin",
-      status: "active",
+    await writeAudit(ctx, {
+      organizationId, actor: system, eventType: "membership.created", entityType: "membership",
+      entityId: membershipId, after: membership,
     });
     return organizationId;
   },
@@ -52,15 +56,21 @@ export const setMembership = internalMutation({
     if (existing) {
       if (existing.status !== args.status) {
         await ctx.db.patch("memberships", existing._id, { status: args.status });
+        await writeAudit(ctx, {
+          organizationId: args.organizationId, actor: system, eventType: "membership.status_changed",
+          entityType: "membership", entityId: existing._id, before: existing,
+          after: { ...existing, status: args.status },
+        });
       }
       return existing._id;
     }
-    return await ctx.db.insert("memberships", {
-      organizationId: args.organizationId,
-      userId: args.userId,
-      role: "admin",
-      status: args.status,
+    const membership = { organizationId: args.organizationId, userId: args.userId, role: "admin" as const, status: args.status };
+    const membershipId = await ctx.db.insert("memberships", membership);
+    await writeAudit(ctx, {
+      organizationId: args.organizationId, actor: system, eventType: "membership.created",
+      entityType: "membership", entityId: membershipId, after: membership,
     });
+    return membershipId;
   },
 });
 

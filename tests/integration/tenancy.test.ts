@@ -214,6 +214,12 @@ describe("tenant-isolasjon mot lokal Convex-backend", () => {
         );
       },
     },
+    "ops/testing:auditRollbackProbe": {
+      args: ({ fx }) => ({ organizationId: fx.orgA, name: "Kapret", fail: false }),
+      verifyNoEffect: async ({ fx, a }) => {
+        expect((await a.query(current, org(fx.orgA))).name).toMatch(/^Org A /);
+      },
+    },
     "ops/testing:createTenantFixture": {
       args: () => ({ suffix: "kapret", password: "kapret-passord-123" }),
       verifyNoEffect: async () => {

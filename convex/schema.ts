@@ -1,5 +1,6 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { auditEventTypes, auditEntityTypes, safeDiffValidator } from "./lib/auditTypes";
 
 // Better Auth-tabellene ligger i komponenten @convex-dev/better-auth, ikke her.
 export default defineSchema({
@@ -37,4 +38,25 @@ export default defineSchema({
   })
     .index("by_organizationId_and_email", ["organizationId", "email"])
     .index("by_tokenHash", ["tokenHash"]),
+
+  // Revisjonslogg. Skrives bare via convex/lib/audit.ts, i samme mutasjon som
+  // endringen. Ingen funksjon oppdaterer eller sletter (se beslutning 0004).
+  auditEvents: defineTable({
+    organizationId: v.id("organizations"),
+    actorType: v.union(v.literal("user"), v.literal("system")),
+    actorId: v.optional(v.string()), // Better Auth-bruker; mangler for system
+    eventType: auditEventTypes,
+    entityType: auditEntityTypes,
+    entityId: v.string(),
+    occurredAt: v.number(), // UTC-ms, satt i mutasjonen
+    requestId: v.string(),
+    safeDiff: safeDiffValidator,
+    reason: v.optional(v.string()),
+  })
+    .index("by_organizationId_and_occurredAt", ["organizationId", "occurredAt"])
+    .index("by_organizationId_and_entityType_and_occurredAt", [
+      "organizationId",
+      "entityType",
+      "occurredAt",
+    ]),
 });

@@ -41,8 +41,8 @@ export type TenantScope = { organizationId: Id<"organizations"> };
  * Regler for tenantfunksjoner (`tenantQuery`/`tenantMutation`).
  *
  * Nye kundetabeller får typisk `sameTenant` for lesing og en bevisst vurdert
- * regel for endring. `organizations` og `memberships` kan bare leses: de endres
- * kun via interne funksjoner (bootstrap/invitasjon).
+ * regel for endring. `memberships` kan bare leses og endres
+ * kun via interne funksjoner (bootstrap/invitasjon). `auditEvents` er append-only.
  */
 export function tenantRules(scope: TenantScope): ExhaustiveRules {
   const sameTenant = async (
@@ -53,13 +53,17 @@ export function tenantRules(scope: TenantScope): ExhaustiveRules {
     organizations: {
       read: async (_ctx, doc: Doc<"organizations">) =>
         doc._id === scope.organizationId,
-      modify: deny,
+      // Admin kan endre egen organisasjon (f.eks. navn); hvilke felt styres av
+      // mutasjonen. Opprettelse skjer bare via operatør-bootstrap.
+      modify: async (_ctx, doc: Doc<"organizations">) => doc._id === scope.organizationId,
       insert: deny,
     },
     memberships: { read: sameTenant, modify: deny, insert: deny },
     // Admin inviterer og tilbakekaller i egen organisasjon. Aksept skjer via
     // invitasjonsbyggeklossene, ikke tenantfunksjoner.
     invitations: { read: sameTenant, modify: sameTenant, insert: sameTenant },
+    // Append-only: kan leses og legges til i egen organisasjon, aldri endres.
+    auditEvents: { read: sameTenant, modify: deny, insert: sameTenant },
   };
 }
 
@@ -84,6 +88,7 @@ export function userRules(
       insert: deny,
     },
     invitations: { read: deny, modify: deny, insert: deny },
+    auditEvents: { read: deny, modify: deny, insert: deny },
   };
 }
 
@@ -125,6 +130,13 @@ export function invitationRules(scope: InvitationScope): ExhaustiveRules {
       read: thisInvitation,
       modify: async (ctx, doc) => scope.userId !== undefined && (await thisInvitation(ctx, doc)),
       insert: deny,
+    },
+    // Aksepten logges i invitasjonens organisasjon; ingen lesing eller endring.
+    auditEvents: {
+      read: deny,
+      modify: deny,
+      insert: async (_ctx, doc) =>
+        scope.userId !== undefined && doc.organizationId === scope.organizationId,
     },
   };
 }

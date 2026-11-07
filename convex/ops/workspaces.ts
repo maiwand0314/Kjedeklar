@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { z } from "zod";
 import { internal } from "../_generated/api";
 import { internalMutation } from "../_generated/server";
+import { writeAudit } from "../lib/audit";
 import { normalizeEmail } from "../auth";
 import { INVITATION_TTL_MS } from "../invitations/model";
 
@@ -29,16 +30,23 @@ export const provision = internalMutation({
     const name = args.organizationName.trim();
     const email = z.email().parse(normalizeEmail(args.adminEmail));
     if (!name) throw new Error("Organisasjonsnavn mangler.");
-    const organizationId = await ctx.db.insert("organizations", {
-      name,
-      country: args.country ?? "NO",
-      status: "active",
-    });
-    const invitationId = await ctx.db.insert("invitations", {
+    const organization = { name, country: args.country ?? "NO", status: "active" as const };
+    const organizationId = await ctx.db.insert("organizations", organization);
+    const invitation = {
       organizationId,
       email,
-      status: "pending",
+      status: "pending" as const,
       expiresAt: Date.now() + INVITATION_TTL_MS,
+    };
+    const invitationId = await ctx.db.insert("invitations", invitation);
+    const system = { type: "system" } as const;
+    await writeAudit(ctx, {
+      organizationId, actor: system, eventType: "organization.provisioned", entityType: "organization",
+      entityId: organizationId, after: organization,
+    });
+    await writeAudit(ctx, {
+      organizationId, actor: system, eventType: "invitation.created", entityType: "invitation",
+      entityId: invitationId, after: invitation,
     });
     await ctx.scheduler.runAfter(0, internal.email.actions.sendInvitation, { invitationId });
     return { organizationId, invitationId };

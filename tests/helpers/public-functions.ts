@@ -70,6 +70,20 @@ export const reviewedPublicFunctions: Record<string, PublicFunctionReview> = {
     sampleArgs: {},
     note: "Innlogget brukers egen e-post og navn (invitasjonssiden sammenligner mottaker).",
   },
+  "organizations/mutations:rename": {
+    kind: "mutation",
+    ref: api.organizations.mutations.rename,
+    boundary: "tenant",
+    sampleArgs: { name: "Nytt navn AS" },
+    note: "Admin endrer navn på valgt organisasjon. Logges i revisjonsloggen.",
+  },
+  "audit/queries:list": {
+    kind: "query",
+    ref: api.audit.queries.list,
+    boundary: "tenant",
+    sampleArgs: { paginationOpts: { numItems: 5, cursor: null } },
+    note: "Revisjonslogg for valgt organisasjon (lesing, ingen endring).",
+  },
   "invitations/queries:listForOrganization": {
     kind: "query",
     ref: api.invitations.queries.listForOrganization,
