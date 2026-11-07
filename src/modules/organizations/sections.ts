@@ -53,3 +53,9 @@ export const SECTIONS: readonly Section[] = [
   },
   { slug: "innstillinger", label: "Innstillinger" },
 ];
+
+/** Plassholderseksjonen med denne sluggen, eller undefined (ukjent eller allerede bygget). */
+export function placeholderSection(slug: string) {
+  const section = SECTIONS.find((s) => s.slug === slug);
+  return section?.placeholder ? { label: section.label, ...section.placeholder } : undefined;
+}
