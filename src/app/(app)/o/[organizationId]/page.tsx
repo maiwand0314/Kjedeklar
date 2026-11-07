@@ -3,6 +3,7 @@ import { api } from "@/convex/_generated/api";
 import { fetchAuthQuery, isAuthenticated } from "@/lib/auth-server";
 import { errorCode } from "@/lib/convex-errors";
 import { LogoutButton } from "@/modules/auth/components/logout-button";
+import { InvitationsPanel } from "@/modules/invitations/components/invitations-panel";
 
 /**
  * Beskyttet side. Organisasjons-id i URL er bare en kandidat: Convex verifiserer
@@ -37,6 +38,7 @@ export default async function OrganizationPage({
       <h1 className="mt-1 text-3xl font-semibold" data-testid="organization-name">
         {organization.name}
       </h1>
+      <InvitationsPanel organizationId={organization.id} />
     </main>
   );
 }

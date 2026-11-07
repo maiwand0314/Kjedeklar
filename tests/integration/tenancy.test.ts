@@ -19,6 +19,7 @@ import {
   TEST_BACKEND,
   type TwoTenants,
 } from "../helpers/local-backend";
+import { messagesTo } from "../helpers/mailpit";
 import { reviewedPublicFunctions, type PublicFunctionReview } from "../helpers/public-functions";
 
 const current = api.organizations.queries.current;
@@ -26,7 +27,9 @@ const listMine = api.organizations.queries.listMine;
 const org = (id: string) => ({ organizationId: id });
 
 function callPublic(client: ConvexHttpClient, review: PublicFunctionReview, args: Record<string, unknown>) {
-  return review.kind === "query" ? client.query(review.ref, args) : client.mutation(review.ref, args);
+  if (review.kind === "query") return client.query(review.ref, args);
+  if (review.kind === "mutation") return client.mutation(review.ref, args);
+  return client.action(review.ref, args);
 }
 
 function callByPath(client: ConvexHttpClient, kind: FunctionKind, path: string, args: Record<string, unknown>) {
@@ -163,6 +166,52 @@ describe("tenant-isolasjon mot lokal Convex-backend", () => {
       args: () => ({}),
       verifyNoEffect: async ({ fx, a }) => {
         expect((await a.query(listMine, {})).map((o) => o.id)).toEqual([fx.orgA]);
+      },
+    },
+    "ops/workspaces:provision": {
+      args: () => ({ organizationName: "Kapret AS", adminEmail: "kapret-provision@mailtest.example" }),
+      verifyNoEffect: async () => {
+        await new Promise((r) => setTimeout(r, 1000));
+        expect(await messagesTo("kapret-provision@mailtest.example")).toEqual([]);
+      },
+    },
+    "email/actions:sendAuthEmail": {
+      args: () => ({ kind: "reset", to: "kapret-epost@mailtest.example", sealedUrl: "a.b" }),
+      verifyNoEffect: async () => {
+        await new Promise((r) => setTimeout(r, 1000));
+        expect(await messagesTo("kapret-epost@mailtest.example")).toEqual([]);
+      },
+    },
+    "email/actions:sendInvitation": {
+      args: ({ fx }) => ({ invitationId: fx.orgA }),
+      verifyNoEffect: async () => {},
+    },
+    "invitations/internal:findValid": {
+      // Query: et vellykket kall ville bekreftet et token. Avslaget er beviset.
+      args: () => ({ token: "x".repeat(43) }),
+      verifyNoEffect: async () => {},
+    },
+    "invitations/internal:attachToken": {
+      args: ({ fx }) => ({ invitationId: fx.orgA, tokenHash: "0".repeat(64) }),
+      verifyNoEffect: async () => {},
+    },
+    "invitations/internal:consumeForUser": {
+      args: ({ fx }) => ({ invitationId: fx.orgB, tokenHash: "0".repeat(64), userId: fx.userA.userId }),
+      verifyNoEffect: async ({ fx, a }) => {
+        expect((await a.query(listMine, {})).map((o) => o.id)).toEqual([fx.orgA]);
+      },
+    },
+    "ops/testing:expireInvitation": {
+      args: ({ fx }) => ({ invitationId: fx.orgA }),
+      verifyNoEffect: async () => {},
+    },
+    "ops/testing:createUnverifiedUser": {
+      args: () => ({ email: "kapret-ubekreftet@mailtest.example", password: "kapret-passord-123" }),
+      verifyNoEffect: async () => {
+        // Finnes ikke: feil passord/ukjent bruker gir 401, ikke 403 (ubekreftet).
+        await expect(signIn("kapret-ubekreftet@mailtest.example", "kapret-passord-123")).rejects.toThrow(
+          /Innlogging feilet: 401/,
+        );
       },
     },
     "ops/testing:createTenantFixture": {

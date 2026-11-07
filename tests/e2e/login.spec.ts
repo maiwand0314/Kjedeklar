@@ -1,7 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
-import type { TenantFixture } from "../helpers/local-backend";
+import { randomTestIp, type TenantFixture } from "../helpers/local-backend";
 
 const fixture = (): TenantFixture => JSON.parse(process.env.E2E_FIXTURE ?? "{}");
+
+// Egen klient-IP per test (Next.js setter x-forwarded-for bare hvis den mangler),
+// så innloggingsbegrensningen per IP ikke deles mellom testene.
+test.beforeEach(async ({ page }) => {
+  await page.setExtraHTTPHeaders({ "x-forwarded-for": randomTestIp() });
+});
 
 /** Logger inn bruker A via forsiden, slik en bruker ville gjort. */
 async function logInAsA(page: Page, fx: TenantFixture) {

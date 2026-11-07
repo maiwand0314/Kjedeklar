@@ -57,6 +57,9 @@ export function tenantRules(scope: TenantScope): ExhaustiveRules {
       insert: deny,
     },
     memberships: { read: sameTenant, modify: deny, insert: deny },
+    // Admin inviterer og tilbakekaller i egen organisasjon. Aksept skjer via
+    // invitasjonsbyggeklossene, ikke tenantfunksjoner.
+    invitations: { read: sameTenant, modify: sameTenant, insert: sameTenant },
   };
 }
 
@@ -78,6 +81,49 @@ export function userRules(
     memberships: {
       read: async (_ctx, doc) => doc.userId === userId,
       modify: deny,
+      insert: deny,
+    },
+    invitations: { read: deny, modify: deny, insert: deny },
+  };
+}
+
+/** Det en verifisert invitasjon gir tilgang til. Se `convex/lib/invitation.ts`. */
+export type InvitationScope = {
+  invitationId: Id<"invitations">;
+  organizationId: Id<"organizations">;
+  /** Innlogget bruker som godtar. Mangler for anonym forhåndsvisning. */
+  userId?: string;
+};
+
+/**
+ * Regler for invitasjonsfunksjoner. Tokenet er tilgangsbeviset, og det gir bare
+ * tilgang til én invitasjon, dens organisasjon og den aksepterende brukerens
+ * eget medlemskap i den organisasjonen. Ingen roller kan velges.
+ */
+export function invitationRules(scope: InvitationScope): ExhaustiveRules {
+  const ownMembership = async (
+    _ctx: RuleCtx,
+    doc: { organizationId: Id<"organizations">; userId: string },
+  ) =>
+    scope.userId !== undefined &&
+    doc.organizationId === scope.organizationId &&
+    doc.userId === scope.userId;
+  const thisInvitation = async (_ctx: RuleCtx, doc: Doc<"invitations">) =>
+    doc._id === scope.invitationId;
+  return {
+    organizations: {
+      read: async (_ctx, doc) => doc._id === scope.organizationId,
+      modify: deny,
+      insert: deny,
+    },
+    memberships: {
+      read: ownMembership,
+      modify: ownMembership,
+      insert: async (ctx, doc) => (await ownMembership(ctx, doc)) && doc.role === "admin",
+    },
+    invitations: {
+      read: thisInvitation,
+      modify: async (ctx, doc) => scope.userId !== undefined && (await thisInvitation(ctx, doc)),
       insert: deny,
     },
   };

@@ -21,4 +21,20 @@ export default defineSchema({
   })
     .index("by_organizationId_and_userId", ["organizationId", "userId"])
     .index("by_userId", ["userId"]),
+
+  // Engangsinvitasjon til administrator. Råtokenet lagres aldri, bare SHA-256-
+  // hashen, og den settes av e-postjobben som lager tokenet.
+  invitations: defineTable({
+    organizationId: v.id("organizations"),
+    email: v.string(), // normalisert: trimmet og små bokstaver
+    tokenHash: v.optional(v.string()),
+    status: v.union(v.literal("pending"), v.literal("accepted"), v.literal("revoked")),
+    expiresAt: v.number(),
+    invitedBy: v.optional(v.string()), // mangler ved operatør-bootstrap
+    acceptedAt: v.optional(v.number()),
+    acceptedBy: v.optional(v.string()),
+    revokedAt: v.optional(v.number()),
+  })
+    .index("by_organizationId_and_email", ["organizationId", "email"])
+    .index("by_tokenHash", ["tokenHash"]),
 });

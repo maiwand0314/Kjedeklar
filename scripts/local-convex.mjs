@@ -70,6 +70,9 @@ const convex = (args, opts = {}) =>
 const previous = parseEnv(envFile);
 const seedPassword =
   previous.SEED_USER_PASSWORD || (targetName === "dev" ? randomBytes(12).toString("base64url") : "");
+// Delt hemmelighet mellom Next.js-proxyen og Convex for klarert klient-IP
+// (src/domain/auth-proxy.ts). Gjenbrukes, så dev-serveren ikke må restartes.
+const proxySecret = previous.AUTH_PROXY_SECRET || randomBytes(32).toString("base64url");
 writeFileSync(
   envFile,
   [
@@ -77,23 +80,34 @@ writeFileSync(
     `CONVEX_SELF_HOSTED_URL=${target.url}`,
     `CONVEX_SELF_HOSTED_ADMIN_KEY=${adminKey()}`,
     ...(seedPassword ? [`SEED_USER_PASSWORD=${seedPassword}`] : []),
+    `AUTH_PROXY_SECRET=${proxySecret}`,
     "",
   ].join("\n"),
   { mode: 0o600 },
 );
 
-// 2. Offentlige Next.js-variabler for dev.
-if (targetName === "dev" && !existsSync(".env.local")) {
-  writeFileSync(
-    ".env.local",
-    [
-      "# Generert av scripts/local-convex.mjs. Offentlige verdier for lokal utvikling.",
-      `NEXT_PUBLIC_CONVEX_URL=${target.url}`,
-      `NEXT_PUBLIC_CONVEX_SITE_URL=${target.siteUrl}`,
-      `NEXT_PUBLIC_SITE_URL=${target.appUrl}`,
-      "",
-    ].join("\n"),
-  );
+// 2. Next.js-variabler for dev. Offentlige verdier + proxy-hemmeligheten
+// (bare server-side; Next.js får aldri admin key).
+if (targetName === "dev") {
+  if (!existsSync(".env.local")) {
+    writeFileSync(
+      ".env.local",
+      [
+        "# Generert av scripts/local-convex.mjs for lokal utvikling.",
+        `NEXT_PUBLIC_CONVEX_URL=${target.url}`,
+        `NEXT_PUBLIC_CONVEX_SITE_URL=${target.siteUrl}`,
+        `NEXT_PUBLIC_SITE_URL=${target.appUrl}`,
+        "",
+      ].join("\n"),
+    );
+  }
+  const nextEnv = readFileSync(".env.local", "utf8");
+  const withoutSecret = nextEnv
+    .split("\n")
+    .filter((l) => !l.startsWith("AUTH_PROXY_SECRET="))
+    .join("\n")
+    .replace(/\n*$/, "\n");
+  writeFileSync(".env.local", `${withoutSecret}AUTH_PROXY_SECRET=${proxySecret}\n`, { mode: 0o600 });
 }
 
 // 3. Miljøvariabler på deploymenten. Hemmeligheter genereres lokalt og vises ikke.
@@ -109,6 +123,11 @@ const setSecret = (name, value) => convex(["env", "set", name], { capture: true,
 if (!has("BETTER_AUTH_SECRET")) setSecret("BETTER_AUTH_SECRET", randomBytes(32).toString("base64"));
 setEnv("SITE_URL", target.appUrl);
 setEnv("KJEDEKLAR_ENV", target.env);
+setSecret("AUTH_PROXY_SECRET", proxySecret);
+// Lokal e-post går bare til Mailpit på compose-nettverket.
+setEnv("SMTP_HOST", "mailpit");
+setEnv("SMTP_PORT", "1025");
+setEnv("EMAIL_FROM", "Kjedeklar <ikke-svar@kjedeklar.localhost>");
 if (seedPassword) setSecret("SEED_USER_PASSWORD", seedPassword);
 console.log(`Lokal Convex-backend (${targetName}) er konfigurert: ${target.url}`);
 

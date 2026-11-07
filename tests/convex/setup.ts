@@ -23,14 +23,20 @@ export type TestConvex = ReturnType<typeof setupTest>;
 export async function createUser(
   t: TestConvex,
   email: string,
-  opts: { sessionExpiresInMs?: number } = {},
+  opts: { sessionExpiresInMs?: number; emailVerified?: boolean } = {},
 ) {
   return await t.run(async (ctx) => {
     const now = Date.now();
     const user = (await ctx.runMutation(components.betterAuth.adapter.create, {
       input: {
         model: "user",
-        data: { name: email, email, emailVerified: true, createdAt: now, updatedAt: now },
+        data: {
+          name: email,
+          email,
+          emailVerified: opts.emailVerified ?? true,
+          createdAt: now,
+          updatedAt: now,
+        },
       },
     })) as { _id: string };
     const session = (await ctx.runMutation(components.betterAuth.adapter.create, {

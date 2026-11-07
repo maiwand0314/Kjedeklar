@@ -33,8 +33,17 @@ Hva `pnpm convex:deploy:local` gjør (`scripts/local-convex.mjs`):
 Next.js leser aldri admin key. Alle `.env*`-filer unntatt `.env.example` er ignorert av git.
 
 Nyttige adresser lokalt:
-- Mailpit: http://localhost:8025 (ingen e-post sendes i oppgave 01)
+- Mailpit: http://localhost:8025 (all lokal e-post: invitasjoner, reset, bekreftelse)
 - Convex dev-backend: http://127.0.0.1:3210, med HTTP-/auth-ruter på 3211
+
+## Kontoer, invitasjon og passord (oppgave 03)
+Det finnes ingen åpen registrering. En ny kunde opprettes av en operatør, som først har kontrollert at mottakeren tilhører virksomheten:
+```bash
+pnpm exec convex run ops/workspaces:provision '{"organizationName":"Eksempel AS","adminEmail":"admin@eksempel.example"}' --env-file .env.convex-dev.local
+```
+Invitasjonen havner i Mailpit. Lenken (`/invitasjon#token=…`) lar mottakeren velge passord eller godta med en eksisterende konto. Etterpå kan en admin invitere flere administratorer fra organisasjonssiden. «Glemt passord?» på innloggingssiden sender en reset-lenke. Nytt passord logger ut alle sesjoner.
+
+Engangstoken står bare i URL-fragmentet og sendes i POST-body, aldri i URL-er som når en server. Ratebegrensningen gjelder per klient-IP via Next.js-proxyen. Se [beslutning 0003](docs/decisions/0003-kontolivssyklus.md).
 
 ## Kommandoer
 | Kommando | Hva |
@@ -85,6 +94,7 @@ tests/{unit,convex,integration,e2e,helpers}/
 | vitest | 5.1.0 |
 | @playwright/test | 1.65.0 |
 | zod | 4.6.7 |
+| nodemailer | 10.3.1 |
 | typescript | 5.9.3 |
 
 Docker-images er låst til revisjon og digest i `compose.yml`:
@@ -94,11 +104,11 @@ Docker-images er låst til revisjon og digest i `compose.yml`:
 GitHub Actions er låst til commit-SHA.
 
 ## Viktige valg i grunnmuren
-- Åpen registrering er av (`disableSignUp`). Brukere og medlemskap opprettes bare av interne funksjoner.
+- Åpen registrering er av (`disableSignUp`). Brukere og medlemskap opprettes bare via invitasjon eller interne funksjoner.
 - Organisasjons-id i URL er bare en kandidat. Convex verifiserer sesjon, aktivt medlemskap og rolle. Fremmed, ukjent og inaktiv organisasjon gir samme «Ikke funnet».
 - `ctx.db` i tenantfunksjoner er pakket inn med RLS-hjelperen fra convex-helpers (default-deny). Tenantfunksjoner kan ikke endre `organizations` eller `memberships`.
 - Next.js Cache Components er ikke slått på. Alle svar får `Cache-Control: private, no-store`.
 - Ingen ekstern fonttjeneste. Telemetri fra lokal Convex-backend er slått av (`DISABLE_BEACON`).
-- Better Auths innloggingsratebegrensning er på, med lagring i databasen.
+- Better Auths ratebegrensning er på per klient-IP. Klient-IP godtas bare fra Next.js-proxyen med `AUTH_PROXY_SECRET` (beslutning 0003).
 
 Convex har ikke radpolicyer i databasen. Admin/deploy key, interne funksjoner og dashboardtilgang går utenom tenantvernet (se beslutning 0001).

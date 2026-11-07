@@ -16,6 +16,45 @@ export const TEST_BACKEND = {
   envFile: ".env.convex-test.local",
 };
 
+function readEnvFile(path: string): Record<string, string> {
+  if (!existsSync(path)) return {};
+  return Object.fromEntries(
+    readFileSync(path, "utf8")
+      .split("\n")
+      .filter((l) => l.includes("=") && !l.startsWith("#"))
+      .map((l) => [l.slice(0, l.indexOf("=")), l.slice(l.indexOf("=") + 1)]),
+  );
+}
+
+/** Proxy-hemmeligheten for test-backenden (samme som Next.js-proxyen bruker). */
+export function testProxySecret(): string {
+  const secret = readEnvFile(TEST_BACKEND.envFile).AUTH_PROXY_SECRET;
+  if (!secret) throw new Error(`AUTH_PROXY_SECRET mangler i ${TEST_BACKEND.envFile}.`);
+  return secret;
+}
+
+/**
+ * Tilfeldig IPv6-adresse i dokumentasjonsnettet 2001:db8::/32 (RFC 3849), med
+ * eget /64-prefiks per kall. Better Auth grupperer IPv6 på /64, så hvert kall
+ * får sin egen ratebøtte uten kollisjoner mellom tester og kjøringer.
+ */
+export function randomTestIp(): string {
+  const hex = () => Math.floor(Math.random() * 0x10000).toString(16);
+  return `2001:db8:${hex()}:${hex()}::1`;
+}
+
+/**
+ * Headere slik Next.js-proxyen setter dem: klarert klient-IP + hemmelighet.
+ * Uten disse havner kallet i Better Auths felles bøtte for ukjent IP.
+ */
+export function proxyHeaders(ip = randomTestIp()): Record<string, string> {
+  return {
+    "x-kjedeklar-client-ip": ip,
+    "x-kjedeklar-proxy-secret": testProxySecret(),
+    origin: TEST_BACKEND.appOrigin,
+  };
+}
+
 export function assertTestBackendConfigured() {
   if (!existsSync(TEST_BACKEND.envFile)) {
     throw new Error(
@@ -37,12 +76,13 @@ export function runInternal<T>(functionName: string, args: Record<string, unknow
     { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
   );
   const stdout = result.stdout.trim();
-  if (result.status !== 0 || !stdout) {
+  if (result.status !== 0) {
     throw new Error(
       `convex run ${functionName} feilet (status ${result.status}): ${result.stderr.trim() || "(ingen stderr)"}`,
     );
   }
-  return JSON.parse(stdout) as T;
+  // `null` som returverdi gir tom utskrift.
+  return (stdout ? JSON.parse(stdout) : null) as T;
 }
 
 export type TenantFixture = {
@@ -79,7 +119,8 @@ export async function signIn(email: string, password: string): Promise<Session> 
   for (let attempt = 0; ; attempt++) {
     response = await fetch(`${TEST_BACKEND.siteUrl}/api/auth/sign-in/email`, {
       method: "POST",
-      headers: { "content-type": "application/json", origin: TEST_BACKEND.appOrigin },
+      // Ny klient-IP per innlogging, som om brukerne kom via Next.js-proxyen.
+      headers: { "content-type": "application/json", ...proxyHeaders() },
       body: JSON.stringify({ email, password }),
     });
     if (response.status !== 429 || attempt >= 3) break;
