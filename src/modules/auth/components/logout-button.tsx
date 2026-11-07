@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
 
 export function LogoutButton() {
@@ -25,18 +26,13 @@ export function LogoutButton() {
   return (
     <div className="flex items-center gap-3">
       {error && (
-        <p role="alert" className="text-sm text-red-800">
+        <p role="alert" className="text-sm text-danger">
           {error}
         </p>
       )}
-      <button
-        type="button"
-        onClick={onClick}
-        disabled={pending}
-        className="rounded border border-zinc-400 px-3 py-1.5 font-medium disabled:opacity-60"
-      >
+      <Button variant="secondary" onClick={onClick} disabled={pending} className="px-3 py-1.5">
         {pending ? "Logger ut …" : "Logg ut"}
-      </button>
+      </Button>
     </div>
   );
 }

@@ -9,7 +9,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/logg-inn">
   return (
     <main className="mx-auto w-full max-w-sm px-6 py-24">
       <h1 className="text-2xl font-semibold">Logg inn i Kjedeklar</h1>
-      <p className="mt-2 text-zinc-700">Tilgang gis bare etter invitasjon.</p>
+      <p className="mt-2 text-muted">Tilgang gis bare etter invitasjon.</p>
       <LoginForm next={next} />
     </main>
   );

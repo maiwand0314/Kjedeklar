@@ -25,7 +25,7 @@ export default async function HomePage() {
         <LogoutButton />
       </div>
       {organizations.length === 0 ? (
-        <p className="mt-6 text-zinc-700">
+        <p className="mt-6 text-muted">
           Du har ingen aktive organisasjoner. Kontakt den som inviterte deg.
         </p>
       ) : (

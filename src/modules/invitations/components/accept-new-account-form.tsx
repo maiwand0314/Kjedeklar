@@ -64,7 +64,7 @@ export function AcceptNewAccountForm({
           autoComplete="name"
           required
           maxLength={100}
-          className="rounded border border-zinc-400 px-3 py-2"
+          className="rounded border border-input px-3 py-2"
         />
       </div>
       <div className="flex flex-col gap-1">
@@ -79,7 +79,7 @@ export function AcceptNewAccountForm({
           autoComplete="new-password"
           required
           minLength={MIN}
-          className="rounded border border-zinc-400 px-3 py-2"
+          className="rounded border border-input px-3 py-2"
         />
       </div>
       <div className="flex flex-col gap-1">
@@ -92,18 +92,18 @@ export function AcceptNewAccountForm({
           type="password"
           autoComplete="new-password"
           required
-          className="rounded border border-zinc-400 px-3 py-2"
+          className="rounded border border-input px-3 py-2"
         />
       </div>
       {(state.status === "error" || signInError) && (
-        <p role="alert" className="text-red-800">
+        <p role="alert" className="text-danger">
           {state.status === "error" ? state.message : signInError}
         </p>
       )}
       <button
         type="submit"
         disabled={pending || state.status === "ok"}
-        className="rounded bg-zinc-900 px-4 py-2 font-medium text-white disabled:opacity-60"
+        className="rounded bg-primary px-4 py-2 font-medium text-primary-foreground disabled:opacity-60"
       >
         {pending ? "Oppretter konto …" : "Godta og opprett konto"}
       </button>

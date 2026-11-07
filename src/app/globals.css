@@ -1,20 +1,62 @@
 @import "tailwindcss";
 
-/* Systemfonter: ingen ekstern fonttjeneste. */
+/*
+ * Semantiske farger med verdier for lys og mørk modus (følger systemvalget).
+ * Bruk disse (text-muted, border-border, bg-primary …), ikke faste Tailwind-
+ * farger, så alt er lesbart i begge tema.
+ */
 :root {
+  color-scheme: light dark;
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #18181b;
+  --muted: #52525b;
+  --surface: #f4f4f5;
+  --border: #d4d4d8;
+  --input: #a1a1aa;
+  --primary: #18181b;
+  --primary-foreground: #ffffff;
+  --danger: #b91c1c;
+  --focus: #2563eb;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0f0f11;
+    --foreground: #f4f4f5;
+    --muted: #a1a1aa;
+    --surface: #18181b;
+    --border: #3f3f46;
+    --input: #71717a;
+    --primary: #f4f4f5;
+    --primary-foreground: #18181b;
+    --danger: #f87171;
+    --focus: #60a5fa;
+  }
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, sans-serif;
+  --color-muted: var(--muted);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-danger: var(--danger);
+  --color-focus: var(--focus);
+  /* Lokal font (geist-pakken, next/font/local): ingen ekstern fonttjeneste. */
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+}
+
+/* Synlig tastaturfokus overalt, også på elementer uten egen fokusstil. */
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
