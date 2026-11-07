@@ -5,7 +5,7 @@ Startpakke opprettet 6. november 2026. Dokumentasjonen ble samme dag skrevet om 
 | Oppgave | Status | Verifisering | Begrensning |
 |---|---|---|---|
 | 01 | Implementert, verifisert lokalt og i CI (PR #1, review-endringer rettet) | Lint, typecheck, 35 enhets-/convex-test-tester, 9 integrasjonstester mot lokal test-backend, 3 Playwright-tester og build er grønne fra ren start. CI var grønn på første versjon av PR-en | Kun lokal backend. Ingen Convex Cloud-deployment |
-| 02 | Implementert og verifisert lokalt med Docker. CI grønn på 092bfb0 og 30d3c66 | Lokalt: lint, typecheck, 69 enhets-/convex-test-tester og build. CI (PR #2): 69 enhetstester og 19 integrasjonstester mot lokal backend, `convex/_generated` er uendret. E2E: 3 av 4 grønne i første kjøring, 1 rettet | Integrasjon og e2e er ikke kjørt lokalt (Docker mangler) |
+| 02 | Implementert, verifisert lokalt og i CI, merget (PR #2) | Lokalt med Docker på 363fff4 (review 7.11): lint, typecheck, 69 enhets-/convex-test-tester, 21 integrasjonstester (to kjøringer), 4 e2e-tester (to kjøringer) og build. `convex/_generated` stemmer med ekte codegen. CI grønn på 363fff4 og på main etter merge | Innloggingsbegrensningen er felles for alle brukere (ingen klient-IP); løses i oppgave 03 |
 
 Oppdater ved hver oppgave. Bruk «implementert», «verifisert» og «ekstern avklaring» presist. Et lokalt fake-resultat betyr ikke at en ekstern integrasjon er godkjent.
 
