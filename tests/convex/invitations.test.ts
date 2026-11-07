@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { api, internal } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { sha256Hex } from "../../convex/email/seal";
@@ -11,6 +11,16 @@ import {
   twoTenants,
   type TestConvex,
 } from "./setup";
+
+// Falske timere: convex-test kjører ellers den planlagte e-postjobben
+// (sendInvitation) med ekte setTimeout, og den lager et nytt token som
+// overskriver hashen testen bruker. Her lager testen tokenet selv (issueToken).
+beforeEach(() => {
+  vi.useFakeTimers();
+});
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 const { create, revoke, acceptAsCurrentUser } = api.invitations.mutations;
 const { lookup, listForOrganization } = api.invitations.queries;
