@@ -7,6 +7,7 @@ Startpakke opprettet 6. november 2026. Dokumentasjonen ble samme dag skrevet om 
 | 01 | Implementert, verifisert lokalt og i CI (PR #1, review-endringer rettet) | Lint, typecheck, 35 enhets-/convex-test-tester, 9 integrasjonstester mot lokal test-backend, 3 Playwright-tester og build er grønne fra ren start. CI var grønn på første versjon av PR-en | Kun lokal backend. Ingen Convex Cloud-deployment |
 | 02 | Implementert, verifisert lokalt og i CI, merget (PR #2) | Lokalt med Docker på 363fff4 (review 7.11): lint, typecheck, 69 enhets-/convex-test-tester, 21 integrasjonstester (to kjøringer), 4 e2e-tester (to kjøringer) og build. `convex/_generated` stemmer med ekte codegen. CI grønn på 363fff4 og på main etter merge | Innloggingsbegrensningen er felles for alle brukere (ingen klient-IP); løses i oppgave 03 |
 | 03 | Implementert og verifisert lokalt (branch `feature/03-auth-lifecycle`) | Fra ren start: lint, typecheck, 117 enhets-/convex-test-tester, 50 integrasjonstester mot lokal backend og Mailpit (fire kjøringer, tre på rad grønne etter siste rettelse), 6 e2e-tester (seks kjøringer) og build | Bare Mailpit, ingen produksjonsleverandør. Klient-IP i produksjon krever at reverse proxy overskriver headeren (oppgave 25) |
+| 04 | Implementert, verifisert lokalt, review-merknader rettet (PR #4) | Lokalt med Docker etter review: lint, typecheck, 120 enhets-/convex-test-tester (tre kjøringer), 50 integrasjonstester, 11 e2e-tester (to kjøringer) og build. Visuell kontroll av skjermbilder i lys og mørk modus | Lys/mørk følger systemvalget; ingen egen bryter. Ingen klientside Convex-provider ennå (sidene rendres på serveren) |
 
 Oppdater ved hver oppgave. Bruk «implementert», «verifisert» og «ekstern avklaring» presist. Et lokalt fake-resultat betyr ikke at en ekstern integrasjon er godkjent.
 
@@ -237,6 +238,74 @@ Invitasjon → e-post i Mailpit → velg passord → innlogging, og glemt passor
 - **Ratebegrensning med databaselagring** er ikke lasttestet mot Convex Cloud.
 - **Utlogging fra alle enheter** finnes bare via passordreset. Utløpte invitasjoner ryddes ikke automatisk.
 - **Revisjonslogg** for invitasjoner og medlemskap kommer i oppgave 05.
+
+## Oppgave 04 – norsk appskall og navigasjon
+
+### Endret
+- **Appskall** (`src/app/(app)/o/[organizationId]/layout.tsx`):
+  - sidebar på desktop og «Meny» (`<details>`) på mobil;
+  - header med valgt virksomhet og utlogging;
+  - lenken «Hopp til innholdet».
+  - Layouten sjekker innlogging og medlemskap i Convex (`current` og `listMine`), som før. Fremmed eller ukjent organisasjon gir 404.
+- **Sider:** Oversikt, Virksomheten, Leverandører, Risikovurderinger, Funn og tiltak, Redegjørelse og Innstillinger.
+  - De fem delene som ikke er bygget ennå, deler én plassholderrute (`[section]/page.tsx`). Tekstene står i `src/modules/organizations/sections.ts`, som også styrer menyen. De har ærlige tomtilstander uten tall eller eksempeldata.
+  - Når en del bygges, får den egen rutemappe, som går foran plassholderen.
+  - Invitasjonene er flyttet til Innstillinger.
+- **Organisasjonsbytte** (`organization-switcher.tsx`):
+  - viser bare egne aktive medlemskap;
+  - bytte er en vanlig sidelasting (`<a>`, ikke `next/link`), så all klienttilstand, ruterbuffer og eventuelle Convex-abonnementer for forrige kunde forsvinner;
+  - listen har tilgjengelig navn («Bytt virksomhet»).
+- **Lasting og feil:**
+  - `loading.tsx` («Laster …», `role="status"`) ligger i `[section]/` og `innstillinger/`, under layouter som validerer.
+  - `error.tsx` (norsk, uten tekniske detaljer, med «Prøv igjen») finnes både i organisasjonen og på `(app)`-nivå, så også feil i layouten fanges.
+- **Tema og font:**
+  - semantiske farger i `globals.css` med verdier for lys og mørk modus (`prefers-color-scheme`), og `color-scheme: light dark`;
+  - alle faste Tailwind-farger i eksisterende komponenter er byttet til de semantiske;
+  - synlig `:focus-visible` overalt;
+  - lokal font fra `geist` 1.9.2 (`next/font/local`, filer i pakken), så ingen ekstern fonttjeneste brukes.
+- **Primitiver** i `src/components/ui/`:
+  - `Button` og `Field` (label, hjelpetekst og feil koblet med `aria-describedby`/`aria-invalid`);
+  - `Table` (med caption og vannrett rulling på smale skjermer) og `EmptyState`.
+  - De er tatt i bruk i invitasjonsskjemaet, invitasjonstabellen og utloggingsknappen.
+- **Sidetitler:** malen er «%s – Kjedeklar».
+
+### Tester
+- `tests/e2e/navigation.spec.ts` (ny):
+  - **Tastatur:** «Hopp til innholdet» er første fokus, fokus er synlig, og alle sju seksjoner kan åpnes med Enter, med `aria-current="page"`. På hver side er det én h1, en navngitt hovedmeny og ingen skjemafelt uten label.
+  - **Mobil (375 px):** menyen åpnes, navigerer og lukkes, og det er ingen vannrett rulling.
+  - **Organisasjonsbytte:** bare egne medlemskap vises. En vindusmarkør forsvinner, som beviser full sidelasting, og innholdet viser ikke forrige kunde.
+  - **Lasting og avslag:** «Laster …» vises ved forsinket svar, fremmed organisasjon gir 404, og ukjent seksjon gir «Ikke funnet».
+  - **Tema og nettverk:** lys og mørk modus gir lys og mørk bakgrunn, og ingen forespørsler går til andre verter enn localhost og 127.0.0.1.
+- `tests/e2e/auth.spec.ts`: invitasjonen går nå via Innstillinger i menyen.
+
+### Kjørte kommandoer (7.11.2026, lokalt med Docker)
+```text
+pnpm install --frozen-lockfile    OK (ny avhengighet: geist 1.9.2, låst eksakt)
+pnpm lint / pnpm typecheck        OK
+pnpm test:unit                    117/117 (etter review: 120/120 tre ganger; én kjøring traff kjent ustabil test, punkt 5)
+pnpm test:integration             50/50
+pnpm test:e2e                     11/11, to kjøringer på rad (også etter review)
+pnpm build                        OK
+```
+### Rettet etter review (PR #4)
+1. **`Button` og `Field` brukes nå i alle skjemaene:** innlogging, glemt og nytt passord, ny konto og invitasjon. Den mekaniske omskrivingen gjorde først etiketter med `{MIN}` til bokstavelig tekst; det ble fanget i diffen og rettet. `Field` tar nå `ref`.
+2. **Ukjent seksjon gir ekte 404.**
+   - Den foreslåtte `[section]/layout.tsx` alene var ikke nok; testet, ga fortsatt 200. Årsaken er at `loading.tsx` i foreldresegmentet også omslutter den.
+   - Løsning: `[section]/layout.tsx` validerer, og `loading.tsx` er flyttet ned under den (`[section]/`, `innstillinger/`). Oversikt henter ingen data og trenger ingen lastetilstand.
+3. **Mobilmenyen og virksomhetsvelgeren** (`Disclosure`) lukkes med Escape, med fokus tilbake til knappen, og ved klikk utenfor. Dekket i e2e.
+4. **Bare avslag gir 404.** `handlePageLoadError` gir innloggingssiden for `UNAUTHENTICATED` og 404 for `NOT_FOUND`. Andre feil, som nedetid eller kodefeil, går til feilsiden i stedet for å skjules som «Ikke funnet». Enhetstest: `tests/unit/page-load-error.test.ts`.
+5. **Ustabil test i `invitations.test.ts`** (fra oppgave 03) feilet én gang av fire også her. Reviewer retter den i egen PR.
+
+### Manuell prøve
+- Jeg har sett på skjermbilder av Oversikt med åpen virksomhetsvelger, Innstillinger med fokus i skjemafeltet og mobilmenyen, i både lys og mørk modus. Kontrast, fokusring og oppsett ser riktige ut.
+- Ingen menneskelig prøve i nettleser.
+- Slik prøver du selv: logg inn lokalt, bytt systemtema, og naviger med Tab og Enter.
+
+### Ikke gjort / begrensninger
+- Lys og mørk modus følger systemvalget. Det finnes ingen egen bryter i appen.
+- Ingen klientside Convex-provider: sidene rendres på serveren, og ingen abonnementer finnes ennå. Organisasjonsbytte med full sidelasting sørger for at de blir ryddet når de kommer.
+- Rapportperiode vises ikke ennå (oppgaven sier «senere»).
+- Ingen automatisk tilgjengelighetsskanning (axe). Sjekken er enkle regler i Playwright og manuell kontroll av skjermbilder.
 
 ## Åpne eksterne avklaringer
 - Convex DPA, underleverandører og plassering av backup, logg og support (beslutning 0001). Må lukkes før ekte kundedata.

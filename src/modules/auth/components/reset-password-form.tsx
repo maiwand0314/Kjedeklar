@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { authClient } from "@/lib/auth-client";
 import { takeFragmentToken } from "@/lib/fragment-token";
+import { Field } from "@/components/ui/field";
+import { Button } from "@/components/ui/button";
 
 const MIN = 12;
 
@@ -45,45 +47,31 @@ export function ResetPasswordForm({ token }: { token: string }) {
 
   return (
     <form onSubmit={onSubmit} className="mt-8 flex flex-col gap-4" noValidate>
-      <div className="flex flex-col gap-1">
-        <label htmlFor="password" className="font-medium">
-          Nytt passord (minst {MIN} tegn)
-        </label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          autoComplete="new-password"
-          required
-          minLength={MIN}
-          className="rounded border border-zinc-400 px-3 py-2"
-        />
-      </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor="confirm" className="font-medium">
-          Gjenta passord
-        </label>
-        <input
-          id="confirm"
-          name="confirm"
-          type="password"
-          autoComplete="new-password"
-          required
-          className="rounded border border-zinc-400 px-3 py-2"
-        />
-      </div>
+      <Field
+        id="password"
+        label={`Nytt passord (minst ${MIN} tegn)`}
+        name="password"
+        type="password"
+        autoComplete="new-password"
+        required
+        minLength={MIN}
+      />
+      <Field
+        id="confirm"
+        label="Gjenta passord"
+        name="confirm"
+        type="password"
+        autoComplete="new-password"
+        required
+      />
       {error && (
-        <p role="alert" className="text-red-800">
+        <p role="alert" className="text-danger">
           {error}
         </p>
       )}
-      <button
-        type="submit"
-        disabled={state === "pending"}
-        className="rounded bg-zinc-900 px-4 py-2 font-medium text-white disabled:opacity-60"
-      >
+      <Button type="submit" disabled={state === "pending"}>
         Lagre nytt passord
-      </button>
+      </Button>
     </form>
   );
 }

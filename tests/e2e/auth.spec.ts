@@ -31,6 +31,8 @@ test("admin inviterer → mottaker velger passord via e-postlenken → innlogget
   const admin = await freshPage(browser);
   await logIn(admin, fx.userA.email, fx.password);
   await expect(admin).toHaveURL(new RegExp(`/o/${fx.orgA}$`));
+  await admin.getByRole("navigation", { name: "Hovedmeny" }).getByRole("link", { name: "Innstillinger" }).click();
+  await expect(admin.getByRole("heading", { name: "Innstillinger", level: 1 })).toBeVisible();
 
   const email = uniqueEmail("e2e-invitert");
   await admin.getByLabel("E-post til ny administrator").fill(email);

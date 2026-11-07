@@ -2,6 +2,8 @@
 
 import { useState, type FormEvent } from "react";
 import { authClient } from "@/lib/auth-client";
+import { Field } from "@/components/ui/field";
+import { Button } from "@/components/ui/button";
 
 export function ForgotPasswordForm() {
   const [state, setState] = useState<"idle" | "pending" | "sent" | "limited">("idle");
@@ -30,31 +32,22 @@ export function ForgotPasswordForm() {
 
   return (
     <form onSubmit={onSubmit} className="mt-8 flex flex-col gap-4" noValidate>
-      <div className="flex flex-col gap-1">
-        <label htmlFor="email" className="font-medium">
-          E-post
-        </label>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          autoComplete="username"
-          required
-          className="rounded border border-zinc-400 px-3 py-2"
-        />
-      </div>
+      <Field
+        id="email"
+        label="E-post"
+        name="email"
+        type="email"
+        autoComplete="username"
+        required
+      />
       {state === "limited" && (
-        <p role="alert" className="text-red-800">
+        <p role="alert" className="text-danger">
           For mange forsøk. Vent litt og prøv igjen.
         </p>
       )}
-      <button
-        type="submit"
-        disabled={state === "pending"}
-        className="rounded bg-zinc-900 px-4 py-2 font-medium text-white disabled:opacity-60"
-      >
+      <Button type="submit" disabled={state === "pending"}>
         Send lenke
-      </button>
+      </Button>
     </form>
   );
 }

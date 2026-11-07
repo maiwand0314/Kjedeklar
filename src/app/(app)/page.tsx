@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { api } from "@/convex/_generated/api";
 import { fetchAuthQuery, isAuthenticated } from "@/lib/auth-server";
-import { errorCode } from "@/lib/convex-errors";
+import { handlePageLoadError } from "@/lib/convex-errors";
 import { LogoutButton } from "@/modules/auth/components/logout-button";
 
 export default async function HomePage() {
@@ -12,8 +12,7 @@ export default async function HomePage() {
   try {
     organizations = await fetchAuthQuery(api.organizations.queries.listMine, {});
   } catch (error) {
-    if (errorCode(error) === "UNAUTHENTICATED") redirect("/logg-inn");
-    throw error;
+    handlePageLoadError(error);
   }
 
   if (organizations.length === 1) redirect(`/o/${organizations[0].id}`);
@@ -25,7 +24,7 @@ export default async function HomePage() {
         <LogoutButton />
       </div>
       {organizations.length === 0 ? (
-        <p className="mt-6 text-zinc-700">
+        <p className="mt-6 text-muted">
           Du har ingen aktive organisasjoner. Kontakt den som inviterte deg.
         </p>
       ) : (

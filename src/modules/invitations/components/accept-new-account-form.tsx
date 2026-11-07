@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { authClient } from "@/lib/auth-client";
 import { acceptWithNewAccountAction, type AcceptNewAccountState } from "../actions";
+import { Field } from "@/components/ui/field";
+import { Button } from "@/components/ui/button";
 
 const MIN = 12;
 
@@ -54,59 +56,40 @@ export function AcceptNewAccountForm({
       <p>
         Kontoen opprettes for <strong>{email}</strong>.
       </p>
-      <div className="flex flex-col gap-1">
-        <label htmlFor="name" className="font-medium">
-          Navn
-        </label>
-        <input
-          id="name"
-          name="name"
-          autoComplete="name"
-          required
-          maxLength={100}
-          className="rounded border border-zinc-400 px-3 py-2"
-        />
-      </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor="password" className="font-medium">
-          Velg passord (minst {MIN} tegn)
-        </label>
-        <input
-          ref={passwordRef}
-          id="password"
-          name="password"
-          type="password"
-          autoComplete="new-password"
-          required
-          minLength={MIN}
-          className="rounded border border-zinc-400 px-3 py-2"
-        />
-      </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor="confirm" className="font-medium">
-          Gjenta passord
-        </label>
-        <input
-          id="confirm"
-          name="confirm"
-          type="password"
-          autoComplete="new-password"
-          required
-          className="rounded border border-zinc-400 px-3 py-2"
-        />
-      </div>
+      <Field
+        id="name"
+        label="Navn"
+        name="name"
+        autoComplete="name"
+        required
+        maxLength={100}
+      />
+      <Field
+        id="password"
+        label={`Velg passord (minst ${MIN} tegn)`}
+        ref={passwordRef}
+        name="password"
+        type="password"
+        autoComplete="new-password"
+        required
+        minLength={MIN}
+      />
+      <Field
+        id="confirm"
+        label="Gjenta passord"
+        name="confirm"
+        type="password"
+        autoComplete="new-password"
+        required
+      />
       {(state.status === "error" || signInError) && (
-        <p role="alert" className="text-red-800">
+        <p role="alert" className="text-danger">
           {state.status === "error" ? state.message : signInError}
         </p>
       )}
-      <button
-        type="submit"
-        disabled={pending || state.status === "ok"}
-        className="rounded bg-zinc-900 px-4 py-2 font-medium text-white disabled:opacity-60"
-      >
+      <Button type="submit" disabled={pending || state.status === "ok"}>
         {pending ? "Oppretter konto …" : "Godta og opprett konto"}
-      </button>
+      </Button>
     </form>
   );
 }
