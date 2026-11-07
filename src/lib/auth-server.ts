@@ -12,6 +12,7 @@ export const {
   isAuthenticated,
   fetchAuthQuery,
   fetchAuthMutation,
+  fetchAuthAction,
 } = convexBetterAuthNextJs({
   convexUrl: publicEnv.convexUrl,
   convexSiteUrl: publicEnv.convexSiteUrl,

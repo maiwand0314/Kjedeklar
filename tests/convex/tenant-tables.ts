@@ -45,6 +45,19 @@ export const tenantTableCases: { [T in TenantTable]: TenantTableCase<T> } = {
     tenantCanModifyOwn: false,
     tenantCanInsertOwn: false,
   },
+  invitations: {
+    newDoc: ({ organizationId, userId }) => ({
+      organizationId,
+      email: "ny@tenant.example",
+      status: "pending",
+      expiresAt: Date.now() + 60_000,
+      invitedBy: userId,
+    }),
+    patch: { status: "revoked" },
+    // Admin inviterer og tilbakekaller i egen organisasjon.
+    tenantCanModifyOwn: true,
+    tenantCanInsertOwn: true,
+  },
 };
 
 /** Setter inn et testdokument med rå db (testoppsett, ikke tenantfunksjon). */

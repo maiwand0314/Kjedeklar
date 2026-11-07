@@ -1,11 +1,23 @@
 import { ConvexError } from "convex/values";
 
-export type AppErrorCode = "UNAUTHENTICATED" | "NOT_FOUND" | "FORBIDDEN";
+export type AppErrorCode =
+  | "UNAUTHENTICATED"
+  | "NOT_FOUND"
+  | "FORBIDDEN"
+  | "INVALID_INPUT"
+  | "ALREADY_MEMBER"
+  | "INVITATION_INVALID"
+  | "ACCOUNT_EXISTS";
 
 const messages: Record<AppErrorCode, string> = {
   UNAUTHENTICATED: "Du må logge inn.",
   NOT_FOUND: "Ikke funnet.",
   FORBIDDEN: "Du har ikke tilgang til denne handlingen.",
+  INVALID_INPUT: "Ugyldige opplysninger.",
+  ALREADY_MEMBER: "Personen er allerede medlem av organisasjonen.",
+  // Samme svar for ukjent, brukt, utløpt, tilbakekalt og feil mottaker.
+  INVITATION_INVALID: "Invitasjonen er ugyldig eller utløpt.",
+  ACCOUNT_EXISTS: "Det finnes allerede en konto for denne e-postadressen. Logg inn for å godta invitasjonen.",
 };
 
 export function appError(code: AppErrorCode) {

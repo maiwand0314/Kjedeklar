@@ -5,7 +5,7 @@
 import { describe, expect, test } from "vitest";
 import { api } from "../../convex/_generated/api";
 import http from "../../convex/http";
-import { tenantRules, userRules } from "../../convex/lib/rls";
+import { invitationRules, tenantRules, userRules } from "../../convex/lib/rls";
 import schema from "../../convex/schema";
 import { listConvexFunctions, publicFunctions } from "../helpers/convex-functions";
 import {
@@ -30,6 +30,8 @@ import {
 const INDEX_EXCEPTIONS: Record<string, string> = {
   "memberships.by_userId":
     "Organisasjonsvelgeren og userQuery slår opp innlogget brukers egne medlemskap før en organisasjon er valgt. Leses bare med brukerens egen id fra sesjonen.",
+  "invitations.by_tokenHash":
+    "Invitasjonslenken identifiserer invitasjonen før organisasjonen er kjent. Slås bare opp med SHA-256 av et 256-bits token, i invitasjonsbyggeklossene.",
 };
 
 describe("offentlige funksjoner", () => {
@@ -51,29 +53,43 @@ describe("offentlige funksjoner", () => {
     }
   });
 
-  test("tenantfunksjoner tar organisasjonskandidat som streng, brukerfunksjoner tar ingen", () => {
+  test("tenantfunksjoner tar organisasjonskandidat som streng, andre grenser tar ingen", () => {
     for (const f of publicFunctions()) {
       const args = f.args as { type: string; value: Record<string, { fieldType: { type: string } }> };
       const candidate = args.value?.organizationId?.fieldType.type;
-      if (reviewedPublicFunctions[f.path].boundary === "tenant") {
+      const token = args.value?.token?.fieldType.type;
+      const boundary = reviewedPublicFunctions[f.path].boundary;
+      if (boundary === "tenant") {
         expect(candidate, f.path).toBe("string");
       } else {
         expect(candidate, f.path).toBeUndefined();
       }
+      // Token-funksjoner tar tokenet som eneste tilgangsbevis.
+      const tokenBoundary = boundary === "invitation" || boundary === "verification";
+      expect(token, f.path).toBe(tokenBoundary ? "string" : undefined);
     }
   });
 
-  test("ingen funksjoner er laget med `action` uten vurdering", () => {
-    // tenantAction finnes ikke ennå. En offentlig action må få egen byggekloss først.
-    expect(listConvexFunctions().filter((f) => f.kind === "action" && f.visibility === "public")).toEqual([]);
+  test("offentlige actions finnes bare bak token-byggeklossene", () => {
+    // tenantAction finnes ikke ennå. En annen offentlig action må få egen byggekloss først.
+    const actions = listConvexFunctions().filter((f) => f.kind === "action" && f.visibility === "public");
+    for (const f of actions) {
+      expect(["invitation", "verification"], f.path).toContain(reviewedPublicFunctions[f.path]?.boundary);
+    }
   });
 });
 
-async function call(t: TestConvex, review: PublicFunctionReview, args: Record<string, unknown>) {
-  return review.kind === "query" ? t.query(review.ref, args) : t.mutation(review.ref, args);
+type Caller = Pick<TestConvex, "query" | "mutation" | "action">;
+
+async function call(t: Caller, review: PublicFunctionReview, args: Record<string, unknown>) {
+  if (review.kind === "query") return t.query(review.ref, args);
+  if (review.kind === "mutation") return t.mutation(review.ref, args);
+  return t.action(review.ref, args);
 }
 
-describe.each(Object.entries(reviewedPublicFunctions))("%s avviser uautorisert bruk", (_path, review) => {
+describe.each(
+  Object.entries(reviewedPublicFunctions).filter(([, r]) => r.boundary === "tenant" || r.boundary === "user"),
+)("%s avviser uautorisert bruk", (_path, review) => {
   test("uten sesjon", async () => {
     const t = setupTest();
     const { orgA } = await twoTenants(t);
@@ -92,10 +108,7 @@ describe.each(Object.entries(reviewedPublicFunctions))("%s avviser uautorisert b
     const candidates = [orgB, orgC, "ikke-en-id", membershipA, userA.userId];
     const errors = [];
     for (const organizationId of candidates) {
-      const promise =
-        review.kind === "query"
-          ? asA.query(review.ref, { ...review.sampleArgs, organizationId })
-          : asA.mutation(review.ref, { ...review.sampleArgs, organizationId });
+      const promise = call(asA, review, { ...review.sampleArgs, organizationId });
       await expectAppError(promise, "NOT_FOUND");
       errors.push(await promise.catch((e: { data: unknown }) => e.data));
     }
@@ -107,10 +120,11 @@ describe.each(Object.entries(reviewedPublicFunctions))("%s avviser uautorisert b
     const t = setupTest();
     const { userA, orgA } = await twoTenants(t);
     const asA = t.withIdentity(userA.identity);
-    const args = { ...review.sampleArgs, organizationId: orgA };
-    await expect(
-      review.kind === "query" ? asA.query(review.ref, args) : asA.mutation(review.ref, args),
-    ).resolves.toBeDefined();
+    const extra = review.prepareOwn
+      ? await review.prepareOwn((fn) => t.run((ctx) => fn(ctx.db)), orgA, userA.userId)
+      : {};
+    const args = { ...review.sampleArgs, ...extra, organizationId: orgA };
+    await expect(call(asA, review, args)).resolves.toBeDefined();
   });
 });
 
@@ -129,7 +143,8 @@ describe("skjema og RLS-regler", () => {
 
   test("hver tabell har eksplisitt regel for lesing, endring og opprettelse", () => {
     const scope = { organizationId: "x" as never };
-    for (const rules of [tenantRules(scope), userRules("u", new Set())]) {
+    const invitationScope = { invitationId: "i" as never, organizationId: "x" as never, userId: "u" };
+    for (const rules of [tenantRules(scope), userRules("u", new Set()), invitationRules(invitationScope)]) {
       expect(Object.keys(rules).sort()).toEqual(tableNames);
       for (const [table, rule] of Object.entries(rules)) {
         for (const op of ["read", "modify", "insert"] as const) {

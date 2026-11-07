@@ -1,7 +1,16 @@
+import { existsSync, readFileSync } from "node:fs";
 import { defineConfig, devices } from "@playwright/test";
 
 // E2E kjører mot den separate lokale test-backenden (docker compose: convex-test).
 const PORT = 3100;
+
+/** Proxy-hemmeligheten Next.js deler med test-backenden (laget av `pnpm convex:deploy:test`). */
+function testProxySecret(): string {
+  const file = ".env.convex-test.local";
+  if (!existsSync(file)) return "";
+  const line = readFileSync(file, "utf8").split("\n").find((l) => l.startsWith("AUTH_PROXY_SECRET="));
+  return line?.slice("AUTH_PROXY_SECRET=".length) ?? "";
+}
 
 export default defineConfig({
   testDir: "tests/e2e",
@@ -31,6 +40,7 @@ export default defineConfig({
       NEXT_PUBLIC_CONVEX_URL: "http://127.0.0.1:3220",
       NEXT_PUBLIC_CONVEX_SITE_URL: "http://127.0.0.1:3221",
       NEXT_PUBLIC_SITE_URL: `http://localhost:${PORT}`,
+      AUTH_PROXY_SECRET: testProxySecret(),
     },
   },
 });

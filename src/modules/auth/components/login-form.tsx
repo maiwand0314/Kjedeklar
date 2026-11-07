@@ -1,10 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { authClient } from "@/lib/auth-client";
 
-export function LoginForm() {
+export function LoginForm({ next = "/" }: { next?: string }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -23,11 +24,14 @@ export function LoginForm() {
       setError(
         signInError.status === 429
           ? "For mange forsøk. Vent litt og prøv igjen."
-          : "Feil e-post eller passord.",
+          : signInError.status === 403
+            ? // Vises bare når passordet var riktig, så det røper ikke kontoer.
+              "E-postadressen er ikke bekreftet. Vi har sendt deg en ny bekreftelseslenke."
+            : "Feil e-post eller passord.",
       );
       return;
     }
-    router.replace("/");
+    router.replace(next);
     router.refresh();
   }
 
@@ -71,6 +75,9 @@ export function LoginForm() {
       >
         {pending ? "Logger inn …" : "Logg inn"}
       </button>
+      <Link href="/glemt-passord" className="text-sm underline">
+        Glemt passord?
+      </Link>
     </form>
   );
 }

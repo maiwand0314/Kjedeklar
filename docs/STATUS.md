@@ -5,7 +5,8 @@ Startpakke opprettet 6. november 2026. Dokumentasjonen ble samme dag skrevet om 
 | Oppgave | Status | Verifisering | Begrensning |
 |---|---|---|---|
 | 01 | Implementert, verifisert lokalt og i CI (PR #1, review-endringer rettet) | Lint, typecheck, 35 enhets-/convex-test-tester, 9 integrasjonstester mot lokal test-backend, 3 Playwright-tester og build er grønne fra ren start. CI var grønn på første versjon av PR-en | Kun lokal backend. Ingen Convex Cloud-deployment |
-| 02 | Implementert og verifisert lokalt med Docker. CI grønn på 092bfb0 og 30d3c66 | Lokalt: lint, typecheck, 69 enhets-/convex-test-tester og build. CI (PR #2): 69 enhetstester og 19 integrasjonstester mot lokal backend, `convex/_generated` er uendret. E2E: 3 av 4 grønne i første kjøring, 1 rettet | Integrasjon og e2e er ikke kjørt lokalt (Docker mangler) |
+| 02 | Implementert, verifisert lokalt og i CI, merget (PR #2) | Lokalt med Docker på 363fff4 (review 7.11): lint, typecheck, 69 enhets-/convex-test-tester, 21 integrasjonstester (to kjøringer), 4 e2e-tester (to kjøringer) og build. `convex/_generated` stemmer med ekte codegen. CI grønn på 363fff4 og på main etter merge | Innloggingsbegrensningen er felles for alle brukere (ingen klient-IP); løses i oppgave 03 |
+| 03 | Implementert og verifisert lokalt (branch `feature/03-auth-lifecycle`) | Fra ren start: lint, typecheck, 117 enhets-/convex-test-tester, 50 integrasjonstester mot lokal backend og Mailpit (fire kjøringer, tre på rad grønne etter siste rettelse), 6 e2e-tester (seks kjøringer) og build | Bare Mailpit, ingen produksjonsleverandør. Klient-IP i produksjon krever at reverse proxy overskriver headeren (oppgave 25) |
 
 Oppdater ved hver oppgave. Bruk «implementert», «verifisert» og «ekstern avklaring» presist. Et lokalt fake-resultat betyr ikke at en ekstern integrasjon er godkjent.
 
@@ -186,6 +187,56 @@ Ingen menneskelig prøve i nettleser. Slik prøver du selv:
 - Isolasjonen er i applikasjonslaget. Deploy/admin key, interne funksjoner og dashboard kan omgå den (se beslutning 0002).
 - Til oppgave 25: samtidighetsgrensen gjelder bare lokale backender. Convex Cloud har egne grenser; ytelse under last må vurderes der.
 - **Til oppgave 03 (viktig før pilot):** Better Auth finner ikke klient-IP i Convex sine HTTP-actions og faller tilbake til én delt teller per sti. Innloggingsbegrensningen (3 per 10 s) er derfor felles for alle brukere, ikke per IP. Den databasebaserte telleren gir også feilaktige 429 under samtidige kall. JWKS og token er unntatt i oppgave 02. Klient-IP-oppsett (`advanced.ipAddress`, IP-videresending fra Next.js) og lagringsvalg for ratebegrensningen må løses i oppgave 03.
+
+## Oppgave 03 – invitasjon, verifisering og kontogjenoppretting
+
+### Endret
+- **Invitasjoner:**
+  - Tabellen `invitations` lagrer bare tokenhash.
+  - Operatør-bootstrap `ops/workspaces:provision` lager ny organisasjon og invitasjon til første admin.
+  - Admin inviterer og tilbakekaller fra organisasjonssiden.
+  - Aksept skjer med ny konto (velg passord) eller som innlogget bruker med samme verifiserte e-post.
+  - Engangs, utløper etter 7 dager, og samtidige forsøk gir én vinner.
+- **Nye byggeklosser** med tokenet som tilgangsbevis: `invitationQuery`/`invitationMutation`/`invitationAction` og `verificationAction`, med egne RLS-regler (default-deny).
+- **Better Auth:**
+  - e-postverifisering (påkrevd);
+  - passordreset med tilbakekalling av alle sesjoner;
+  - hashede verifiseringstoken;
+  - Convex-JWT med 5 minutters levetid;
+  - ratebegrensning per klient-IP via Next.js-proxyen med `AUTH_PROXY_SECRET`. Forfalsket IP uten hemmelighet gir ingen egen bøtte.
+- **Token aldri i server-URL-er:** Lenker bruker URL-fragment (`#token=`), og tokenet sendes i POST-body. Integrasjonstesten fant at Better Auths `/verify-email?token=` havnet i Convex sin tilgangslogg; det er løst med `account/actions:verifyEmail`.
+- **E-post:** Nodemailer i Convex Node-action. Bare Mailpit er tillatt (`KJEDEKLAR_ENV` development/test). Lenker til planlagte e-postjobber er forseglet med AES-GCM.
+- **Sider:** `/invitasjon`, `/glemt-passord`, `/tilbakestill-passord` og `/bekreft-epost`. «Glemt passord?» er lagt til på innlogging, og omdirigering etter innlogging går bare til hvitelistede interne stier.
+- **Beslutning:** [0003](decisions/0003-kontolivssyklus.md). Beslutning 0002 har oppdatert inventar og indeksunntak.
+
+### Kjørte kommandoer (7.11.2026, fra ren start: `docker compose down -v`, env-filer slettet)
+```text
+pnpm install --frozen-lockfile                 OK
+docker compose up -d --wait convex convex-test mailpit   OK
+pnpm convex:deploy:local / pnpm seed:dev       OK
+pnpm lint / pnpm typecheck                     OK
+pnpm test:unit                                 117/117
+pnpm test:integration                          50/50 (1. kjøring). 2. kjøring rett etter: 49/50,
+                                               kollisjon i tilfeldige IPv4-test-IP-er innen 60 s;
+                                               rettet (IPv6 /64 per kall), deretter 50/50 tre ganger på rad
+pnpm test:e2e                                  6/6, seks kjøringer
+pnpm build                                     OK
+```
+Mutasjonskontroller:
+- Fjernet sjekk av mottaker/verifisert e-post: testen feilet.
+- Invitasjon ikke merket brukt: testen feilet.
+- Convex godtok klient-IP uten hemmelighet: testen for forfalsket IP feilet.
+- Loggtesten fant verifiseringstokenet i backendens logg før omleggingen til fragmenter.
+
+### Manuell prøve
+Invitasjon → e-post i Mailpit → velg passord → innlogging, og glemt passord → e-post → nytt passord → innlogging, er kjørt automatisk i Playwright. Ingen menneskelig prøve er gjort. Slik prøver du selv: `pnpm dev`, kjør `ops/workspaces:provision` (README) og åpne lenken fra http://localhost:8025.
+
+### Ikke verifisert / begrensninger
+- **Ingen ekte SMTP-leverandør** (oppgave 25). Ingen leveringslogg for e-post.
+- **Klient-IP i produksjon** forutsetter at reverse proxy overskriver `x-forwarded-for` (eller headeren satt i `AUTH_CLIENT_IP_SOURCE_HEADER`). Lokalt kan klienten forfalske den mot Next.js; e2e bruker dette bevisst.
+- **Ratebegrensning med databaselagring** er ikke lasttestet mot Convex Cloud.
+- **Utlogging fra alle enheter** finnes bare via passordreset. Utløpte invitasjoner ryddes ikke automatisk.
+- **Revisjonslogg** for invitasjoner og medlemskap kommer i oppgave 05.
 
 ## Åpne eksterne avklaringer
 - Convex DPA, underleverandører og plassering av backup, logg og support (beslutning 0001). Må lukkes før ekte kundedata.

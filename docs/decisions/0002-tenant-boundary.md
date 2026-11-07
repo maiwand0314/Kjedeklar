@@ -39,7 +39,11 @@ Organisasjons-id i URL (`/o/[organizationId]`), i en cookie eller som funksjonsa
 | `GET`/`POST /api/auth/*` | Better Auth | Innlogging, utlogging, sesjon og Convex-token. Åpen registrering er av. Ingen admin- eller organisasjonsplugin |
 | Next.js `/logg-inn`, `/` og `/o/[organizationId]` | Server components | Kaller bare offentlige funksjoner med brukerens token (`fetchAuthQuery`) |
 | Next.js `/api/auth/[...all]` | Proxy | Videresender til Better Auth i Convex. Har ingen egen logikk |
-| Interne funksjoner i `ops/` | Admin/deploy key | Kan ikke kalles fra klient eller Next.js |
+| Interne funksjoner i `ops/`, `invitations/internal`, `email/actions` | Admin/deploy key eller annen Convex-kode | Kan ikke kalles fra klient eller Next.js |
+| `account/queries:me` (query) | `userQuery` | Egen e-post og navn (oppgave 03) |
+| `invitations/queries:listForOrganization`, `invitations/mutations:create`, `invitations/mutations:revoke` | `tenantQuery`/`tenantMutation` | Hele kjeden over, kun admin (oppgave 03) |
+| `invitations/queries:lookup`, `invitations/mutations:acceptAsCurrentUser`, `invitations/actions:acceptWithNewAccount` | `invitationQuery`/`invitationMutation`/`invitationAction` | Token i invitasjonslenken. Se [0003](0003-kontolivssyklus.md) |
+| `account/actions:verifyEmail` (action) | `verificationAction` | Better Auths signerte verifiseringstoken. Se [0003](0003-kontolivssyklus.md) |
 
 Registertesten feiler hvis noen legger til en offentlig funksjon eller HTTP-rute som ikke står i `tests/helpers/public-functions.ts`. Integrasjonstesten feiler hvis en intern funksjon mangler en probe.
 
@@ -63,6 +67,7 @@ Isolasjonen skal derfor aldri beskrives som databasehåndhevet.
 | Unntak | Begrunnelse |
 |---|---|
 | Indeksen `memberships.by_userId` starter ikke med `organizationId` | Organisasjonsvelgeren og `userQuery` slår opp innlogget brukers egne medlemskap før en organisasjon er valgt. Den leses bare med bruker-id fra sesjonen |
+| Indeksen `invitations.by_tokenHash` starter ikke med `organizationId` | Invitasjonslenken identifiserer invitasjonen før organisasjonen er kjent. Slås bare opp med SHA-256 av et 256-bits token, i invitasjonsbyggeklossene |
 | Lint-unntaket for `convex/lib/**` | Byggeklossene må pakke inn rå `query`/`mutation`. Alt som legges i `convex/lib/` skal få ekstra oppmerksomhet i review |
 
 ## Sjekkliste for ny kundetabell
