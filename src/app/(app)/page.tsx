@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { api } from "@/convex/_generated/api";
 import { fetchAuthQuery, isAuthenticated } from "@/lib/auth-server";
-import { errorCode } from "@/lib/convex-errors";
+import { handlePageLoadError } from "@/lib/convex-errors";
 import { LogoutButton } from "@/modules/auth/components/logout-button";
 
 export default async function HomePage() {
@@ -12,8 +12,7 @@ export default async function HomePage() {
   try {
     organizations = await fetchAuthQuery(api.organizations.queries.listMine, {});
   } catch (error) {
-    if (errorCode(error) === "UNAUTHENTICATED") redirect("/logg-inn");
-    throw error;
+    handlePageLoadError(error);
   }
 
   if (organizations.length === 1) redirect(`/o/${organizations[0].id}`);

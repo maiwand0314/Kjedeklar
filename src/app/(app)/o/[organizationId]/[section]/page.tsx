@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SECTIONS } from "@/modules/organizations/sections";
 
-/** Plassholder for seksjoner som ikke er bygget ennå. Ukjent seksjon gir 404. */
+/** Plassholder for seksjoner som ikke er bygget ennå. Ukjent seksjon stoppes i layout.tsx. */
 function find(slug: string) {
   return SECTIONS.find((s) => s.slug === slug && s.placeholder);
 }

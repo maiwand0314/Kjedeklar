@@ -1,3 +1,5 @@
+import { Disclosure } from "@/components/ui/disclosure";
+
 type Organization = { id: string; name: string };
 
 /**
@@ -20,10 +22,15 @@ export function OrganizationSwitcher({
   );
   if (organizations.length < 2) return <p>{name}</p>;
   return (
-    <details className="relative">
-      <summary className="cursor-pointer list-none rounded px-2 py-1 hover:bg-surface">
-        {name} <span className="text-sm text-muted">(bytt virksomhet)</span>
-      </summary>
+    <Disclosure
+      className="relative"
+      summaryClassName="cursor-pointer list-none rounded px-2 py-1 hover:bg-surface"
+      summary={
+        <>
+          {name} <span className="text-sm text-muted">(bytt virksomhet)</span>
+        </>
+      }
+    >
       <ul aria-label="Bytt virksomhet" className="absolute z-10 mt-1 min-w-64 rounded border border-border bg-background p-1 shadow-lg">
         {organizations.map((org) => (
           <li key={org.id}>
@@ -37,6 +44,6 @@ export function OrganizationSwitcher({
           </li>
         ))}
       </ul>
-    </details>
+    </Disclosure>
   );
 }

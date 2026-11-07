@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { authClient } from "@/lib/auth-client";
+import { Field } from "@/components/ui/field";
+import { Button } from "@/components/ui/button";
 
 export function LoginForm({ next = "/" }: { next?: string }) {
   const router = useRouter();
@@ -37,44 +39,30 @@ export function LoginForm({ next = "/" }: { next?: string }) {
 
   return (
     <form onSubmit={onSubmit} className="mt-8 flex flex-col gap-4" noValidate>
-      <div className="flex flex-col gap-1">
-        <label htmlFor="email" className="font-medium">
-          E-post
-        </label>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          autoComplete="username"
-          required
-          className="rounded border border-input px-3 py-2"
-        />
-      </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor="password" className="font-medium">
-          Passord
-        </label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          autoComplete="current-password"
-          required
-          className="rounded border border-input px-3 py-2"
-        />
-      </div>
+      <Field
+        id="email"
+        label="E-post"
+        name="email"
+        type="email"
+        autoComplete="username"
+        required
+      />
+      <Field
+        id="password"
+        label="Passord"
+        name="password"
+        type="password"
+        autoComplete="current-password"
+        required
+      />
       {error && (
         <p role="alert" className="text-danger">
           {error}
         </p>
       )}
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded bg-primary px-4 py-2 font-medium text-primary-foreground disabled:opacity-60"
-      >
+      <Button type="submit" disabled={pending}>
         {pending ? "Logger inn …" : "Logg inn"}
-      </button>
+      </Button>
       <Link href="/glemt-passord" className="text-sm underline">
         Glemt passord?
       </Link>

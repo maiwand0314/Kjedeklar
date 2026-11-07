@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
+import { Button } from "@/components/ui/button";
 import { takeFragmentToken } from "@/lib/fragment-token";
 import { LogoutButton } from "@/modules/auth/components/logout-button";
 import {
@@ -103,8 +104,7 @@ export function InvitationFlow({ signedInEmail }: Props) {
   return (
     <>
       {heading}
-      <button
-        type="button"
+      <Button
         disabled={pending}
         onClick={() =>
           startTransition(async () => {
@@ -118,10 +118,10 @@ export function InvitationFlow({ signedInEmail }: Props) {
             router.refresh();
           })
         }
-        className="mt-6 rounded bg-primary px-4 py-2 font-medium text-primary-foreground disabled:opacity-60"
+        className="mt-6"
       >
         {pending ? "Godtar …" : "Godta invitasjonen"}
-      </button>
+      </Button>
       {error && (
         <p role="alert" className="mt-4 text-danger">
           {error}

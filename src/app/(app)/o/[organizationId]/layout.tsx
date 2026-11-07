@@ -1,7 +1,8 @@
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
+import { Disclosure } from "@/components/ui/disclosure";
 import { api } from "@/convex/_generated/api";
 import { fetchAuthQuery, isAuthenticated } from "@/lib/auth-server";
-import { errorCode } from "@/lib/convex-errors";
+import { handlePageLoadError } from "@/lib/convex-errors";
 import { LogoutButton } from "@/modules/auth/components/logout-button";
 import { NavLinks } from "@/modules/organizations/components/nav-links";
 import { OrganizationSwitcher } from "@/modules/organizations/components/organization-switcher";
@@ -27,8 +28,7 @@ export default async function OrganizationLayout({
       fetchAuthQuery(api.organizations.queries.listMine, {}),
     ]);
   } catch (error) {
-    if (errorCode(error) === "UNAUTHENTICATED") redirect("/logg-inn");
-    notFound();
+    handlePageLoadError(error);
   }
 
   const nav = (
@@ -51,14 +51,15 @@ export default async function OrganizationLayout({
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-3">
-          <details className="relative md:hidden">
-            <summary className="cursor-pointer list-none rounded border border-input px-3 py-1.5 font-medium">
-              Meny
-            </summary>
+          <Disclosure
+            className="relative md:hidden"
+            summaryClassName="cursor-pointer list-none rounded border border-input px-3 py-1.5 font-medium"
+            summary="Meny"
+          >
             <div className="absolute z-10 mt-1 w-64 rounded border border-border bg-background p-2 shadow-lg">
               {nav}
             </div>
-          </details>
+          </Disclosure>
           <OrganizationSwitcher current={organization} organizations={organizations} />
           <div className="ml-auto">
             <LogoutButton />

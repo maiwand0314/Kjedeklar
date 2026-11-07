@@ -75,6 +75,14 @@ test("mobil: menyen åpnes, navigerer og lukkes, uten vannrett rulling", async (
   await expect(nav).toBeHidden();
   await page.getByText("Meny", { exact: true }).click();
   await expect(nav).toBeVisible();
+  // Escape lukker og gir fokus tilbake; klikk utenfor lukker også.
+  await page.keyboard.press("Escape");
+  await expect(nav).toBeHidden();
+  await expect(page.locator("summary", { hasText: "Meny" })).toBeFocused();
+  await page.getByText("Meny", { exact: true }).click();
+  await page.locator("main").click({ position: { x: 300, y: 600 } });
+  await expect(nav).toBeHidden();
+  await page.getByText("Meny", { exact: true }).click();
   await nav.getByRole("link", { name: "Risikovurderinger" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Risikovurderinger" })).toBeVisible();
   await expect(nav).toBeHidden();
@@ -93,6 +101,9 @@ test("organisasjonsbytte viser bare egne medlemskap og laster siden helt på nyt
   const choices = page.getByRole("list", { name: "Bytt virksomhet" }).getByRole("link");
   await expect(choices).toHaveText([/^Org B /, /^Org C /]); // sortert på navn
   expect((await choices.allTextContents()).some((t) => t.startsWith("Org A "))).toBe(false);
+  await page.keyboard.press("Escape");
+  await expect(choices.first()).toBeHidden();
+  await page.getByText("(bytt virksomhet)").click();
 
   // Markør i vinduet: forsvinner bare ved full sidelasting (all klienttilstand og
   // alle abonnementer for forrige kunde er da borte).
@@ -120,13 +131,10 @@ test("lasting vises ved trege svar, og fremmed eller ukjent side gir avslag", as
   await expect(page.getByRole("heading", { level: 1, name: "Leverandører" })).toBeVisible();
   await page.unrouteAll();
 
-  // Fremmed organisasjon stoppes i layouten, før strømmingen starter: ekte 404.
-  expect((await page.goto(`/o/${fx.orgB}`))?.status()).toBe(404);
-  await expect(page.getByRole("heading", { name: "Ikke funnet" })).toBeVisible();
-  // Ukjent seksjon i egen organisasjon: siden strømmes bak lastegrensen, så Next.js
-  // har allerede sendt 200. Innholdet er likevel «Ikke funnet», og ingen data vises.
-  await page.goto(`/o/${fx.orgA}/finnes-ikke`);
-  await expect(page.getByRole("heading", { name: "Ikke funnet" })).toBeVisible();
+  for (const path of [`/o/${fx.orgB}`, `/o/${fx.orgA}/finnes-ikke`]) {
+    expect((await page.goto(path))?.status(), path).toBe(404);
+    await expect(page.getByRole("heading", { name: "Ikke funnet" })).toBeVisible();
+  }
 });
 
 test("lys og mørk modus, og ingen kall til eksterne verter", async ({ page }) => {

@@ -7,7 +7,7 @@ Startpakke opprettet 6. november 2026. Dokumentasjonen ble samme dag skrevet om 
 | 01 | Implementert, verifisert lokalt og i CI (PR #1, review-endringer rettet) | Lint, typecheck, 35 enhets-/convex-test-tester, 9 integrasjonstester mot lokal test-backend, 3 Playwright-tester og build er grønne fra ren start. CI var grønn på første versjon av PR-en | Kun lokal backend. Ingen Convex Cloud-deployment |
 | 02 | Implementert, verifisert lokalt og i CI, merget (PR #2) | Lokalt med Docker på 363fff4 (review 7.11): lint, typecheck, 69 enhets-/convex-test-tester, 21 integrasjonstester (to kjøringer), 4 e2e-tester (to kjøringer) og build. `convex/_generated` stemmer med ekte codegen. CI grønn på 363fff4 og på main etter merge | Innloggingsbegrensningen er felles for alle brukere (ingen klient-IP); løses i oppgave 03 |
 | 03 | Implementert og verifisert lokalt (branch `feature/03-auth-lifecycle`) | Fra ren start: lint, typecheck, 117 enhets-/convex-test-tester, 50 integrasjonstester mot lokal backend og Mailpit (fire kjøringer, tre på rad grønne etter siste rettelse), 6 e2e-tester (seks kjøringer) og build | Bare Mailpit, ingen produksjonsleverandør. Klient-IP i produksjon krever at reverse proxy overskriver headeren (oppgave 25) |
-| 04 | Implementert og verifisert lokalt (branch `feature/04-app-shell`) | Lokalt med Docker: lint, typecheck, 117 enhets-/convex-test-tester, 50 integrasjonstester, 11 e2e-tester (to kjøringer på rad) og build. Visuell kontroll av skjermbilder i lys og mørk modus | Lys/mørk følger systemvalget; ingen egen bryter. Ingen klientside Convex-provider ennå (sidene rendres på serveren) |
+| 04 | Implementert, verifisert lokalt, review-merknader rettet (PR #4) | Lokalt med Docker etter review: lint, typecheck, 120 enhets-/convex-test-tester (tre kjøringer), 50 integrasjonstester, 11 e2e-tester (to kjøringer) og build. Visuell kontroll av skjermbilder i lys og mørk modus | Lys/mørk følger systemvalget; ingen egen bryter. Ingen klientside Convex-provider ennå (sidene rendres på serveren) |
 
 Oppdater ved hver oppgave. Bruk «implementert», «verifisert» og «ekstern avklaring» presist. Et lokalt fake-resultat betyr ikke at en ekstern integrasjon er godkjent.
 
@@ -255,7 +255,9 @@ Invitasjon → e-post i Mailpit → velg passord → innlogging, og glemt passor
   - viser bare egne aktive medlemskap;
   - bytte er en vanlig sidelasting (`<a>`, ikke `next/link`), så all klienttilstand, ruterbuffer og eventuelle Convex-abonnementer for forrige kunde forsvinner;
   - listen har tilgjengelig navn («Bytt virksomhet»).
-- **Lasting og feil:** `loading.tsx` («Laster …», `role="status"`) og `error.tsx` (norsk, uten tekniske detaljer, med «Prøv igjen»).
+- **Lasting og feil:**
+  - `loading.tsx` («Laster …», `role="status"`) ligger i `[section]/` og `innstillinger/`, under layouter som validerer.
+  - `error.tsx` (norsk, uten tekniske detaljer, med «Prøv igjen») finnes både i organisasjonen og på `(app)`-nivå, så også feil i layouten fanges.
 - **Tema og font:**
   - semantiske farger i `globals.css` med verdier for lys og mørk modus (`prefers-color-scheme`), og `color-scheme: light dark`;
   - alle faste Tailwind-farger i eksisterende komponenter er byttet til de semantiske;
@@ -280,12 +282,19 @@ Invitasjon → e-post i Mailpit → velg passord → innlogging, og glemt passor
 ```text
 pnpm install --frozen-lockfile    OK (ny avhengighet: geist 1.9.2, låst eksakt)
 pnpm lint / pnpm typecheck        OK
-pnpm test:unit                    117/117
+pnpm test:unit                    117/117 (etter review: 120/120 tre ganger; én kjøring traff kjent ustabil test, punkt 5)
 pnpm test:integration             50/50
-pnpm test:e2e                     11/11, to kjøringer på rad
+pnpm test:e2e                     11/11, to kjøringer på rad (også etter review)
 pnpm build                        OK
 ```
-Ukjent seksjon gir HTTP 200 med «Ikke funnet»-innhold, ikke 404. Siden strømmes bak `loading.tsx`, så Next.js har sendt statuskoden før `notFound()`. Fremmed organisasjon stoppes i layouten, før strømmingen starter, og gir ekte 404.
+### Rettet etter review (PR #4)
+1. **`Button` og `Field` brukes nå i alle skjemaene:** innlogging, glemt og nytt passord, ny konto og invitasjon. Den mekaniske omskrivingen gjorde først etiketter med `{MIN}` til bokstavelig tekst; det ble fanget i diffen og rettet. `Field` tar nå `ref`.
+2. **Ukjent seksjon gir ekte 404.**
+   - Den foreslåtte `[section]/layout.tsx` alene var ikke nok; testet, ga fortsatt 200. Årsaken er at `loading.tsx` i foreldresegmentet også omslutter den.
+   - Løsning: `[section]/layout.tsx` validerer, og `loading.tsx` er flyttet ned under den (`[section]/`, `innstillinger/`). Oversikt henter ingen data og trenger ingen lastetilstand.
+3. **Mobilmenyen og virksomhetsvelgeren** (`Disclosure`) lukkes med Escape, med fokus tilbake til knappen, og ved klikk utenfor. Dekket i e2e.
+4. **Bare avslag gir 404.** `handlePageLoadError` gir innloggingssiden for `UNAUTHENTICATED` og 404 for `NOT_FOUND`. Andre feil, som nedetid eller kodefeil, går til feilsiden i stedet for å skjules som «Ikke funnet». Enhetstest: `tests/unit/page-load-error.test.ts`.
+5. **Ustabil test i `invitations.test.ts`** (fra oppgave 03) feilet én gang av fire også her. Reviewer retter den i egen PR.
 
 ### Manuell prøve
 - Jeg har sett på skjermbilder av Oversikt med åpen virksomhetsvelger, Innstillinger med fokus i skjemafeltet og mobilmenyen, i både lys og mørk modus. Kontrast, fokusring og oppsett ser riktige ut.
