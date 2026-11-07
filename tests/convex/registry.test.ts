@@ -154,7 +154,7 @@ describe("skjema og RLS-regler", () => {
     }
   });
 
-  test("tenantfunksjoner kan ikke opprette eller endre organisasjoner og medlemskap", async () => {
+  test("tenantfunksjoner kan ikke opprette organisasjoner, endre fremmed organisasjon eller medlemskap", async () => {
     const t = setupTest();
     const { orgA, membershipA } = await twoTenants(t);
     const rules = tenantRules({ organizationId: orgA });
@@ -162,7 +162,10 @@ describe("skjema og RLS-regler", () => {
       const org = (await ctx.db.get("organizations", orgA))!;
       const membership = (await ctx.db.get("memberships", membershipA))!;
       const empty = {} as Record<string, never>;
-      expect(await rules.organizations.modify(empty, org)).toBe(false);
+      // Egen organisasjon kan endres (navn); andres kan ikke.
+      expect(await rules.organizations.modify(empty, org)).toBe(true);
+      const other = tenantRules({ organizationId: "annen" as never });
+      expect(await other.organizations.modify(empty, org)).toBe(false);
       expect(await rules.organizations.insert(empty, org)).toBe(false);
       expect(await rules.memberships.modify(empty, membership)).toBe(false);
       expect(await rules.memberships.insert(empty, membership)).toBe(false);

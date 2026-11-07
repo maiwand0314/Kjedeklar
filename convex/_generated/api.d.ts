@@ -10,6 +10,7 @@
 
 import type * as account_actions from "../account/actions.js";
 import type * as account_queries from "../account/queries.js";
+import type * as audit_queries from "../audit/queries.js";
 import type * as auth from "../auth.js";
 import type * as email_actions from "../email/actions.js";
 import type * as email_config from "../email/config.js";
@@ -21,6 +22,8 @@ import type * as invitations_internal from "../invitations/internal.js";
 import type * as invitations_model from "../invitations/model.js";
 import type * as invitations_mutations from "../invitations/mutations.js";
 import type * as invitations_queries from "../invitations/queries.js";
+import type * as lib_audit from "../lib/audit.js";
+import type * as lib_auditTypes from "../lib/auditTypes.js";
 import type * as lib_errors from "../lib/errors.js";
 import type * as lib_invitation from "../lib/invitation.js";
 import type * as lib_rls from "../lib/rls.js";
@@ -32,6 +35,7 @@ import type * as ops_seed from "../ops/seed.js";
 import type * as ops_testing from "../ops/testing.js";
 import type * as ops_users from "../ops/users.js";
 import type * as ops_workspaces from "../ops/workspaces.js";
+import type * as organizations_mutations from "../organizations/mutations.js";
 import type * as organizations_queries from "../organizations/queries.js";
 
 import type {
@@ -43,6 +47,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   "account/actions": typeof account_actions;
   "account/queries": typeof account_queries;
+  "audit/queries": typeof audit_queries;
   auth: typeof auth;
   "email/actions": typeof email_actions;
   "email/config": typeof email_config;
@@ -54,6 +59,8 @@ declare const fullApi: ApiFromModules<{
   "invitations/model": typeof invitations_model;
   "invitations/mutations": typeof invitations_mutations;
   "invitations/queries": typeof invitations_queries;
+  "lib/audit": typeof lib_audit;
+  "lib/auditTypes": typeof lib_auditTypes;
   "lib/errors": typeof lib_errors;
   "lib/invitation": typeof lib_invitation;
   "lib/rls": typeof lib_rls;
@@ -65,6 +72,7 @@ declare const fullApi: ApiFromModules<{
   "ops/testing": typeof ops_testing;
   "ops/users": typeof ops_users;
   "ops/workspaces": typeof ops_workspaces;
+  "organizations/mutations": typeof organizations_mutations;
   "organizations/queries": typeof organizations_queries;
 }>;
 

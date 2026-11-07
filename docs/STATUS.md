@@ -8,6 +8,7 @@ Startpakke opprettet 6. november 2026. Dokumentasjonen ble samme dag skrevet om 
 | 02 | Implementert, verifisert lokalt og i CI, merget (PR #2) | Lokalt med Docker på 363fff4 (review 7.11): lint, typecheck, 69 enhets-/convex-test-tester, 21 integrasjonstester (to kjøringer), 4 e2e-tester (to kjøringer) og build. `convex/_generated` stemmer med ekte codegen. CI grønn på 363fff4 og på main etter merge | Innloggingsbegrensningen er felles for alle brukere (ingen klient-IP); løses i oppgave 03 |
 | 03 | Implementert og verifisert lokalt (branch `feature/03-auth-lifecycle`) | Fra ren start: lint, typecheck, 117 enhets-/convex-test-tester, 50 integrasjonstester mot lokal backend og Mailpit (fire kjøringer, tre på rad grønne etter siste rettelse), 6 e2e-tester (seks kjøringer) og build | Bare Mailpit, ingen produksjonsleverandør. Klient-IP i produksjon krever at reverse proxy overskriver headeren (oppgave 25) |
 | 04 | Implementert, verifisert lokalt, review-merknader rettet (PR #4) | Lokalt med Docker etter review: lint, typecheck, 120 enhets-/convex-test-tester (tre kjøringer), 50 integrasjonstester, 11 e2e-tester (to kjøringer) og build. Visuell kontroll av skjermbilder i lys og mørk modus | Lys/mørk følger systemvalget; ingen egen bryter. Ingen klientside Convex-provider ennå (sidene rendres på serveren) |
+| 05 | Implementert og verifisert lokalt (branch `feature/05-audit`) | Lint, typecheck, 146 enhets-/convex-test-tester, 59 integrasjonstester (to kjøringer), 12 e2e-tester (to kjøringer) og build | Append-only bare i appen; deploy key og dashboard kan omgå (beslutning 0004). Lagringstid/sletting avklares i oppgave 27 |
 
 Oppdater ved hver oppgave. Bruk «implementert», «verifisert» og «ekstern avklaring» presist. Et lokalt fake-resultat betyr ikke at en ekstern integrasjon er godkjent.
 
@@ -306,6 +307,48 @@ pnpm build                        OK
 - Ingen klientside Convex-provider: sidene rendres på serveren, og ingen abonnementer finnes ennå. Organisasjonsbytte med full sidelasting sørger for at de blir ryddet når de kommer.
 - Rapportperiode vises ikke ennå (oppgaven sier «senere»).
 - Ingen automatisk tilgjengelighetsskanning (axe). Sjekken er enkle regler i Playwright og manuell kontroll av skjermbilder.
+
+## Oppgave 05 – transaksjonell revisjonslogg
+
+### Endret
+- **Tabellen `auditEvents`:** organisasjon, aktør (bruker eller system), hendelse, objekttype og -id, `occurredAt` satt i mutasjonen, `requestId` og trygg diff. Indeksene starter med `organizationId`.
+- **`convex/lib/audit.ts`:** `writeAudit` skriver i samme mutasjon som endringen. `safeDiff` tar bare felter fra `AUDIT_DIFF_FIELDS`: navn, status, rolle og utløpstid. Aldri e-post, token, passord eller fritekst.
+- **Logges nå:**
+  - navneendring (ny `organizations/mutations:rename`);
+  - invitasjon sendt, fornyet, tilbakekalt og godtatt;
+  - medlemskap opprettet og endret;
+  - operatør-bootstrap og interne medlemskapsfunksjoner (som system).
+- **Append-only:**
+  - RLS nekter endring av `auditEvents` i tenant-, bruker- og invitasjonsreglene.
+  - En statisk test stopper `patch`/`replace`/`delete` på tabellen og innsetting utenfor hjelperen.
+  - Registeret har bare en lesefunksjon.
+- **Krav for nye mutasjoner:** Registeret i `tests/helpers/audited-mutations.ts` krever at hver mutasjon er klassifisert som logget eller unntatt med begrunnelse. Testen feiler ellers.
+- **Atferdsendring:** Tenantfunksjoner kan nå endre egen organisasjon (for navn); fremmed organisasjon avvises fortsatt. Testene fra oppgave 01/02 er oppdatert.
+- **Innstillinger:** felt for nytt navn og revisjonslogg med filter på objekttype, 25 per side og «Vis eldre». Aktør vises med navn.
+- **Beslutning [0004](decisions/0004-revisjonslogg.md)** dekker også begrensninger og kontrollert vedlikeholds- og sletteprosess. Beslutning 0002 har oppdatert inventar.
+
+### Kjørte kommandoer (7.11.2026, Docker)
+```text
+pnpm convex:deploy:local / pnpm seed:dev   OK
+pnpm lint / pnpm typecheck                 OK
+pnpm test:unit                             146/146 (inkl. registertest for logging av mutasjoner)
+pnpm test:integration                      59/59 (to kjøringer etter at rollback-proben fikk kontrollkjøring)
+pnpm test:e2e                              12/12 (to kjøringer)
+pnpm build                                 OK
+```
+**Rollback mot ekte backend:**
+- Proben uten feil lagrer både navn og logglinje. Det beviser at koden når fram til skrivingen.
+- Med feil etter audit-skrivingen lagres ingen av dem.
+- Backenden skjuler feilmeldingen (`REDACT_LOGS_TO_CLIENT`), så testen sjekker typen (`ConvexError`), ikke teksten.
+
+### Manuell prøve
+E2E-testen `tests/e2e/audit.spec.ts` endrer navnet i Innstillinger og bekrefter at raden «Navnet ble endret» viser «Navn: gammelt → nytt» og aktørens navn, og at filteret skjuler den. Ingen menneskelig prøve er gjort.
+
+### Ikke verifisert / begrensninger
+- **Append-only gjelder bare i appen:** deploy key, admin key og Convex-dashboardet kan endre loggen. Det er ingen ekstern, uforanderlig kopi.
+- **`requestId`** er per hendelse, ikke per forespørsel. Convex eksponerer ikke en id per forespørsel.
+- **Lagringstid og pseudonymisering** avklares i oppgave 27; til da slettes ingen revisjonslogg.
+- **Registeret for logging av mutasjoner** sjekker per fil, ikke per mutasjon. Når første forretningsmutasjon kommer, skal det få en kjørbar sjekk per mutasjon i convex-test (review av PR #6).
 
 ## Åpne eksterne avklaringer
 - Convex DPA, underleverandører og plassering av backup, logg og support (beslutning 0001). Må lukkes før ekte kundedata.

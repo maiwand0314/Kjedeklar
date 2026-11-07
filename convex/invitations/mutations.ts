@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { z } from "zod";
 import { internal } from "../_generated/api";
 import { authUserIdByEmail, normalizeEmail } from "../auth";
+import { writeAudit } from "../lib/audit";
 import { appError } from "../lib/errors";
 import { invitationMutation } from "../lib/invitation";
 import { getOwned, tenantMutation } from "../lib/tenant";
@@ -46,6 +47,7 @@ export const create = tenantMutation({
     ).find((i) => i.status === "pending");
 
     let invitationId;
+    const actor = { type: "user", id: ctx.tenant.userId } as const;
     if (pending) {
       invitationId = pending._id;
       await ctx.db.patch("invitations", pending._id, {
@@ -53,13 +55,16 @@ export const create = tenantMutation({
         tokenHash: undefined,
         invitedBy: ctx.tenant.userId,
       });
+      await writeAudit(ctx, {
+        organizationId, actor, eventType: "invitation.renewed", entityType: "invitation",
+        entityId: invitationId, before: pending, after: { ...pending, expiresAt },
+      });
     } else {
-      invitationId = await ctx.db.insert("invitations", {
-        organizationId,
-        email,
-        status: "pending",
-        expiresAt,
-        invitedBy: ctx.tenant.userId,
+      const doc = { organizationId, email, status: "pending" as const, expiresAt, invitedBy: ctx.tenant.userId };
+      invitationId = await ctx.db.insert("invitations", doc);
+      await writeAudit(ctx, {
+        organizationId, actor, eventType: "invitation.created", entityType: "invitation",
+        entityId: invitationId, after: doc,
       });
     }
     await ctx.scheduler.runAfter(0, internal.email.actions.sendInvitation, { invitationId });
@@ -78,6 +83,15 @@ export const revoke = tenantMutation({
         status: "revoked",
         revokedAt: Date.now(),
         tokenHash: undefined,
+      });
+      await writeAudit(ctx, {
+        organizationId: ctx.tenant.organizationId,
+        actor: { type: "user", id: ctx.tenant.userId },
+        eventType: "invitation.revoked",
+        entityType: "invitation",
+        entityId: invitation._id,
+        before: invitation,
+        after: { ...invitation, status: "revoked" },
       });
     }
     return null;

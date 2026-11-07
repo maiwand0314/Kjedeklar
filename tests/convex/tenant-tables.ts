@@ -58,6 +58,23 @@ export const tenantTableCases: { [T in TenantTable]: TenantTableCase<T> } = {
     tenantCanModifyOwn: true,
     tenantCanInsertOwn: true,
   },
+  auditEvents: {
+    newDoc: ({ organizationId, userId }) => ({
+      organizationId,
+      actorType: "user",
+      actorId: userId,
+      eventType: "organization.renamed",
+      entityType: "organization",
+      entityId: organizationId,
+      occurredAt: Date.now(),
+      requestId: "test",
+      safeDiff: {},
+    }),
+    patch: { reason: "omskrevet" },
+    // Append-only: kan legges til, aldri endres eller slettes.
+    tenantCanModifyOwn: false,
+    tenantCanInsertOwn: true,
+  },
 };
 
 /** Setter inn et testdokument med rå db (testoppsett, ikke tenantfunksjon). */

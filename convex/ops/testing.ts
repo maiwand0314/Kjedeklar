@@ -1,7 +1,8 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { internalAction, internalMutation } from "../_generated/server";
+import { writeAudit } from "../lib/audit";
 import { assertLocalEnv } from "./guard";
 import { ensurePasswordUser } from "./users";
 
@@ -67,5 +68,31 @@ export const createUnverifiedUser = internalAction({
   handler: async (ctx, { email, password }) => {
     assertLocalEnv(["test"]);
     return await ensurePasswordUser(ctx, { email, name: "Ubekreftet", password, emailVerified: false });
+  },
+});
+
+/**
+ * Test: endrer navn og skriver audit. Med `fail: true` kastes en feil etter
+ * audit-skrivingen i samme mutasjon. Uten feil lagres begge (beviser at koden
+ * når fram til skrivingen); med feil lagres ingen av dem (rollback).
+ */
+export const auditRollbackProbe = internalMutation({
+  args: { organizationId: v.id("organizations"), name: v.string(), fail: v.boolean() },
+  returns: v.null(),
+  handler: async (ctx, { organizationId, name, fail }) => {
+    assertLocalEnv(["test"]);
+    const before = await ctx.db.get("organizations", organizationId);
+    await ctx.db.patch("organizations", organizationId, { name });
+    await writeAudit(ctx, {
+      organizationId,
+      actor: { type: "system" },
+      eventType: "organization.renamed",
+      entityType: "organization",
+      entityId: organizationId,
+      before,
+      after: { ...before, name },
+    });
+    if (fail) throw new ConvexError({ code: "AUDIT_ROLLBACK_PROBE", message: "Bevisst feil etter audit-skriving" });
+    return null;
   },
 });

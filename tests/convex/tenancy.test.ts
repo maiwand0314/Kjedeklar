@@ -124,9 +124,9 @@ describe("RLS-hjelper og getOwned", () => {
     });
   });
 
-  test("tenantfunksjoner kan ikke opprette eller endre medlemskap", async () => {
+  test("tenantfunksjoner kan ikke opprette eller endre medlemskap eller fremmed organisasjon", async () => {
     const t = setupTest();
-    const { tenant, membershipA } = await tenantFor(t);
+    const { tenant, membershipA, orgB } = await tenantFor(t);
     await t.run(async (ctx) => {
       const db = wrapDatabaseWriter({}, ctx.db, tenantRules(tenant), { defaultPolicy: "deny" });
       await expect(
@@ -138,7 +138,9 @@ describe("RLS-hjelper og getOwned", () => {
         }),
       ).rejects.toThrow();
       await expect(db.patch("memberships", membershipA, { status: "inactive" })).rejects.toThrow();
-      await expect(db.patch("organizations", tenant.organizationId, { name: "Endret" })).rejects.toThrow();
+      // Egen organisasjon kan endres (navn, oppgave 05); fremmed kan ikke.
+      await expect(db.patch("organizations", orgB, { name: "Endret" })).rejects.toThrow();
+      await db.patch("organizations", tenant.organizationId, { name: "Endret" });
     });
   });
 
