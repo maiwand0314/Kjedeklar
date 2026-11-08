@@ -12,7 +12,7 @@
 
 | Objekttype | Felter |
 |---|---|
-| organization | `name`, `status` |
+| organization | `name`, `status`, `orgNumber`, `legalForm`, `industryCode` |
 | membership | `role`, `status` |
 | invitation | `status`, `expiresAt` |
 
@@ -23,6 +23,7 @@
 |---|---|---|
 | `organization.renamed` | admin endrer navn | bruker |
 | `organization.provisioned` | operatør-bootstrap | system |
+| `organization.registry_confirmed` | admin bekrefter Brreg-opplysninger (oppgave 06) | bruker |
 | `invitation.created` / `invitation.renewed` / `invitation.revoked` | admin | bruker |
 | `invitation.created` | operatør-bootstrap | system |
 | `invitation.accepted` og `membership.created` / `membership.status_changed` | aksept | aksepterende bruker |

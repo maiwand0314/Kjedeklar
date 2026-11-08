@@ -4,6 +4,7 @@ import { v, type Infer } from "convex/values";
 export const auditEventTypes = v.union(
   v.literal("organization.provisioned"),
   v.literal("organization.renamed"),
+  v.literal("organization.registry_confirmed"),
   v.literal("membership.created"),
   v.literal("membership.status_changed"),
   v.literal("invitation.created"),

@@ -18,6 +18,7 @@
 import type { GenericDatabaseWriter, WithoutSystemFields } from "convex/server";
 import type { DataModel, Doc, Id } from "../../convex/_generated/dataModel";
 import type { TenantTable } from "../../convex/lib/tenant";
+import { SYNTHETIC_REGISTRY_PROFILE } from "../helpers/public-functions";
 
 type Owner = { organizationId: Id<"organizations">; userId: string };
 
@@ -57,6 +58,23 @@ export const tenantTableCases: { [T in TenantTable]: TenantTableCase<T> } = {
     // Admin inviterer og tilbakekaller i egen organisasjon.
     tenantCanModifyOwn: true,
     tenantCanInsertOwn: true,
+  },
+  registrySnapshots: {
+    newDoc: ({ organizationId, userId }) => ({
+      organizationId,
+      source: "brreg-enhetsregisteret",
+      orgNumber: "920000002",
+      fetchedAt: Date.now(),
+      fetchedBy: userId,
+      selectedFields: SYNTHETIC_REGISTRY_PROFILE,
+      sourcePayloadHash: "0".repeat(64),
+      mappingVersion: "brreg-enhet-v1",
+      status: "preview",
+    }),
+    patch: { status: "confirmed" },
+    // Bekreftes av admin; opprettes bare av intern mutasjon etter oppslag.
+    tenantCanModifyOwn: true,
+    tenantCanInsertOwn: false,
   },
   auditEvents: {
     newDoc: ({ organizationId, userId }) => ({

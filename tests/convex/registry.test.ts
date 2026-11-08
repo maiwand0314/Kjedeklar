@@ -70,11 +70,10 @@ describe("offentlige funksjoner", () => {
     }
   });
 
-  test("offentlige actions finnes bare bak token-byggeklossene", () => {
-    // tenantAction finnes ikke ennå. En annen offentlig action må få egen byggekloss først.
+  test("offentlige actions finnes bare bak tenant- og token-byggeklossene", () => {
     const actions = listConvexFunctions().filter((f) => f.kind === "action" && f.visibility === "public");
     for (const f of actions) {
-      expect(["invitation", "verification"], f.path).toContain(reviewedPublicFunctions[f.path]?.boundary);
+      expect(["tenant", "invitation", "verification"], f.path).toContain(reviewedPublicFunctions[f.path]?.boundary);
     }
   });
 });

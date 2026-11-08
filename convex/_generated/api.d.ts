@@ -17,6 +17,7 @@ import type * as email_config from "../email/config.js";
 import type * as email_seal from "../email/seal.js";
 import type * as email_templates from "../email/templates.js";
 import type * as http from "../http.js";
+import type * as integrations_brreg_client from "../integrations/brreg/client.js";
 import type * as invitations_actions from "../invitations/actions.js";
 import type * as invitations_internal from "../invitations/internal.js";
 import type * as invitations_model from "../invitations/model.js";
@@ -28,6 +29,7 @@ import type * as lib_errors from "../lib/errors.js";
 import type * as lib_invitation from "../lib/invitation.js";
 import type * as lib_rls from "../lib/rls.js";
 import type * as lib_tenant from "../lib/tenant.js";
+import type * as lib_tenantAction from "../lib/tenantAction.js";
 import type * as lib_verification from "../lib/verification.js";
 import type * as ops_guard from "../ops/guard.js";
 import type * as ops_organizations from "../ops/organizations.js";
@@ -37,6 +39,9 @@ import type * as ops_users from "../ops/users.js";
 import type * as ops_workspaces from "../ops/workspaces.js";
 import type * as organizations_mutations from "../organizations/mutations.js";
 import type * as organizations_queries from "../organizations/queries.js";
+import type * as organizations_registry from "../organizations/registry.js";
+import type * as organizations_registryInternal from "../organizations/registryInternal.js";
+import type * as organizations_registryValidators from "../organizations/registryValidators.js";
 
 import type {
   ApiFromModules,
@@ -54,6 +59,7 @@ declare const fullApi: ApiFromModules<{
   "email/seal": typeof email_seal;
   "email/templates": typeof email_templates;
   http: typeof http;
+  "integrations/brreg/client": typeof integrations_brreg_client;
   "invitations/actions": typeof invitations_actions;
   "invitations/internal": typeof invitations_internal;
   "invitations/model": typeof invitations_model;
@@ -65,6 +71,7 @@ declare const fullApi: ApiFromModules<{
   "lib/invitation": typeof lib_invitation;
   "lib/rls": typeof lib_rls;
   "lib/tenant": typeof lib_tenant;
+  "lib/tenantAction": typeof lib_tenantAction;
   "lib/verification": typeof lib_verification;
   "ops/guard": typeof ops_guard;
   "ops/organizations": typeof ops_organizations;
@@ -74,6 +81,9 @@ declare const fullApi: ApiFromModules<{
   "ops/workspaces": typeof ops_workspaces;
   "organizations/mutations": typeof organizations_mutations;
   "organizations/queries": typeof organizations_queries;
+  "organizations/registry": typeof organizations_registry;
+  "organizations/registryInternal": typeof organizations_registryInternal;
+  "organizations/registryValidators": typeof organizations_registryValidators;
 }>;
 
 /**

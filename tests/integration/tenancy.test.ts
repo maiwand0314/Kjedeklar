@@ -20,7 +20,11 @@ import {
   type TwoTenants,
 } from "../helpers/local-backend";
 import { messagesTo } from "../helpers/mailpit";
-import { reviewedPublicFunctions, type PublicFunctionReview } from "../helpers/public-functions";
+import {
+  reviewedPublicFunctions,
+  SYNTHETIC_REGISTRY_PROFILE,
+  type PublicFunctionReview,
+} from "../helpers/public-functions";
 
 const current = api.organizations.queries.current;
 const listMine = api.organizations.queries.listMine;
@@ -212,6 +216,24 @@ describe("tenant-isolasjon mot lokal Convex-backend", () => {
         await expect(signIn("kapret-ubekreftet@mailtest.example", "kapret-passord-123")).rejects.toThrow(
           /Innlogging feilet: 401/,
         );
+      },
+    },
+    "lib/tenantAction:resolve": {
+      // Query: et vellykket kall ville gitt tenantkontekst for en annen org.
+      args: ({ fx }) => ({ organizationId: fx.orgB }),
+      verifyNoEffect: async () => {},
+    },
+    "organizations/registryInternal:storePreview": {
+      args: ({ fx }) => ({
+        organizationId: fx.orgA,
+        fetchedBy: fx.userA.userId,
+        fetchedAt: Date.now(),
+        profile: { ...SYNTHETIC_REGISTRY_PROFILE, name: "Kapret AS" },
+        payloadHash: "0".repeat(64),
+        mappingVersion: "brreg-enhet-v1",
+      }),
+      verifyNoEffect: async ({ fx, a }) => {
+        expect((await a.query(api.organizations.registry.current, org(fx.orgA))).snapshotId).toBeNull();
       },
     },
     "ops/testing:auditRollbackProbe": {

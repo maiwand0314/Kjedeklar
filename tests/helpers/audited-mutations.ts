@@ -16,6 +16,10 @@ export const auditedMutations: Record<string, AuditClassification> = {
   "ops/organizations:setMembership": { logged: true },
   "ops/workspaces:provision": { logged: true },
   "ops/testing:auditRollbackProbe": { logged: true },
+  "organizations/registry:confirm": { logged: true },
+  "organizations/registryInternal:storePreview": {
+    exempt: "Lagrer bare en forhåndsvisning av et Brreg-oppslag; ingen kundedata endres før bekreftelse, som logges.",
+  },
   "invitations/internal:attachToken": {
     exempt: "Lagrer bare tokenhash ved e-postsending; logges ikke for å holde token unna loggen.",
   },

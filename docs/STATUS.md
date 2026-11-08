@@ -9,6 +9,7 @@ Startpakke opprettet 6. november 2026. Dokumentasjonen ble samme dag skrevet om 
 | 03 | Implementert og verifisert lokalt (branch `feature/03-auth-lifecycle`) | Fra ren start: lint, typecheck, 117 enhets-/convex-test-tester, 50 integrasjonstester mot lokal backend og Mailpit (fire kjøringer, tre på rad grønne etter siste rettelse), 6 e2e-tester (seks kjøringer) og build | Bare Mailpit, ingen produksjonsleverandør. Klient-IP i produksjon krever at reverse proxy overskriver headeren (oppgave 25) |
 | 04 | Implementert, verifisert lokalt, review-merknader rettet (PR #4) | Lokalt med Docker etter review: lint, typecheck, 120 enhets-/convex-test-tester (tre kjøringer), 50 integrasjonstester, 11 e2e-tester (to kjøringer) og build. Visuell kontroll av skjermbilder i lys og mørk modus | Lys/mørk følger systemvalget; ingen egen bryter. Ingen klientside Convex-provider ennå (sidene rendres på serveren) |
 | 05 | Implementert og verifisert lokalt (branch `feature/05-audit`) | Lint, typecheck, 146 enhets-/convex-test-tester, 59 integrasjonstester (to kjøringer), 12 e2e-tester (to kjøringer) og build | Append-only bare i appen; deploy key og dashboard kan omgå (beslutning 0004). Lagringstid/sletting avklares i oppgave 27 |
+| 06 | Implementert og verifisert lokalt (branch `feature/06-brreg-onboarding`) | Lint, typecheck, 189 enhets-/convex-test-tester, 71 integrasjonstester (to kjøringer), 12 e2e-tester og build. Live-kontroll mot Enhetsregisteret OK (manuell, ikke i CI) | SN-versjon oppgis ikke av Brreg. Ingen e2e av selve oppslaget (krever nettverk) |
 
 Oppdater ved hver oppgave. Bruk «implementert», «verifisert» og «ekstern avklaring» presist. Et lokalt fake-resultat betyr ikke at en ekstern integrasjon er godkjent.
 
@@ -349,6 +350,42 @@ E2E-testen `tests/e2e/audit.spec.ts` endrer navnet i Innstillinger og bekrefter 
 - **`requestId`** er per hendelse, ikke per forespørsel. Convex eksponerer ikke en id per forespørsel.
 - **Lagringstid og pseudonymisering** avklares i oppgave 27; til da slettes ingen revisjonslogg.
 - **Registeret for logging av mutasjoner** sjekker per fil, ikke per mutasjon. Når første forretningsmutasjon kommer, skal det få en kjørbar sjekk per mutasjon i convex-test (review av PR #6).
+
+## Oppgave 06 – Brreg-oppslag for egen virksomhet
+
+### Endret
+- **Ren domenekode** (`src/domain/brreg/`):
+  - org.nr.-validering med mod 11;
+  - Zod-kontrakt for de valgte feltene: navn, org.nr., organisasjonsform, adresse, næringskode 1 og status (konkurs, avvikling, tvangsavvikling, slettet);
+  - `profileGaps` for datamangler.
+  - Ingen roller og ingen `antallAnsatte`.
+- **Adapter** (`convex/integrations/brreg/client.ts`): 5 s timeout per forsøk og opptil 2 nye forsøk ved 429/5xx/timeout. 404, 410 og 400 gir egne resultater, og svar som ikke matcher kontrakten gir `contract_changed`. Kilde-hash (SHA-256) og mappingversjon lagres.
+- **Ny byggekloss `tenantAction`** (`convex/lib/tenantAction.ts`) for nettverkskall. Den verifiserer medlemskap via en intern query med brukerens identitet.
+- **Funksjoner:**
+  - `organizations/registry:lookup` (action) lagrer bare en forhåndsvisning i `registrySnapshots`.
+  - `organizations/registry:confirm` (tenantMutation) skriver opplysninger, snapshot-status og revisjonslogg i én mutasjon. Den har optimistisk sjekk mot det brukeren så som gjeldende (`CONFLICT`), og forhåndsvisningen er gyldig i 30 minutter (`PREVIEW_EXPIRED`).
+  - Visningsnavnet endres bare når brukeren krysser av.
+- **Org.nr. gir ingen tilgang på tvers:** Det slås aldri opp mot andre arbeidsområder og brukes ikke til å slå sammen eller ta over workspace.
+- **Siden Virksomheten** viser bekreftede opplysninger med kilde, hentetid, registerstatus som kontrollsignaler og datamangler. Den har et oppslagsskjema med forhåndsvisning og varsel om endret org.nr. eller navn.
+- **Registrene** for offentlige funksjoner, mutasjoner med revisjonslogg, kundetabeller og interne prober er oppdatert. `convex-test` har nettverket stoppet.
+
+### Kjørte kommandoer (8.11.2026, Docker)
+```text
+pnpm lint / pnpm typecheck     OK
+pnpm test:unit                 189/189
+pnpm test:integration          71/71 (to kjøringer)
+pnpm test:e2e                  12/12
+pnpm build                     OK
+Live-kontroll (manuell)        fetchEnhet("974760673") → found (ORGL, 84.110); 123456785 → not_found
+```
+
+### Manuell prøve
+Siden Virksomheten er bare prøvd gjennom e2e-navigasjonen (overskrift og tilgjengelighet). Oppslag i nettleseren mot det ekte registeret er ikke prøvd; adapteren er kontrollert direkte mot live-API-et.
+
+### Ikke verifisert / begrensninger
+- **SN-versjon:** Brreg oppgir ikke hvilken SN-versjon næringskoden følger. Den lagres som «SN» uten versjon.
+- **Forhåndsvisninger** som ikke bekreftes, blir liggende. `shortcut:` ingen opprydding ennå; legg til når jobbmekanismen kommer (oppgave 12).
+- **Ingen e2e av selve oppslaget:** Det krever nettverk til Brreg, og live-kall skal ikke være en ustabil CI-avhengighet.
 
 ## Åpne eksterne avklaringer
 - Convex DPA, underleverandører og plassering av backup, logg og support (beslutning 0001). Må lukkes før ekte kundedata.

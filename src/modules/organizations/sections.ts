@@ -11,14 +11,7 @@ export type Section = {
 
 export const SECTIONS: readonly Section[] = [
   { slug: "", label: "Oversikt" },
-  {
-    slug: "virksomheten",
-    label: "Virksomheten",
-    placeholder: {
-      title: "Virksomhetsprofilen er ikke registrert",
-      text: "Her skal du registrere virksomheten, vurdere om åpenhetsloven gjelder og beskrive egen drift. Funksjonen er ikke tilgjengelig ennå.",
-    },
-  },
+  { slug: "virksomheten", label: "Virksomheten" },
   {
     slug: "leverandorer",
     label: "Leverandører",

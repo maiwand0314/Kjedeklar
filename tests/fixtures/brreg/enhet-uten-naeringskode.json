@@ -1,0 +1,9 @@
+{
+  "organisasjonsnummer": "931234560",
+  "navn": "SYNTETISK FORENING",
+  "organisasjonsform": { "kode": "FLI", "beskrivelse": "Forening/lag/innretning" },
+  "postadresse": { "land": "Norge", "landkode": "NO", "postnummer": "5003", "poststed": "BERGEN", "adresse": ["Postboks 1"], "kommune": "BERGEN", "kommunenummer": "4601" },
+  "konkurs": false,
+  "underAvvikling": false,
+  "underTvangsavviklingEllerTvangsopplosning": false
+}

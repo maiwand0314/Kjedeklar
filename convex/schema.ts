@@ -1,6 +1,7 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { auditEventTypes, auditEntityTypes, safeDiffValidator } from "./lib/auditTypes";
+import { registryProfileValidator } from "./organizations/registryValidators";
 
 // Better Auth-tabellene ligger i komponenten @convex-dev/better-auth, ikke her.
 export default defineSchema({
@@ -11,7 +12,30 @@ export default defineSchema({
     country: v.string(),
     legalForm: v.optional(v.string()),
     status: v.union(v.literal("active"), v.literal("inactive")),
+    // Bekreftede registeropplysninger (oppgave 06). Navnet over er
+    // visningsnavnet og endres bare når brukeren eksplisitt velger det.
+    industryCode: v.optional(v.string()),
+    registryProfile: v.optional(registryProfileValidator),
+    registrySnapshotId: v.optional(v.id("registrySnapshots")),
+    registryConfirmedAt: v.optional(v.number()),
+    registryConfirmedBy: v.optional(v.string()),
   }),
+
+  // Minimalt utdrag fra Enhetsregisteret per oppslag. «preview» til brukeren
+  // bekrefter; bekreftede snapshots er historikk og endres ikke.
+  registrySnapshots: defineTable({
+    organizationId: v.id("organizations"),
+    source: v.literal("brreg-enhetsregisteret"),
+    orgNumber: v.string(),
+    fetchedAt: v.number(),
+    fetchedBy: v.string(),
+    selectedFields: registryProfileValidator,
+    sourcePayloadHash: v.string(),
+    mappingVersion: v.string(),
+    status: v.union(v.literal("preview"), v.literal("confirmed")),
+    confirmedAt: v.optional(v.number()),
+    confirmedBy: v.optional(v.string()),
+  }).index("by_organizationId_and_fetchedAt", ["organizationId", "fetchedAt"]),
 
   memberships: defineTable({
     organizationId: v.id("organizations"),
