@@ -1,19 +1,10 @@
-import type { RegistryProfile } from "@/domain/brreg/enhet";
+import { registryStatusText, type RegistryProfile } from "@/domain/brreg/enhet";
 
 const dateTime = new Intl.DateTimeFormat("nb-NO", { dateStyle: "long", timeStyle: "short", timeZone: "Europe/Oslo" });
 const date = new Intl.DateTimeFormat("nb-NO", { dateStyle: "long", timeZone: "Europe/Oslo" });
 
 export const formatOrgNumber = (n: string) => n.replace(/^(\d{3})(\d{3})(\d{3})$/, "$1 $2 $3");
 
-/** Registerstatus er kontrollsignaler, ikke vurderinger av virksomheten. */
-function statusNotes(p: RegistryProfile): string[] {
-  const notes: string[] = [];
-  if (p.deletedOn) notes.push(`Slettet i registeret ${date.format(new Date(p.deletedOn))}`);
-  if (p.bankrupt) notes.push("Konkurs");
-  if (p.underLiquidation) notes.push("Under avvikling");
-  if (p.underForcedLiquidation) notes.push("Under tvangsavvikling eller tvangsoppløsning");
-  return notes;
-}
 
 /** Viser registeropplysninger med kilde, hentetid og datamangler. */
 export function RegistryProfileView({
@@ -25,7 +16,7 @@ export function RegistryProfileView({
   fetchedAt: number;
   gaps: string[];
 }) {
-  const notes = statusNotes(profile);
+
   const address = profile.address
     ? [...profile.address.lines, [profile.address.postalCode, profile.address.city].filter(Boolean).join(" ")]
         .filter(Boolean)
@@ -49,7 +40,7 @@ export function RegistryProfileView({
             : "Mangler"}
         </dd>
         <dt className="text-muted">Registerstatus</dt>
-        <dd>{notes.length ? notes.join("; ") : "Ingen merknader"}</dd>
+        <dd>{registryStatusText(profile, (iso) => date.format(new Date(iso)))}</dd>
       </dl>
       {gaps.length > 0 && (
         <div role="note" className="mt-4 rounded border border-border p-3">

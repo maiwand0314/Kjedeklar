@@ -51,9 +51,10 @@ export type RegistryProfile = {
   industryDescription: string | null;
   /** Brreg oppgir ikke hvilken SN-versjon koden følger. */
   industryCodeSystem: "SN";
-  bankrupt: boolean;
-  underLiquidation: boolean;
-  underForcedLiquidation: boolean;
+  /** null = registeret oppga ikke feltet (ukjent), aldri tolket som «nei». */
+  bankrupt: boolean | null;
+  underLiquidation: boolean | null;
+  underForcedLiquidation: boolean | null;
   deletedOn: string | null;
 };
 
@@ -63,6 +64,9 @@ export function profileGaps(profile: RegistryProfile): string[] {
   if (!profile.industryCode) gaps.push("Næringskode mangler i registeret.");
   if (!profile.legalForm) gaps.push("Organisasjonsform mangler i registeret.");
   if (!profile.address) gaps.push("Adresse mangler i registeret.");
+  if ([profile.bankrupt, profile.underLiquidation, profile.underForcedLiquidation].includes(null)) {
+    gaps.push("Konkurs- og avviklingsstatus mangler i registeret.");
+  }
   return gaps;
 }
 
@@ -86,9 +90,26 @@ export function toProfile(enhet: z.infer<typeof enhetSchema>): RegistryProfile {
     industryCode: enhet.naeringskode1?.kode ?? null,
     industryDescription: enhet.naeringskode1?.beskrivelse ?? null,
     industryCodeSystem: "SN",
-    bankrupt: enhet.konkurs ?? false,
-    underLiquidation: enhet.underAvvikling ?? false,
-    underForcedLiquidation: enhet.underTvangsavviklingEllerTvangsopplosning ?? false,
+    bankrupt: enhet.konkurs ?? null,
+    underLiquidation: enhet.underAvvikling ?? null,
+    underForcedLiquidation: enhet.underTvangsavviklingEllerTvangsopplosning ?? null,
     deletedOn: enhet.slettedato ?? null,
   };
+}
+
+/**
+ * Registerstatus som tekst. Statusene er kontrollsignaler, ikke vurderinger av
+ * virksomheten. «Ingen merknader» bare når registeret svarte nei på alle;
+ * manglende felt vises som ukjent.
+ */
+export function registryStatusText(profile: RegistryProfile, formatDate: (iso: string) => string): string {
+  const notes: string[] = [];
+  if (profile.deletedOn) notes.push(`Slettet i registeret ${formatDate(profile.deletedOn)}`);
+  if (profile.bankrupt) notes.push("Konkurs");
+  if (profile.underLiquidation) notes.push("Under avvikling");
+  if (profile.underForcedLiquidation) notes.push("Under tvangsavvikling eller tvangsoppløsning");
+  if ([profile.bankrupt, profile.underLiquidation, profile.underForcedLiquidation].includes(null)) {
+    notes.push(notes.length ? "øvrig konkurs- og avviklingsstatus ukjent" : "Ukjent (ikke oppgitt av registeret)");
+  }
+  return notes.length ? notes.join("; ") : "Ingen merknader";
 }

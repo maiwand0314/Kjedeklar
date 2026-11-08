@@ -20,8 +20,8 @@ export const registryProfileValidator = v.object({
   industryCode: v.union(v.string(), v.null()),
   industryDescription: v.union(v.string(), v.null()),
   industryCodeSystem: v.literal("SN"),
-  bankrupt: v.boolean(),
-  underLiquidation: v.boolean(),
-  underForcedLiquidation: v.boolean(),
+  bankrupt: v.union(v.boolean(), v.null()),
+  underLiquidation: v.union(v.boolean(), v.null()),
+  underForcedLiquidation: v.union(v.boolean(), v.null()),
   deletedOn: v.union(v.string(), v.null()),
 });

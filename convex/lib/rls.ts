@@ -65,7 +65,12 @@ export function tenantRules(scope: TenantScope): ExhaustiveRules {
     // Append-only: kan leses og legges til i egen organisasjon, aldri endres.
     auditEvents: { read: sameTenant, modify: deny, insert: sameTenant },
     // Opprettes av intern mutasjon etter Brreg-oppslag; admin bekrefter.
-    registrySnapshots: { read: sameTenant, modify: sameTenant, insert: deny },
+    // Bekreftede snapshots er historikk og kan ikke endres.
+    registrySnapshots: {
+      read: sameTenant,
+      modify: async (_ctx, doc) => doc.organizationId === scope.organizationId && doc.status === "preview",
+      insert: deny,
+    },
   };
 }
 

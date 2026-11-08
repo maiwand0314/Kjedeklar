@@ -1,4 +1,6 @@
+import { wrapDatabaseWriter } from "convex-helpers/server/rowLevelSecurity";
 import { afterEach, describe, expect, test, vi } from "vitest";
+import { RLS_CONFIG, tenantRules } from "../../convex/lib/rls";
 import { api } from "../../convex/_generated/api";
 import aksjeselskap from "../fixtures/brreg/enhet-aksjeselskap.json";
 import utenNaeringskode from "../fixtures/brreg/enhet-uten-naeringskode.json";
@@ -170,6 +172,20 @@ describe("bekreftelse", () => {
       asA.mutation(confirm, { organizationId: fx.orgA, snapshotId: old, expectedCurrentSnapshotId: snapshotId, useRegistryName: false }),
       "PREVIEW_EXPIRED",
     );
+  });
+
+  test("bekreftet snapshot er historikk og kan ikke endres fra tenantfunksjoner", async () => {
+    const t = setupTest();
+    const fx = await twoTenants(t);
+    const snapshotId = await preview(t, fx);
+    await t.withIdentity(fx.userA.identity).mutation(confirm, {
+      organizationId: fx.orgA, snapshotId, expectedCurrentSnapshotId: null, useRegistryName: false,
+    });
+    await t.run(async (ctx) => {
+      const db = wrapDatabaseWriter({}, ctx.db, tenantRules({ organizationId: fx.orgA }), RLS_CONFIG);
+      await expect(db.patch("registrySnapshots", snapshotId, { status: "preview" })).rejects.toThrow();
+    });
+    expect((await t.run((ctx) => ctx.db.get("registrySnapshots", snapshotId)))?.status).toBe("confirmed");
   });
 
   test("forhåndsvisning fra en annen organisasjon kan ikke bekreftes", async () => {

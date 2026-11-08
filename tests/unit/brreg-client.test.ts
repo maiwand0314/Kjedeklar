@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import { fetchEnhet } from "../../convex/integrations/brreg/client";
-import { profileGaps } from "../../src/domain/brreg/enhet";
+import { profileGaps, registryStatusText, type RegistryProfile } from "../../src/domain/brreg/enhet";
 import { normalizeOrgNumber } from "../../src/domain/brreg/org-number";
 
 const fixture = (name: string) => readFileSync(`tests/fixtures/brreg/${name}.json`, "utf8");
@@ -82,6 +82,9 @@ describe("Enhetsregisteret-adapter", () => {
     if (result.kind !== "found") throw new Error(result.kind);
     expect(result.profile.deletedOn).toBe("2024-06-30");
     expect(profileGaps(result.profile)).toContain("Adresse mangler i registeret.");
+    // Statusfeltene mangler i svaret: ukjent (null), ikke «nei».
+    expect(result.profile).toMatchObject({ bankrupt: null, underLiquidation: null, underForcedLiquidation: null });
+    expect(profileGaps(result.profile)).toContain("Konkurs- og avviklingsstatus mangler i registeret.");
   });
 
   test.each([
@@ -134,5 +137,22 @@ describe("Enhetsregisteret-adapter", () => {
   ])("%s gir contract_changed", async (_label, body) => {
     const { impl } = fakeFetch(json(body));
     expect((await fetchEnhet("920000002", { fetchImpl: impl, ...fast })).kind).toBe("contract_changed");
+  });
+});
+
+describe("registerstatus som tekst", () => {
+  const base = { bankrupt: false, underLiquidation: false, underForcedLiquidation: false, deletedOn: null };
+  const text = (p: Partial<RegistryProfile>) => registryStatusText({ ...base, ...p } as RegistryProfile, (d) => d);
+
+  test.each([
+    [{}, "Ingen merknader"],
+    [{ bankrupt: true }, "Konkurs"],
+    [{ bankrupt: null, underLiquidation: null, underForcedLiquidation: null }, "Ukjent (ikke oppgitt av registeret)"],
+    [{ bankrupt: null }, "Ukjent (ikke oppgitt av registeret)"],
+    [{ underLiquidation: true, bankrupt: null }, "Under avvikling; øvrig konkurs- og avviklingsstatus ukjent"],
+    [{ deletedOn: "2024-06-30", bankrupt: null, underLiquidation: null, underForcedLiquidation: null },
+      "Slettet i registeret 2024-06-30; øvrig konkurs- og avviklingsstatus ukjent"],
+  ])("%j → %s", (profile, expected) => {
+    expect(text(profile as Partial<RegistryProfile>)).toBe(expected);
   });
 });
