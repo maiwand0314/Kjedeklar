@@ -118,8 +118,16 @@ test("organisasjonsbytte viser bare egne medlemskap og laster siden helt på nyt
 
 test("lasting vises ved trege svar, og fremmed eller ukjent side gir avslag", async ({ page }) => {
   const fx = fixture();
+  // Lastegrensen kommer med lenkens prefetch. Klikkes det før den er hentet, har
+  // ruteren ingen lastetilstand å vise, så vent på den før svaret forsinkes.
+  const prefetched = page.waitForResponse((r) => {
+    const headers = r.request().headers();
+    return r.url().includes("/leverandorer?") && headers["next-router-prefetch"] === "1"
+      && headers["next-router-segment-prefetch"] !== "/_tree";
+  });
   await logIn(page, fx.userA.email, fx.password);
   await expect(page).toHaveURL(new RegExp(`/o/${fx.orgA}$`));
+  await (await prefetched).finished();
 
   // Forsink serversvaret for neste side, så lastetilstanden rekker å vises.
   await page.route("**/leverandorer*", async (route) => {
