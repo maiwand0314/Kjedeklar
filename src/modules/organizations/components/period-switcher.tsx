@@ -14,7 +14,8 @@ type Period = { id: string; startDate: string; endDate: string };
  */
 export function PeriodSwitcher({ organizationId, periods }: { organizationId: string; periods: Period[] }) {
   const pathname = usePathname();
-  const requested = useSearchParams().get("periode");
+  const params = useSearchParams();
+  const requested = params.get("periode");
   const selected = periods.find((p) => p.id === requested) ?? periods[0];
   if (!selected) {
     return (
@@ -44,7 +45,7 @@ export function PeriodSwitcher({ organizationId, periods }: { organizationId: st
         {periods.map((p) => (
           <li key={p.id}>
             <Link
-              href={`${pathname}?periode=${p.id}`}
+              href={`${pathname}?${new URLSearchParams({ ...Object.fromEntries(params), periode: p.id })}`}
               aria-current={p.id === selected.id ? "true" : undefined}
               onClick={(e) => e.currentTarget.closest("details")?.removeAttribute("open")}
               className="block rounded px-3 py-2 hover:bg-surface aria-[current]:font-semibold"

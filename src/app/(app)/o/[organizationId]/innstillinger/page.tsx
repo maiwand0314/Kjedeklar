@@ -14,7 +14,7 @@ export default async function SettingsPage({
   searchParams,
 }: PageProps<"/o/[organizationId]/innstillinger">) {
   const { organizationId } = await params;
-  const { logg, etter } = await searchParams;
+  const { logg, etter, periode } = await searchParams;
   const entityType = ENTITY_TYPES.find((t) => t === logg) as EntityType | undefined;
   const organization = await fetchAuthQuery(api.organizations.queries.current, { organizationId });
   return (
@@ -35,6 +35,7 @@ export default async function SettingsPage({
         organizationId={organizationId}
         entityType={entityType}
         cursor={typeof etter === "string" ? etter : undefined}
+        period={typeof periode === "string" ? periode : undefined}
       />
     </>
   );

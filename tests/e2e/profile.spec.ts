@@ -56,6 +56,19 @@ test("rapportperiode og virksomhetsprofil: opprett, velg, lagre, hull og lagring
   await nav.getByRole("link", { name: "Oversikt" }).click();
   await expect(page).toHaveURL(new RegExp(`/o/${fx.orgA}\\?periode=${firstPeriod}$`));
   await expect(selected).toHaveText("01.07.2025 – 30.06.2026");
+  // Filter i revisjonsloggen og valgt periode fjerner ikke hverandre fra adressen.
+  await nav.getByRole("link", { name: "Innstillinger" }).click();
+  await page.getByRole("navigation", { name: "Filtrer revisjonslogg" }).getByRole("link", { name: "Rapportperioder" }).click();
+  await expect(page).toHaveURL(/logg=reportingPeriod/);
+  await expect(page).toHaveURL(new RegExp(`periode=${firstPeriod}`));
+  await page.getByText("(bytt periode)").click();
+  await page.getByRole("list", { name: "Bytt rapportperiode" }).getByRole("link", { name: "01.07.2026 – 30.06.2027" }).click();
+  await expect(selected).toHaveText("01.07.2026 – 30.06.2027");
+  await expect(page).toHaveURL(/logg=reportingPeriod/);
+  await page.getByText("(bytt periode)").click();
+  await page.getByRole("list", { name: "Bytt rapportperiode" }).getByRole("link", { name: "01.07.2025 – 30.06.2026" }).click();
+  await expect(selected).toHaveText("01.07.2025 – 30.06.2026");
+
   await nav.getByRole("link", { name: "Virksomheten" }).click();
   await expect(page).toHaveURL(new RegExp(`/virksomheten\\?periode=${firstPeriod}$`));
 
@@ -99,7 +112,7 @@ test("rapportperiode og virksomhetsprofil: opprett, velg, lagre, hull og lagring
   await expect(profile).toContainText("Bekreftet internt.");
 
   await staleForm.getByRole("button", { name: "Lagre profilen" }).click();
-  await expect(staleForm.getByRole("alert")).toContainText("endret siden du så dem");
+  await expect(staleForm.getByRole("alert")).toContainText("Kopier teksten din før du laster siden på nytt.");
   await expect(staleForm.getByLabel(/Hva driver virksomheten med/)).toHaveValue(staleText);
   await stale.close();
 

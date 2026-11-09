@@ -214,6 +214,10 @@ export default async function BusinessPage({ params, searchParams }: PageProps<"
                     ))}
                   </tbody>
                 </Table>
+                {/* Samme grense som take(20) i businessProfile:current. */}
+                {profile.history.length === 20 && (
+                  <p className="mt-2 text-sm text-muted">Viser de 20 nyeste versjonene. Eldre versjoner er bevart, men vises ikke her.</p>
+                )}
               </div>
             </>
           )}

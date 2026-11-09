@@ -11,7 +11,7 @@ Startpakke opprettet 6. november 2026. Dokumentasjonen ble samme dag skrevet om 
 | 05 | Implementert og verifisert lokalt (branch `feature/05-audit`) | Lint, typecheck, 146 enhets-/convex-test-tester, 59 integrasjonstester (to kjøringer), 12 e2e-tester (to kjøringer) og build | Append-only bare i appen; deploy key og dashboard kan omgå (beslutning 0004). Lagringstid/sletting avklares i oppgave 27 |
 | 06 | Implementert og verifisert lokalt (branch `feature/06-brreg-onboarding`) | Lint, typecheck, 196 enhets-/convex-test-tester, 71 integrasjonstester (to kjøringer), 12 e2e-tester og build. Live-kontroll mot Enhetsregisteret OK (manuell, ikke i CI) | SN-versjon oppgis ikke av Brreg. Ingen e2e av selve oppslaget (krever nettverk) |
 | 07 | Implementert og verifisert lokalt (branch `feature/07-applicability`) | Lokalt med Docker: lint, typecheck, 265 enhets-/convex-test-tester, 78 integrasjonstester, 13 e2e-tester (to kjøringer) og build | Veiledende; konsern, utenlandske virksomheter og ukjent historikk gir manuell avklaring. Lovteksten lest 9.11.2026; må leses på nytt ved lovendring |
-| 08 | Implementert og verifisert lokalt (branch `feature/08-business-profile`) | Lokalt med Docker: lint, typecheck, 330 enhets-/convex-test-tester, 92 integrasjonstester, 14 e2e-tester og build | Perioder kan ikke endres eller slettes. Innholdet i eldre profilversjoner kan ikke åpnes i appen. Ugyldig periode i adressen gir «Ikke funnet» med HTTP 200 (beslutning 0006) |
+| 08 | Implementert, verifisert lokalt og i CI, review-merknader rettet (PR #10) | Lokalt med Docker: lint, typecheck, 330 enhets-/convex-test-tester, 92 integrasjonstester, 14 e2e-tester og build. Etter review: lint, typecheck, enhetstester og e2e på nytt (ingen endring i Convex) | Perioder kan ikke endres eller slettes. Innholdet i eldre profilversjoner kan ikke åpnes i appen. Ugyldig periode i adressen gir «Ikke funnet» med HTTP 200 (beslutning 0006) |
 
 Oppdater ved hver oppgave. Bruk «implementert», «verifisert» og «ekstern avklaring» presist. Et lokalt fake-resultat betyr ikke at en ekstern integrasjon er godkjent.
 
@@ -513,6 +513,12 @@ pnpm build                        OK
 Underveis:
 - Første integrasjonskjøring hadde 92 beståtte tester, men avsluttet med feil fordi en test opprettet kall som ble avvist før de ble ventet på. Testen er rettet, og kjøringen over er etter rettelsen.
 - Første e2e-kjøring feilet på forventet 404 for ugyldig periode i adressen. Siden viser «Ikke funnet» uten data, men statuskoden er 200 fordi siden strømmes. Testen kontrollerer nå innholdet i stedet for statuskoden; se beslutning 0006.
+
+### Rettet etter review (PR #10)
+- **Konfliktmeldingen:** standardmeldingen ba brukeren laste siden på nytt, og da ville teksten i skjemaet forsvinne. Lagring av profilen gir nå «Noen har lagret en nyere versjon av profilen. Kopier teksten din før du laster siden på nytt.» Ingen endring i Convex.
+- **Adressen:** periodevelgeren beholder andre parametere (for eksempel filteret i revisjonsloggen), og lenkene i revisjonsloggen beholder valgt periode. E2e-testen dekker begge retninger.
+- **Versjonshistorikken** sier fra når bare de 20 nyeste versjonene vises.
+- Kjørt etter rettelsene (10.11.2026): `pnpm lint`, `pnpm typecheck`, `pnpm test:unit` (330/330) og `pnpm test:e2e` (14/14, med ny produksjonsbygging). `pnpm test:integration` er ikke kjørt på nytt, siden ingenting i `convex/` er endret.
 
 ### Manuell prøve
 - Ingen menneskelig prøve i nettleser, og ingen visuell kontroll av skjermbilder denne gangen.

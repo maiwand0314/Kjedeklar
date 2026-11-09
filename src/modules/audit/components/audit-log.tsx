@@ -88,10 +88,13 @@ export async function AuditLog({
   organizationId,
   entityType,
   cursor,
+  period,
 }: {
   organizationId: string;
   entityType?: EntityType;
   cursor?: string;
+  /** Valgt rapportperiode fra adressen; følger med lenkene i loggen. */
+  period?: string;
 }) {
   const result = await fetchAuthQuery(api.audit.queries.list, {
     organizationId,
@@ -101,7 +104,7 @@ export async function AuditLog({
   const base = `/o/${organizationId}/innstillinger`;
   const href = (params: Record<string, string | undefined>) => {
     const search = new URLSearchParams(
-      Object.entries(params).filter((e): e is [string, string] => e[1] !== undefined),
+      Object.entries({ ...params, periode: period }).filter((e): e is [string, string] => e[1] !== undefined),
     ).toString();
     return `${base}${search ? `?${search}` : ""}#revisjonslogg`;
   };

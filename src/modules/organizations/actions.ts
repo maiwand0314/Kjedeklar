@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { api } from "@/convex/_generated/api";
 import { fetchAuthAction, fetchAuthMutation } from "@/lib/auth-server";
-import { errorMessage } from "@/lib/convex-errors";
+import { errorCode, errorMessage } from "@/lib/convex-errors";
 import { toApplicabilityInput } from "@/domain/applicability/form";
 import { validatePeriod } from "@/domain/reporting/period";
 import { PROFILE_TOPICS } from "@/domain/reporting/profile";
@@ -132,7 +132,14 @@ export async function saveBusinessProfileAction(
   try {
     ({ revision } = await fetchAuthMutation(api.organizations.businessProfile.save, { organizationId, ...valid.data }));
   } catch (error) {
-    return { status: "error", message: errorMessage(error) };
+    // Standardmeldingen ber brukeren laste siden på nytt, og da forsvinner teksten i skjemaet.
+    const conflict = errorCode(error) === "CONFLICT";
+    return {
+      status: "error",
+      message: conflict
+        ? "Noen har lagret en nyere versjon av profilen. Kopier teksten din før du laster siden på nytt."
+        : errorMessage(error),
+    };
   }
   revalidatePath(`/o/${organizationId}/virksomheten`);
   return { status: "ok", message: `Profilen er lagret som versjon ${revision}.`, revision };

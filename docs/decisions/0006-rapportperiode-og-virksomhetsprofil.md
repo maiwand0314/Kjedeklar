@@ -26,7 +26,7 @@
 
   Et tomt felt blir aldri tolket som «finnes» eller «finnes ikke», og `not_established` teller ikke som hull.
 - **Versjoner:** hver lagring gir en ny rad i `businessProfileRevisions` med neste versjonsnummer for perioden. Gamle rader endres aldri (RLS nekter endring).
-- **Samtidige lagringer:** klienten sender versjonen den så (`expectedRevision`). Er den utdatert, avvises lagringen med `CONFLICT`, og brukeren beholder teksten sin i skjemaet.
+- **Samtidige lagringer:** klienten sender versjonen den så (`expectedRevision`). Er den utdatert, avvises lagringen med `CONFLICT`. Brukeren beholder teksten sin i skjemaet og får beskjed om å kopiere den før siden lastes på nytt; skjemaet fletter ikke versjoner.
 - **Bekreftelse:** valgfri avkrysning ved lagring setter `confirmedBy`/`confirmedAt` på den versjonen. Det er en intern bekreftelse, ikke en underskrift, og en ny versjon er ubekreftet til den bekreftes.
 - **Revisjonslogg:** `business_profile.saved` logger versjon, bekreftelse og status per tema. Svarteksten logges aldri.
 
