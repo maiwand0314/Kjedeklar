@@ -17,6 +17,7 @@ export const auditedMutations: Record<string, AuditClassification> = {
   "ops/workspaces:provision": { logged: true },
   "ops/testing:auditRollbackProbe": { logged: true },
   "organizations/registry:confirm": { logged: true },
+  "organizations/applicability:assess": { logged: true },
   "organizations/registryInternal:storePreview": {
     exempt: "Lagrer bare en forhåndsvisning av et Brreg-oppslag; ingen kundedata endres før bekreftelse, som logges.",
   },

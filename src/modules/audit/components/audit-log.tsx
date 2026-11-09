@@ -12,9 +12,17 @@ const EVENTS: Record<string, string> = {
   "invitation.renewed": "Invitasjon fornyet",
   "invitation.revoked": "Invitasjon tilbakekalt",
   "invitation.accepted": "Invitasjon godtatt",
+  "applicability.assessed": "Pliktvurdering lagret",
 };
 
-const FIELDS: Record<string, string> = { name: "Navn", status: "Status", role: "Rolle", expiresAt: "Utløper" };
+const FIELDS: Record<string, string> = {
+  name: "Navn",
+  status: "Status",
+  role: "Rolle",
+  expiresAt: "Utløper",
+  result: "Resultat",
+  ruleVersion: "Regelversjon",
+};
 
 const VALUES: Record<string, string> = {
   active: "aktiv",
@@ -23,6 +31,9 @@ const VALUES: Record<string, string> = {
   accepted: "godtatt",
   revoked: "tilbakekalt",
   admin: "administrator",
+  likely_in: "sannsynlig omfattet",
+  likely_out: "sannsynlig ikke omfattet",
+  manual_review: "manuell avklaring",
 };
 
 const FILTERS = [
@@ -30,9 +41,10 @@ const FILTERS = [
   { key: "organization", label: "Virksomhet" },
   { key: "membership", label: "Medlemskap" },
   { key: "invitation", label: "Invitasjoner" },
+  { key: "applicability", label: "Pliktvurdering" },
 ] as const;
 
-type EntityType = "organization" | "membership" | "invitation";
+type EntityType = "organization" | "membership" | "invitation" | "applicability";
 
 const dateFormat = new Intl.DateTimeFormat("nb-NO", {
   dateStyle: "medium",

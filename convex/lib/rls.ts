@@ -71,6 +71,8 @@ export function tenantRules(scope: TenantScope): ExhaustiveRules {
       modify: async (_ctx, doc) => doc.organizationId === scope.organizationId && doc.status === "preview",
       insert: deny,
     },
+    // Ny rad per vurdering; historikk endres aldri.
+    applicabilityAssessments: { read: sameTenant, modify: deny, insert: sameTenant },
   };
 }
 
@@ -97,6 +99,7 @@ export function userRules(
     invitations: { read: deny, modify: deny, insert: deny },
     auditEvents: { read: deny, modify: deny, insert: deny },
     registrySnapshots: { read: deny, modify: deny, insert: deny },
+    applicabilityAssessments: { read: deny, modify: deny, insert: deny },
   };
 }
 
@@ -147,5 +150,6 @@ export function invitationRules(scope: InvitationScope): ExhaustiveRules {
         scope.userId !== undefined && doc.organizationId === scope.organizationId,
     },
     registrySnapshots: { read: deny, modify: deny, insert: deny },
+    applicabilityAssessments: { read: deny, modify: deny, insert: deny },
   };
 }

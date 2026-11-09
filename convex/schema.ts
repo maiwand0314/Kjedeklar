@@ -1,6 +1,11 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { auditEventTypes, auditEntityTypes, safeDiffValidator } from "./lib/auditTypes";
+import {
+  applicabilityInputValidator,
+  applicabilityResultValidator,
+  reasonsValidator,
+} from "./organizations/applicabilityValidators";
 import { registryProfileValidator } from "./organizations/registryValidators";
 
 // Better Auth-tabellene ligger i komponenten @convex-dev/better-auth, ikke her.
@@ -36,6 +41,19 @@ export default defineSchema({
     confirmedAt: v.optional(v.number()),
     confirmedBy: v.optional(v.string()),
   }).index("by_organizationId_and_fetchedAt", ["organizationId", "fetchedAt"]),
+
+  // Veiledende pliktvurdering (oppgave 07). Ny rad per vurdering; gamle endres
+  // aldri. Resultatet er regnet ut på serveren fra input og regelversjon.
+  applicabilityAssessments: defineTable({
+    organizationId: v.id("organizations"),
+    assessedAt: v.number(),
+    assessedBy: v.string(),
+    ruleVersion: v.string(),
+    inputs: applicabilityInputValidator,
+    result: applicabilityResultValidator,
+    rationale: reasonsValidator,
+    userConfirmedAt: v.number(),
+  }).index("by_organizationId_and_assessedAt", ["organizationId", "assessedAt"]),
 
   memberships: defineTable({
     organizationId: v.id("organizations"),

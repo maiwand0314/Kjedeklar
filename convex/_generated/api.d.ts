@@ -37,6 +37,8 @@ import type * as ops_seed from "../ops/seed.js";
 import type * as ops_testing from "../ops/testing.js";
 import type * as ops_users from "../ops/users.js";
 import type * as ops_workspaces from "../ops/workspaces.js";
+import type * as organizations_applicability from "../organizations/applicability.js";
+import type * as organizations_applicabilityValidators from "../organizations/applicabilityValidators.js";
 import type * as organizations_mutations from "../organizations/mutations.js";
 import type * as organizations_queries from "../organizations/queries.js";
 import type * as organizations_registry from "../organizations/registry.js";
@@ -79,6 +81,8 @@ declare const fullApi: ApiFromModules<{
   "ops/testing": typeof ops_testing;
   "ops/users": typeof ops_users;
   "ops/workspaces": typeof ops_workspaces;
+  "organizations/applicability": typeof organizations_applicability;
+  "organizations/applicabilityValidators": typeof organizations_applicabilityValidators;
   "organizations/mutations": typeof organizations_mutations;
   "organizations/queries": typeof organizations_queries;
   "organizations/registry": typeof organizations_registry;
