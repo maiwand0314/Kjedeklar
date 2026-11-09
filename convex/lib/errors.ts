@@ -9,7 +9,8 @@ export type AppErrorCode =
   | "INVITATION_INVALID"
   | "ACCOUNT_EXISTS"
   | "CONFLICT"
-  | "PREVIEW_EXPIRED";
+  | "PREVIEW_EXPIRED"
+  | "PERIOD_EXISTS";
 
 const messages: Record<AppErrorCode, string> = {
   UNAUTHENTICATED: "Du må logge inn.",
@@ -22,6 +23,7 @@ const messages: Record<AppErrorCode, string> = {
   ACCOUNT_EXISTS: "Det finnes allerede en konto for denne e-postadressen. Logg inn for å godta invitasjonen.",
   CONFLICT: "Opplysningene er endret siden du så dem. Last siden på nytt og prøv igjen.",
   PREVIEW_EXPIRED: "Oppslaget er for gammelt. Slå opp på nytt før du bekrefter.",
+  PERIOD_EXISTS: "Det finnes allerede en rapportperiode med disse datoene.",
 };
 
 export function appError(code: AppErrorCode) {

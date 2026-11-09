@@ -6,6 +6,7 @@ import {
   applicabilityResultValidator,
   reasonsValidator,
 } from "./organizations/applicabilityValidators";
+import { profileAnswerFields } from "./organizations/profileValidators";
 import { registryProfileValidator } from "./organizations/registryValidators";
 
 // Better Auth-tabellene ligger i komponenten @convex-dev/better-auth, ikke her.
@@ -54,6 +55,32 @@ export default defineSchema({
     rationale: reasonsValidator,
     userConfirmedAt: v.number(),
   }).index("by_organizationId_and_assessedAt", ["organizationId", "assessedAt"]),
+
+  // Rapportperiode (oppgave 08): eksplisitte datoer `YYYY-MM-DD` og en frist
+  // kunden setter selv. Lik start og slutt finnes bare én gang per organisasjon
+  // (kontrolleres i mutasjonen). Bare «open» til en oppgave innfører lukking.
+  reportingPeriods: defineTable({
+    organizationId: v.id("organizations"),
+    startDate: v.string(),
+    endDate: v.string(),
+    publicationDueDate: v.string(),
+    status: v.literal("open"),
+    createdAt: v.number(),
+    createdBy: v.string(),
+  }).index("by_organizationId_and_startDate_and_endDate", ["organizationId", "startDate", "endDate"]),
+
+  // Virksomhetsprofil per periode. Ny rad per lagring; gamle versjoner endres
+  // aldri. Bekreftelse er intern og ingen underskrift.
+  businessProfileRevisions: defineTable({
+    organizationId: v.id("organizations"),
+    reportingPeriodId: v.id("reportingPeriods"),
+    revision: v.number(),
+    ...profileAnswerFields,
+    createdAt: v.number(),
+    createdBy: v.string(),
+    confirmedBy: v.optional(v.string()),
+    confirmedAt: v.optional(v.number()),
+  }).index("by_organizationId_and_reportingPeriodId_and_revision", ["organizationId", "reportingPeriodId", "revision"]),
 
   memberships: defineTable({
     organizationId: v.id("organizations"),

@@ -39,11 +39,14 @@ import type * as ops_users from "../ops/users.js";
 import type * as ops_workspaces from "../ops/workspaces.js";
 import type * as organizations_applicability from "../organizations/applicability.js";
 import type * as organizations_applicabilityValidators from "../organizations/applicabilityValidators.js";
+import type * as organizations_businessProfile from "../organizations/businessProfile.js";
 import type * as organizations_mutations from "../organizations/mutations.js";
+import type * as organizations_profileValidators from "../organizations/profileValidators.js";
 import type * as organizations_queries from "../organizations/queries.js";
 import type * as organizations_registry from "../organizations/registry.js";
 import type * as organizations_registryInternal from "../organizations/registryInternal.js";
 import type * as organizations_registryValidators from "../organizations/registryValidators.js";
+import type * as organizations_reportingPeriods from "../organizations/reportingPeriods.js";
 
 import type {
   ApiFromModules,
@@ -83,11 +86,14 @@ declare const fullApi: ApiFromModules<{
   "ops/workspaces": typeof ops_workspaces;
   "organizations/applicability": typeof organizations_applicability;
   "organizations/applicabilityValidators": typeof organizations_applicabilityValidators;
+  "organizations/businessProfile": typeof organizations_businessProfile;
   "organizations/mutations": typeof organizations_mutations;
+  "organizations/profileValidators": typeof organizations_profileValidators;
   "organizations/queries": typeof organizations_queries;
   "organizations/registry": typeof organizations_registry;
   "organizations/registryInternal": typeof organizations_registryInternal;
   "organizations/registryValidators": typeof organizations_registryValidators;
+  "organizations/reportingPeriods": typeof organizations_reportingPeriods;
 }>;
 
 /**

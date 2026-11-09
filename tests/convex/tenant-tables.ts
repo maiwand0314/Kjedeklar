@@ -18,9 +18,15 @@
 import type { GenericDatabaseWriter, WithoutSystemFields } from "convex/server";
 import type { DataModel, Doc, Id } from "../../convex/_generated/dataModel";
 import type { TenantTable } from "../../convex/lib/tenant";
-import { SYNTHETIC_APPLICABILITY_INPUT, SYNTHETIC_REGISTRY_PROFILE } from "../helpers/public-functions";
+import {
+  SYNTHETIC_APPLICABILITY_INPUT,
+  SYNTHETIC_PERIOD,
+  SYNTHETIC_PROFILE_ANSWERS,
+  SYNTHETIC_REGISTRY_PROFILE,
+} from "../helpers/public-functions";
 
-type Owner = { organizationId: Id<"organizations">; userId: string };
+/** `reportingPeriodId` er en periode i samme organisasjon, for tabeller som peker på en. */
+export type Owner = { organizationId: Id<"organizations">; userId: string; reportingPeriodId: Id<"reportingPeriods"> };
 
 export type TenantTableCase<T extends TenantTable> = {
   /** Et gyldig nytt dokument i organisasjonen. */
@@ -72,6 +78,33 @@ export const tenantTableCases: { [T in TenantTable]: TenantTableCase<T> } = {
     }),
     patch: { result: "likely_out" },
     // Ny rad per vurdering; historikk endres aldri.
+    tenantCanModifyOwn: false,
+    tenantCanInsertOwn: true,
+  },
+  reportingPeriods: {
+    newDoc: ({ organizationId, userId }) => ({
+      organizationId,
+      ...SYNTHETIC_PERIOD,
+      status: "open",
+      createdAt: Date.now(),
+      createdBy: userId,
+    }),
+    patch: { publicationDueDate: "2027-06-30" },
+    // Opprettes av admin; endres eller slettes ikke fra appen i MVP.
+    tenantCanModifyOwn: false,
+    tenantCanInsertOwn: true,
+  },
+  businessProfileRevisions: {
+    newDoc: ({ organizationId, userId, reportingPeriodId }) => ({
+      organizationId,
+      reportingPeriodId,
+      revision: 1,
+      ...SYNTHETIC_PROFILE_ANSWERS,
+      createdAt: Date.now(),
+      createdBy: userId,
+    }),
+    patch: { revision: 2 },
+    // Ny rad per lagring; versjoner endres aldri.
     tenantCanModifyOwn: false,
     tenantCanInsertOwn: true,
   },

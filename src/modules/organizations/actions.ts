@@ -6,6 +6,8 @@ import { api } from "@/convex/_generated/api";
 import { fetchAuthAction, fetchAuthMutation } from "@/lib/auth-server";
 import { errorMessage } from "@/lib/convex-errors";
 import { toApplicabilityInput } from "@/domain/applicability/form";
+import { validatePeriod } from "@/domain/reporting/period";
+import { PROFILE_TOPICS } from "@/domain/reporting/profile";
 import type { FormState } from "@/modules/invitations/actions";
 
 export async function renameOrganizationAction(
@@ -81,4 +83,57 @@ export async function assessApplicabilityAction(organizationId: string, values: 
   }
   revalidatePath(`/o/${organizationId}/virksomheten`);
   return { status: "ok", message: "Vurderingen er lagret." };
+}
+
+const INVALID_FORM: FormState = { status: "error", message: "Rett feltene som er markert, og prøv igjen." };
+
+const periodValues = z.object({
+  startDate: z.string().max(10),
+  endDate: z.string().max(10),
+  publicationDueDate: z.string().max(10),
+});
+
+/** Oppretter en rapportperiode og returnerer id-en, så skjemaet kan velge den. */
+export async function createReportingPeriodAction(
+  organizationId: string,
+  values: unknown,
+): Promise<FormState & { periodId?: string }> {
+  const valid = periodValues.safeParse(values);
+  if (!valid.success || Object.keys(validatePeriod(valid.data)).length > 0) return INVALID_FORM;
+  let periodId: string;
+  try {
+    periodId = await fetchAuthMutation(api.organizations.reportingPeriods.create, { organizationId, ...valid.data });
+  } catch (error) {
+    return { status: "error", message: errorMessage(error) };
+  }
+  // Periodevelgeren ligger i appskallet.
+  revalidatePath(`/o/${organizationId}`, "layout");
+  return { status: "ok", periodId };
+}
+
+const profileValues = z.object({
+  reportingPeriodId: z.string().max(64),
+  answers: z.record(
+    z.enum(PROFILE_TOPICS.map((t) => t.key)),
+    z.object({ status: z.enum(["described", "not_established", "unknown"]), text: z.string().max(20_000) }),
+  ),
+  confirmed: z.boolean(),
+  expectedRevision: z.number().int().min(0),
+});
+
+/** Lagrer en ny versjon av virksomhetsprofilen. Convex kontrollerer perioden, svarene og versjonen. */
+export async function saveBusinessProfileAction(
+  organizationId: string,
+  values: unknown,
+): Promise<FormState & { revision?: number }> {
+  const valid = profileValues.safeParse(values);
+  if (!valid.success) return INVALID_FORM;
+  let revision: number;
+  try {
+    ({ revision } = await fetchAuthMutation(api.organizations.businessProfile.save, { organizationId, ...valid.data }));
+  } catch (error) {
+    return { status: "error", message: errorMessage(error) };
+  }
+  revalidatePath(`/o/${organizationId}/virksomheten`);
+  return { status: "ok", message: `Profilen er lagret som versjon ${revision}.`, revision };
 }

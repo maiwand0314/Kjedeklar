@@ -15,6 +15,9 @@
 | organization | `name`, `status`, `orgNumber`, `legalForm`, `industryCode` |
 | membership | `role`, `status` |
 | invitation | `status`, `expiresAt` |
+| applicability | `result`, `ruleVersion` |
+| reportingPeriod | `startDate`, `endDate`, `publicationDueDate`, `status` |
+| businessProfile | `revision`, `confirmed` og status per tema (`described`/`not_established`/`unknown`), aldri svarteksten |
 
   Aldri passord, token, tokenhash, e-postadresser eller fritekst. Objekter og lister utelates. En invitasjon identifiseres med id, ikke e-post.
 - **Logget nå:**
@@ -24,6 +27,9 @@
 | `organization.renamed` | admin endrer navn | bruker |
 | `organization.provisioned` | operatør-bootstrap | system |
 | `organization.registry_confirmed` | admin bekrefter Brreg-opplysninger (oppgave 06) | bruker |
+| `applicability.assessed` | admin lagrer pliktvurdering (oppgave 07) | bruker |
+| `reporting_period.created` | admin oppretter rapportperiode (oppgave 08) | bruker |
+| `business_profile.saved` | admin lagrer ny versjon av virksomhetsprofilen (oppgave 08) | bruker |
 | `invitation.created` / `invitation.renewed` / `invitation.revoked` | admin | bruker |
 | `invitation.created` | operatør-bootstrap | system |
 | `invitation.accepted` og `membership.created` / `membership.status_changed` | aksept | aksepterende bruker |

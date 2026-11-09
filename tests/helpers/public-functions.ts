@@ -19,6 +19,7 @@
 import type { FunctionReference } from "convex/server";
 import { api } from "../../convex/_generated/api";
 import type { RegistryProfile } from "../../src/domain/brreg/enhet";
+import { emptyAnswers, type ProfileAnswers } from "../../src/domain/reporting/profile";
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- registeret holder funksjoner med ulike argumenttyper */
 type PublicQuery = FunctionReference<"query", "public", any, any>;
@@ -53,6 +54,16 @@ export const SYNTHETIC_REGISTRY_PROFILE: RegistryProfile = {
 };
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
+/** Syntetisk rapportperiode: kalenderåret 2025 med frist 30. juni året etter. */
+export const SYNTHETIC_PERIOD = { startDate: "2025-01-01", endDate: "2025-12-31", publicationDueDate: "2026-06-30" } as const;
+
+/** Syntetisk virksomhetsprofil: ett tema beskrevet, ett «ikke etablert», resten ubesvart. */
+export const SYNTHETIC_PROFILE_ANSWERS: ProfileAnswers = {
+  ...emptyAnswers(),
+  organizationDescription: { status: "described", text: "Syntetisk aksjeselskap med ti ansatte." },
+  policies: { status: "not_established", text: "" },
+};
+
 type Common = {
   boundary: "tenant" | "user" | "invitation" | "verification";
   /** Argumenter i tillegg til `organizationId` for tenantfunksjoner. */
@@ -63,13 +74,18 @@ type Common = {
    * Lager gyldige argumenter i egen organisasjon når `sampleArgs` ikke holder
    * (f.eks. en id som må finnes). Brukes av convex-test-registeret.
    */
-  prepareOwn?: (
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- convex-test sin db er generisk
-    run: <T>(fn: (db: any) => Promise<T>) => Promise<T>,
-    organizationId: string,
-    userId: string,
-  ) => Promise<Record<string, unknown>>;
+  prepareOwn?: (run: Run, organizationId: string, userId: string) => Promise<Record<string, unknown>>;
 };
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- convex-test sin db er generisk
+type Run = <T>(fn: (db: any) => Promise<T>) => Promise<T>;
+
+/** Setter inn en egen rapportperiode og gir id-en som `reportingPeriodId`. */
+const ownPeriod = async (run: Run, organizationId: string, userId: string) => ({
+  reportingPeriodId: await run((db) =>
+    db.insert("reportingPeriods", { organizationId, ...SYNTHETIC_PERIOD, status: "open", createdAt: Date.now(), createdBy: userId }),
+  ),
+});
 
 export type PublicFunctionReview =
   | (Common & { kind: "query"; ref: PublicQuery })
@@ -147,6 +163,36 @@ export const reviewedPublicFunctions: Record<string, PublicFunctionReview> = {
     boundary: "tenant",
     sampleArgs: {},
     note: "De siste pliktvurderingene for valgt organisasjon.",
+  },
+  "organizations/reportingPeriods:create": {
+    kind: "mutation",
+    ref: api.organizations.reportingPeriods.create,
+    boundary: "tenant",
+    sampleArgs: SYNTHETIC_PERIOD,
+    note: "Oppretter rapportperiode i valgt organisasjon; datoene valideres på serveren. Med revisjonslogg.",
+  },
+  "organizations/reportingPeriods:list": {
+    kind: "query",
+    ref: api.organizations.reportingPeriods.list,
+    boundary: "tenant",
+    sampleArgs: {},
+    note: "Rapportperiodene i valgt organisasjon (periodevelgeren).",
+  },
+  "organizations/businessProfile:save": {
+    kind: "mutation",
+    ref: api.organizations.businessProfile.save,
+    boundary: "tenant",
+    sampleArgs: { reportingPeriodId: "ukjent", answers: SYNTHETIC_PROFILE_ANSWERS, confirmed: false, expectedRevision: 0 },
+    note: "Lagrer ny versjon av virksomhetsprofilen for egen periode (getOwned), med versjonssjekk og revisjonslogg.",
+    prepareOwn: ownPeriod,
+  },
+  "organizations/businessProfile:current": {
+    kind: "query",
+    ref: api.organizations.businessProfile.current,
+    boundary: "tenant",
+    sampleArgs: { reportingPeriodId: "ukjent" },
+    note: "Siste versjon og versjonshistorikk for egen periode (getOwned).",
+    prepareOwn: ownPeriod,
   },
   "organizations/registry:current": {
     kind: "query",

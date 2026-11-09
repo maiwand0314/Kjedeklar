@@ -6,6 +6,8 @@ export const auditEventTypes = v.union(
   v.literal("organization.renamed"),
   v.literal("organization.registry_confirmed"),
   v.literal("applicability.assessed"),
+  v.literal("reporting_period.created"),
+  v.literal("business_profile.saved"),
   v.literal("membership.created"),
   v.literal("membership.status_changed"),
   v.literal("invitation.created"),
@@ -19,6 +21,8 @@ export const auditEntityTypes = v.union(
   v.literal("membership"),
   v.literal("invitation"),
   v.literal("applicability"),
+  v.literal("reportingPeriod"),
+  v.literal("businessProfile"),
 );
 
 const diffValue = v.union(v.string(), v.number(), v.boolean(), v.null());

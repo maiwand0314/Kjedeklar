@@ -6,6 +6,7 @@ import { handlePageLoadError } from "@/lib/convex-errors";
 import { LogoutButton } from "@/modules/auth/components/logout-button";
 import { NavLinks } from "@/modules/organizations/components/nav-links";
 import { OrganizationSwitcher } from "@/modules/organizations/components/organization-switcher";
+import { PeriodSwitcher } from "@/modules/organizations/components/period-switcher";
 
 /**
  * Appskall for valgt organisasjon. Organisasjons-id i URL er bare en kandidat:
@@ -22,10 +23,12 @@ export default async function OrganizationLayout({
 
   let organization: { id: string; name: string };
   let organizations: { id: string; name: string }[];
+  let periods: { id: string; startDate: string; endDate: string }[];
   try {
-    [organization, organizations] = await Promise.all([
+    [organization, organizations, periods] = await Promise.all([
       fetchAuthQuery(api.organizations.queries.current, { organizationId }),
       fetchAuthQuery(api.organizations.queries.listMine, {}),
+      fetchAuthQuery(api.organizations.reportingPeriods.list, { organizationId }),
     ]);
   } catch (error) {
     handlePageLoadError(error);
@@ -33,7 +36,7 @@ export default async function OrganizationLayout({
 
   const nav = (
     <nav aria-label="Hovedmeny">
-      <NavLinks organizationId={organization.id} />
+      <NavLinks organizationId={organization.id} periodIds={periods.map((p) => p.id)} />
     </nav>
   );
 
@@ -61,6 +64,7 @@ export default async function OrganizationLayout({
             </div>
           </Disclosure>
           <OrganizationSwitcher current={organization} organizations={organizations} />
+          <PeriodSwitcher organizationId={organization.id} periods={periods} />
           <div className="ml-auto">
             <LogoutButton />
           </div>

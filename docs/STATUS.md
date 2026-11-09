@@ -11,6 +11,7 @@ Startpakke opprettet 6. november 2026. Dokumentasjonen ble samme dag skrevet om 
 | 05 | Implementert og verifisert lokalt (branch `feature/05-audit`) | Lint, typecheck, 146 enhets-/convex-test-tester, 59 integrasjonstester (to kjøringer), 12 e2e-tester (to kjøringer) og build | Append-only bare i appen; deploy key og dashboard kan omgå (beslutning 0004). Lagringstid/sletting avklares i oppgave 27 |
 | 06 | Implementert og verifisert lokalt (branch `feature/06-brreg-onboarding`) | Lint, typecheck, 196 enhets-/convex-test-tester, 71 integrasjonstester (to kjøringer), 12 e2e-tester og build. Live-kontroll mot Enhetsregisteret OK (manuell, ikke i CI) | SN-versjon oppgis ikke av Brreg. Ingen e2e av selve oppslaget (krever nettverk) |
 | 07 | Implementert og verifisert lokalt (branch `feature/07-applicability`) | Lokalt med Docker: lint, typecheck, 265 enhets-/convex-test-tester, 78 integrasjonstester, 13 e2e-tester (to kjøringer) og build | Veiledende; konsern, utenlandske virksomheter og ukjent historikk gir manuell avklaring. Lovteksten lest 9.11.2026; må leses på nytt ved lovendring |
+| 08 | Implementert og verifisert lokalt (branch `feature/08-business-profile`) | Lokalt med Docker: lint, typecheck, 330 enhets-/convex-test-tester, 92 integrasjonstester, 14 e2e-tester og build | Perioder kan ikke endres eller slettes. Innholdet i eldre profilversjoner kan ikke åpnes i appen. Ugyldig periode i adressen gir «Ikke funnet» med HTTP 200 (beslutning 0006) |
 
 Oppdater ved hver oppgave. Bruk «implementert», «verifisert» og «ekstern avklaring» presist. Et lokalt fake-resultat betyr ikke at en ekstern integrasjon er godkjent.
 
@@ -464,6 +465,66 @@ pnpm build                        OK
 - **Konsern, utenlandske virksomheter, Svalbard/Jan Mayen og nystiftede foretak** uten to regnskapsår gir bare manuell avklaring. Det finnes ingen egen regel for dem.
 - **«Tilbyr varer og tjenester» (§ 2) forutsettes** og spørres ikke om.
 - **Ingen kobling til rapportperiode ennå** (oppgave 08 og senere). Regnskapsåret skrives inn fritt.
+
+## Oppgave 08 – rapportperiode og virksomhetsprofil
+
+Beslutninger og begrunnelser står i `docs/decisions/0006-rapportperiode-og-virksomhetsprofil.md`.
+
+### Endret
+- **`src/domain/reporting/`** (ren TypeScript):
+  - `period.ts` har datokontroll (`YYYY-MM-DD`, ekte kalenderdato, 2000–2100), periodevalidering, forslag til periode og norsk datoformat;
+  - `profile.ts` har de åtte temaene, svarstatusene, normalisering av svar og listen over hull.
+- **`reportingPeriods`:** start, slutt og frist som datotekst, status `open`, `createdAt`/`createdBy`. Indeksen starter med `organizationId`. RLS tillater lesing og innsetting i egen organisasjon, aldri endring.
+- **`businessProfileRevisions`:** én rad per lagring, med periode, versjonsnummer, åtte svar (`status` + `text`) og valgfri intern bekreftelse. RLS nekter endring.
+- **`organizations/reportingPeriods:create`** (`tenantMutation`): validerer på serveren, avviser lik start og slutt i samme organisasjon (`PERIOD_EXISTS`) og skriver `reporting_period.created` i samme mutasjon. **`:list`** gir de 50 nyeste.
+- **`organizations/businessProfile:save`** (`tenantMutation`): laster perioden med `getOwned`, normaliserer svarene, avviser utdatert `expectedRevision` (`CONFLICT`), setter inn ny versjon og skriver `business_profile.saved` (versjon, bekreftelse og status per tema, aldri svartekst) i samme mutasjon. **`:current`** gir perioden, siste versjon og historikken.
+- **Appskallet:** periodevelger i toppen. Valgt periode ligger i adressen (`?periode=<id>`) og følger med i menyen, men bare når den er en av organisasjonens egne perioder.
+- **Virksomheten-siden:**
+  - skjema for ny periode med foreslått kalenderår, feilmelding per felt og fritt valg av alle tre datoene;
+  - virksomhetsprofil for valgt periode med Ja / Nei, ikke etablert / Ikke besvart per tema, liste over hull («Ikke besvart (n)») og over det som er oppgitt som ikke etablert;
+  - status for siste versjon (lagret, bekreftet eller ikke) og versjonstabell;
+  - lagringsfeil vises som varsel, og teksten i skjemaet beholdes.
+- **Revisjonsloggen i Innstillinger** har tekst og filter for «Rapportperiode» og «Virksomhetsprofil».
+- **Ikke bygget:** automatisk årshjul og e-postpåminnelser (utenfor MVP).
+
+### Akseptkriterier
+1. *Opprette og velge periode med start, slutt og eksplisitt frist:* e2e oppretter to avvikende regnskapsår og bytter mellom dem.
+2. *Endringer i profilen lagres som historikk med audit og bekreftet-status:* convex- og integrasjonstester viser at versjon 1 er uendret etter versjon 2, og at revisjonsloggen har diff uten svartekst.
+3. *Ubesvarte spørsmål er synlige hull:* enhetstest av `profileGaps` og e2e («Ikke besvart (8)» → «Ikke besvart (5)», «Oppgitt som ikke etablert: Retningslinjer»).
+4. *Valgt periode følger navigasjonen og kan ikke peke på en annen tenant:* e2e for navigasjon; convex- og integrasjonstester for at fremmed periode gir `NOT_FOUND` både ved lagring og lesing.
+
+### Tester
+- `tests/unit/reporting.test.ts`: gyldige og ugyldige datoer (skuddag, 30. februar, norsk format, tidsstempel), ugyldig intervall, frist før slutt, avvikende regnskapsår, periodeforslag rundt 30. juni, og svarregler i profilen.
+- `tests/convex/profile.test.ts`: opprettelse med audit, duplikat avvises men er tillatt i en annen organisasjon, ugyldig input lagrer ingenting, ny versjon bevarer gammel, utdatert versjon gir `CONFLICT`, fremmed periode, ugyldig id og id fra annen tabell gir `NOT_FOUND`, og audit uten svartekst.
+- `tests/convex/profile-rollback.test.ts`: feiler `writeAudit`, lagres verken periode eller profil.
+- `tests/integration/profile.test.ts` mot lokal backend med to innloggede organisasjoner: historikk og audit, to samtidige lagringer fra samme versjon (én `CONFLICT`), to samtidige opprettelser av samme periode (én `PERIOD_EXISTS`, én rad), fremmed periode avvises og ingenting lekker, og uinnloggede kall.
+- `tests/e2e/profile.spec.ts`: tom tilstand, ugyldig intervall, opprett og bytt periode, periode gjennom navigasjon, hull, påkrevd beskrivelse, lagring, versjonshistorikk, lagringsfeil fra utdatert fane (teksten beholdes) og ugyldig periode i adressen.
+- Registrene er oppdatert: offentlige funksjoner, kundetabeller (`getOwned`/RLS) og revisjonslogging av mutasjoner.
+
+### Kjørte kommandoer (natt til 10.11.2026, lokalt med Docker)
+```text
+pnpm convex:deploy:local          OK (convex/_generated oppdatert med ekte codegen)
+pnpm lint / pnpm typecheck        OK
+pnpm test:unit                    330/330
+pnpm test:integration             92/92
+pnpm test:e2e                     14/14
+pnpm build                        OK
+```
+Underveis:
+- Første integrasjonskjøring hadde 92 beståtte tester, men avsluttet med feil fordi en test opprettet kall som ble avvist før de ble ventet på. Testen er rettet, og kjøringen over er etter rettelsen.
+- Første e2e-kjøring feilet på forventet 404 for ugyldig periode i adressen. Siden viser «Ikke funnet» uten data, men statuskoden er 200 fordi siden strømmes. Testen kontrollerer nå innholdet i stedet for statuskoden; se beslutning 0006.
+
+### Manuell prøve
+- Ingen menneskelig prøve i nettleser, og ingen visuell kontroll av skjermbilder denne gangen.
+- Slik prøver du selv: Virksomheten → opprett rapportperiode → fyll inn noen temaer, la andre stå ubesvart → lagre → se hull og versjonshistorikk → opprett en periode til og bytt i toppen.
+
+### Ikke gjort / begrensninger
+- **Perioder kan ikke endres eller slettes.** En periode med feil datoer må i dag rettes av operatør.
+- **Ingen kontroll av overlapp eller lengde** på perioder; bare eksakt like datoer avvises.
+- **Eldre profilversjoner kan ikke åpnes**, og historikken viser ikke hvem som lagret (det står i revisjonsloggen).
+- **Ugyldig periode i adressen gir HTTP 200** med «Ikke funnet»-siden.
+- **Pliktvurderingen er ikke koblet til rapportperioden.**
+- **Temaene og spørsmålene er ikke faglig kvalitetssikret** mot åpenhetsloven § 5 og OECD-veilederen.
 
 ## Åpne eksterne avklaringer
 - Convex DPA, underleverandører og plassering av backup, logg og support (beslutning 0001). Må lukkes før ekte kundedata.
