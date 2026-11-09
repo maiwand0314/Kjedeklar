@@ -18,6 +18,7 @@ export const AUDIT_DIFF_FIELDS: Record<AuditEntityType, readonly string[]> = {
   organization: ["name", "status", "orgNumber", "legalForm", "industryCode"],
   membership: ["role", "status"],
   invitation: ["status", "expiresAt"],
+  applicability: ["result", "ruleVersion"],
 };
 
 type DiffValue = string | number | boolean | null;

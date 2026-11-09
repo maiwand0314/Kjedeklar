@@ -26,6 +26,16 @@ type PublicMutation = FunctionReference<"mutation", "public", any, any>;
 type PublicAction = FunctionReference<"action", "public", any, any>;
 
 /** Syntetisk registerprofil for tester (samme form som RegistryProfile). */
+/** Syntetisk pliktvurderingsgrunnlag: ordinært norsk foretak over tersklene begge år. */
+export const SYNTHETIC_APPLICABILITY_INPUT = {
+  previousYear: { fiscalYear: 2024, salesRevenueOre: 80_000_000_00n, balanceSheetTotalOre: 40_000_000_00n, averageFte: 60 },
+  currentYear: { fiscalYear: 2025, salesRevenueOre: 80_000_000_00n, balanceSheetTotalOre: 40_000_000_00n, averageFte: 60 },
+  previousStatus: "yes",
+  isParentCompany: "no",
+  publicInterestEntity: "no",
+  norwegian: "yes",
+} as const;
+
 export const SYNTHETIC_REGISTRY_PROFILE: RegistryProfile = {
   orgNumber: "920000002",
   name: "SYNTETISK TESTVARER AS",
@@ -123,6 +133,20 @@ export const reviewedPublicFunctions: Record<string, PublicFunctionReview> = {
         }),
       ),
     }),
+  },
+  "organizations/applicability:assess": {
+    kind: "mutation",
+    ref: api.organizations.applicability.assess,
+    boundary: "tenant",
+    sampleArgs: { inputs: SYNTHETIC_APPLICABILITY_INPUT, confirmed: true },
+    note: "Lagrer ny veiledende pliktvurdering; resultatet regnes ut på serveren. Med revisjonslogg.",
+  },
+  "organizations/applicability:history": {
+    kind: "query",
+    ref: api.organizations.applicability.history,
+    boundary: "tenant",
+    sampleArgs: {},
+    note: "De siste pliktvurderingene for valgt organisasjon.",
   },
   "organizations/registry:current": {
     kind: "query",

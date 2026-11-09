@@ -10,6 +10,7 @@ Startpakke opprettet 6. november 2026. Dokumentasjonen ble samme dag skrevet om 
 | 04 | Implementert, verifisert lokalt, review-merknader rettet (PR #4) | Lokalt med Docker etter review: lint, typecheck, 120 enhets-/convex-test-tester (tre kjøringer), 50 integrasjonstester, 11 e2e-tester (to kjøringer) og build. Visuell kontroll av skjermbilder i lys og mørk modus | Lys/mørk følger systemvalget; ingen egen bryter. Ingen klientside Convex-provider ennå (sidene rendres på serveren) |
 | 05 | Implementert og verifisert lokalt (branch `feature/05-audit`) | Lint, typecheck, 146 enhets-/convex-test-tester, 59 integrasjonstester (to kjøringer), 12 e2e-tester (to kjøringer) og build | Append-only bare i appen; deploy key og dashboard kan omgå (beslutning 0004). Lagringstid/sletting avklares i oppgave 27 |
 | 06 | Implementert og verifisert lokalt (branch `feature/06-brreg-onboarding`) | Lint, typecheck, 196 enhets-/convex-test-tester, 71 integrasjonstester (to kjøringer), 12 e2e-tester og build. Live-kontroll mot Enhetsregisteret OK (manuell, ikke i CI) | SN-versjon oppgis ikke av Brreg. Ingen e2e av selve oppslaget (krever nettverk) |
+| 07 | Implementert og verifisert lokalt (branch `feature/07-applicability`) | Lokalt med Docker: lint, typecheck, 265 enhets-/convex-test-tester, 78 integrasjonstester, 13 e2e-tester (to kjøringer) og build | Veiledende; konsern, utenlandske virksomheter og ukjent historikk gir manuell avklaring. Lovteksten lest 9.11.2026; må leses på nytt ved lovendring |
 
 Oppdater ved hver oppgave. Bruk «implementert», «verifisert» og «ekstern avklaring» presist. Et lokalt fake-resultat betyr ikke at en ekstern integrasjon er godkjent.
 
@@ -388,6 +389,81 @@ Siden Virksomheten er bare prøvd gjennom e2e-navigasjonen (overskrift og tilgje
 - **SN-versjon:** Brreg oppgir ikke hvilken SN-versjon næringskoden følger. Den lagres som «SN» uten versjon.
 - **Forhåndsvisninger** som ikke bekreftes, blir liggende. `shortcut:` ingen opprydding ennå; legg til når jobbmekanismen kommer (oppgave 12).
 - **Ingen e2e av selve oppslaget:** Det krever nettverk til Brreg, og live-kall skal ikke være en ustabil CI-avhengighet.
+
+## Oppgave 07 – veiledende pliktvurdering
+
+### Kilde lest før implementasjon
+- Åpenhetsloven §§ 2–3 på Lovdata, lest 9. november 2026. Teksten er endret ved lov 21. juni 2024 nr. 42, i kraft 1. november 2024.
+- Avgjørende ordlyd:
+  - foretak «av allmenn interesse etter regnskapsloven § 1-6»;
+  - ellers «overskrider minst to av følgende tre terskler» på balansedagen: 70 mill. kr salgsinntekt, 35 mill. kr balansesum og 50 årsverk;
+  - morselskap vurderes «for mor- og datterselskaper sett som en enhet»;
+  - endret status får virkning først for «det andre av to regnskapsår etter hverandre».
+- Sannhetstabell og tolkning står i `docs/decisions/0005-pliktvurdering.md`.
+
+### Endret
+- **`src/domain/applicability/`** (ren TypeScript):
+  - `assess.ts` har terskler, regelversjon `apenhetsloven-3a-2024-11-01-v1` og vurdering med begrunnelse per punkt;
+  - `parse.ts` tolker kroner og årsverk;
+  - `form.ts` gjør skjemaverdier om til grunnlag og formaterer kroner.
+- **Regelen:**
+  - «overskrider» er strengt over; nøyaktig lik terskel teller ikke;
+  - per år er det «overskrider» med minst to kjente verdier over, «overskrider ikke» med minst to kjente på eller under, og ellers uavklart;
+  - samme utfall to år gir det utfallet, mens ulikt utfall betyr at tidligere status gjelder;
+  - ukjent tidligere status, konsern, utenlandsk eller ukjent tilknytning, usikker allmenn interesse, ufullstendige tall og år som ikke henger sammen gir manuell avklaring;
+  - foretak av allmenn interesse er sannsynlig omfattet.
+- **`applicabilityAssessments`:**
+  - én ny rad per vurdering, med input (beløp i øre som `int64`), resultat, begrunnelse, regelversjon, `assessedBy` og `userConfirmedAt`;
+  - indeksen starter med `organizationId`;
+  - RLS tillater lesing og innsetting i egen organisasjon, men aldri endring.
+- **`organizations/applicability:assess`** (`tenantMutation`):
+  - krever `confirmed: true` og validerer år og at ingen tall er negative;
+  - resultatet regnes ut på serveren;
+  - vurdering og revisjonslogg (`applicability.assessed`, diff bare `result` og `ruleVersion`, ingen tall) skrives i samme mutasjon.
+- **`organizations/applicability:history`** gir de siste ti vurderingene.
+- **Virksomheten-siden** viser:
+  - siste vurdering med resultat (tekst, alltid «veiledende»), begrunnelse, neste steg, tallene for begge år, tersklene, svarene, tidspunkt og regelversjon;
+  - et skjema med forhåndsvisning (samme regelfunksjon), feilmelding per felt og avkrysning for å bekrefte grunnlaget. Server-actionen validerer med Zod og tolker på nytt.
+- **Ingen utestenging:** «sannsynlig ikke omfattet» sier at verktøyet kan brukes frivillig.
+- **Revisjonsloggen i Innstillinger** har tekst og filter for «Pliktvurdering».
+
+### Tester
+- `tests/unit/applicability.test.ts` (49 tester):
+  - 0, 1, 2 og 3 overskredne terskler, nøyaktig lik terskel, og én øre eller 0,01 årsverk over;
+  - delvis manglende tall;
+  - toårsregelen i alle retninger, ny overgang og ukjent historikk (aldri skråsikkert nei), og år som ikke henger sammen;
+  - konsern, allmenn interesse og utenlandsk eller ukjent tilknytning;
+  - tolking av kroner og årsverk, og skjema til grunnlag.
+- `tests/convex/applicability.test.ts`:
+  - resultatet regnes på serveren, ny rad per vurdering og gammel uendret;
+  - revisjonsloggen har bare resultat og regelversjon;
+  - ugyldige tall og manglende bekreftelse lagrer ingenting;
+  - fremmed organisasjon avvises.
+- `tests/convex/applicability-rollback.test.ts`: feiler `writeAudit`, lagres ingen vurdering.
+- `tests/integration/applicability.test.ts` mot lokal backend: historikk, revisjonslogg, fremmed organisasjon, at ingenting lekker, og uinnlogget kall.
+- `tests/e2e/applicability.spec.ts`: utfylling, forhåndsvisning, feilmelding per felt, at lagring er sperret uten bekreftelse, lagring og visning med grunnlag og regelversjon.
+- Registrene er oppdatert: offentlige funksjoner, kundetabeller (`getOwned`/RLS) og revisjonslogging av mutasjoner.
+
+### Kjørte kommandoer (9.11.2026, lokalt med Docker)
+```text
+pnpm convex:deploy:local          OK (convex/_generated oppdatert med ekte codegen)
+pnpm lint / pnpm typecheck        OK
+pnpm test:unit                    265/265
+pnpm test:integration             78/78
+pnpm test:e2e                     13/13, to kjøringer på rad
+pnpm build                        OK
+```
+
+### Manuell prøve
+- Jeg har sett på et skjermbilde av seksjonen etter lagring: resultat, grunnlag mot terskler, svar, regelversjon og skjema med forhåndsvisning.
+- Ingen menneskelig prøve i nettleser.
+- Slik prøver du selv: Virksomheten → fyll inn to år → se forhåndsvisningen → kryss av for bekreftelse → lagre.
+
+### Ikke gjort / begrensninger
+- **Ikke juridisk kvalitetssikret.** Tolkningen av toårsregelen og «allmenn interesse» bør gjennomgås av en med juridisk kompetanse før pilot.
+- **Konsern, utenlandske virksomheter, Svalbard/Jan Mayen og nystiftede foretak** uten to regnskapsår gir bare manuell avklaring. Det finnes ingen egen regel for dem.
+- **«Tilbyr varer og tjenester» (§ 2) forutsettes** og spørres ikke om.
+- **Ingen kobling til rapportperiode ennå** (oppgave 08 og senere). Regnskapsåret skrives inn fritt.
 
 ## Åpne eksterne avklaringer
 - Convex DPA, underleverandører og plassering av backup, logg og support (beslutning 0001). Må lukkes før ekte kundedata.

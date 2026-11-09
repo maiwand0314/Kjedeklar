@@ -18,7 +18,7 @@
 import type { GenericDatabaseWriter, WithoutSystemFields } from "convex/server";
 import type { DataModel, Doc, Id } from "../../convex/_generated/dataModel";
 import type { TenantTable } from "../../convex/lib/tenant";
-import { SYNTHETIC_REGISTRY_PROFILE } from "../helpers/public-functions";
+import { SYNTHETIC_APPLICABILITY_INPUT, SYNTHETIC_REGISTRY_PROFILE } from "../helpers/public-functions";
 
 type Owner = { organizationId: Id<"organizations">; userId: string };
 
@@ -57,6 +57,22 @@ export const tenantTableCases: { [T in TenantTable]: TenantTableCase<T> } = {
     patch: { status: "revoked" },
     // Admin inviterer og tilbakekaller i egen organisasjon.
     tenantCanModifyOwn: true,
+    tenantCanInsertOwn: true,
+  },
+  applicabilityAssessments: {
+    newDoc: ({ organizationId, userId }) => ({
+      organizationId,
+      assessedAt: Date.now(),
+      assessedBy: userId,
+      ruleVersion: "apenhetsloven-3a-2024-11-01-v1",
+      inputs: SYNTHETIC_APPLICABILITY_INPUT,
+      result: "likely_in",
+      rationale: [{ code: "exceeds_two_years", text: "Syntetisk" }],
+      userConfirmedAt: Date.now(),
+    }),
+    patch: { result: "likely_out" },
+    // Ny rad per vurdering; historikk endres aldri.
+    tenantCanModifyOwn: false,
     tenantCanInsertOwn: true,
   },
   registrySnapshots: {
