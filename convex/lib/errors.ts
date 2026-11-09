@@ -7,7 +7,9 @@ export type AppErrorCode =
   | "INVALID_INPUT"
   | "ALREADY_MEMBER"
   | "INVITATION_INVALID"
-  | "ACCOUNT_EXISTS";
+  | "ACCOUNT_EXISTS"
+  | "CONFLICT"
+  | "PREVIEW_EXPIRED";
 
 const messages: Record<AppErrorCode, string> = {
   UNAUTHENTICATED: "Du må logge inn.",
@@ -18,6 +20,8 @@ const messages: Record<AppErrorCode, string> = {
   // Samme svar for ukjent, brukt, utløpt, tilbakekalt og feil mottaker.
   INVITATION_INVALID: "Invitasjonen er ugyldig eller utløpt.",
   ACCOUNT_EXISTS: "Det finnes allerede en konto for denne e-postadressen. Logg inn for å godta invitasjonen.",
+  CONFLICT: "Opplysningene er endret siden du så dem. Last siden på nytt og prøv igjen.",
+  PREVIEW_EXPIRED: "Oppslaget er for gammelt. Slå opp på nytt før du bekrefter.",
 };
 
 export function appError(code: AppErrorCode) {

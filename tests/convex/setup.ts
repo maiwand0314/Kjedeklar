@@ -11,6 +11,12 @@ export const modules = import.meta.glob([
   "!../../convex/**/*.d.ts",
 ]);
 
+// Ingen nettverk i convex-test: eksterne kall (Brreg) må bruke en falsk fetch
+// i testen. Utilsiktede kall feiler i stedet for å treffe et ekte API.
+globalThis.fetch = (async () => {
+  throw new TypeError("Nettverk er stoppet i convex-test");
+}) as typeof fetch;
+
 export function setupTest() {
   const t = convexTest(schema, modules);
   betterAuthTest.register(t, "betterAuth");

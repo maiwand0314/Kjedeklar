@@ -18,11 +18,29 @@
  */
 import type { FunctionReference } from "convex/server";
 import { api } from "../../convex/_generated/api";
+import type { RegistryProfile } from "../../src/domain/brreg/enhet";
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- registeret holder funksjoner med ulike argumenttyper */
 type PublicQuery = FunctionReference<"query", "public", any, any>;
 type PublicMutation = FunctionReference<"mutation", "public", any, any>;
 type PublicAction = FunctionReference<"action", "public", any, any>;
+
+/** Syntetisk registerprofil for tester (samme form som RegistryProfile). */
+export const SYNTHETIC_REGISTRY_PROFILE: RegistryProfile = {
+  orgNumber: "920000002",
+  name: "SYNTETISK TESTVARER AS",
+  legalForm: "AS",
+  legalFormDescription: "Aksjeselskap",
+  address: null,
+  addressKind: null,
+  industryCode: "46.900",
+  industryDescription: null,
+  industryCodeSystem: "SN",
+  bankrupt: false,
+  underLiquidation: false,
+  underForcedLiquidation: false,
+  deletedOn: null,
+};
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
 type Common = {
@@ -76,6 +94,42 @@ export const reviewedPublicFunctions: Record<string, PublicFunctionReview> = {
     boundary: "tenant",
     sampleArgs: { name: "Nytt navn AS" },
     note: "Admin endrer navn på valgt organisasjon. Logges i revisjonsloggen.",
+  },
+  "organizations/registry:lookup": {
+    kind: "action",
+    ref: api.organizations.registry.lookup,
+    boundary: "tenant",
+    sampleArgs: { orgNumber: "920000002" },
+    note: "Brreg-oppslag via tenantAction; lagrer bare forhåndsvisning. Nettverk er stoppet i convex-test.",
+  },
+  "organizations/registry:confirm": {
+    kind: "mutation",
+    ref: api.organizations.registry.confirm,
+    boundary: "tenant",
+    sampleArgs: { snapshotId: "ukjent", expectedCurrentSnapshotId: null, useRegistryName: false },
+    note: "Bekrefter egen forhåndsvisning (getOwned) med optimistisk sjekk og revisjonslogg.",
+    prepareOwn: async (run, organizationId, userId) => ({
+      snapshotId: await run((db) =>
+        db.insert("registrySnapshots", {
+          organizationId,
+          source: "brreg-enhetsregisteret",
+          orgNumber: "920000002",
+          fetchedAt: Date.now(),
+          fetchedBy: userId,
+          selectedFields: SYNTHETIC_REGISTRY_PROFILE,
+          sourcePayloadHash: "0".repeat(64),
+          mappingVersion: "brreg-enhet-v1",
+          status: "preview",
+        }),
+      ),
+    }),
+  },
+  "organizations/registry:current": {
+    kind: "query",
+    ref: api.organizations.registry.current,
+    boundary: "tenant",
+    sampleArgs: {},
+    note: "Bekreftede registeropplysninger for valgt organisasjon, med kilde og tider.",
   },
   "audit/queries:list": {
     kind: "query",

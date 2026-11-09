@@ -64,6 +64,13 @@ export function tenantRules(scope: TenantScope): ExhaustiveRules {
     invitations: { read: sameTenant, modify: sameTenant, insert: sameTenant },
     // Append-only: kan leses og legges til i egen organisasjon, aldri endres.
     auditEvents: { read: sameTenant, modify: deny, insert: sameTenant },
+    // Opprettes av intern mutasjon etter Brreg-oppslag; admin bekrefter.
+    // Bekreftede snapshots er historikk og kan ikke endres.
+    registrySnapshots: {
+      read: sameTenant,
+      modify: async (_ctx, doc) => doc.organizationId === scope.organizationId && doc.status === "preview",
+      insert: deny,
+    },
   };
 }
 
@@ -89,6 +96,7 @@ export function userRules(
     },
     invitations: { read: deny, modify: deny, insert: deny },
     auditEvents: { read: deny, modify: deny, insert: deny },
+    registrySnapshots: { read: deny, modify: deny, insert: deny },
   };
 }
 
@@ -138,5 +146,6 @@ export function invitationRules(scope: InvitationScope): ExhaustiveRules {
       insert: async (_ctx, doc) =>
         scope.userId !== undefined && doc.organizationId === scope.organizationId,
     },
+    registrySnapshots: { read: deny, modify: deny, insert: deny },
   };
 }

@@ -15,7 +15,7 @@ import type { AuditEntityType, AuditEventType, SafeDiff } from "./auditTypes";
 
 /** Felter som kan stå i diff, per objekttype. Alt annet utelates. */
 export const AUDIT_DIFF_FIELDS: Record<AuditEntityType, readonly string[]> = {
-  organization: ["name", "status"],
+  organization: ["name", "status", "orgNumber", "legalForm", "industryCode"],
   membership: ["role", "status"],
   invitation: ["status", "expiresAt"],
 };

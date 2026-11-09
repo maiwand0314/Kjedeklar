@@ -1,0 +1,1 @@
+Syntetiske kontraktfixtures for Enhetsregisterets `GET /enheter/{orgnr}`, med samme form som det dokumenterte svaret. Navn og data er oppdiktet. Organisasjonsnumrene har gyldig kontrollsiffer og kan i teorien tilhøre en ekte enhet, men de brukes bare i tester og aldri mot det ekte API-et.

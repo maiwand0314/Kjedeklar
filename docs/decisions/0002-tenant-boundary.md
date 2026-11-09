@@ -44,6 +44,7 @@ Organisasjons-id i URL (`/o/[organizationId]`), i en cookie eller som funksjonsa
 | `invitations/queries:listForOrganization`, `invitations/mutations:create`, `invitations/mutations:revoke` | `tenantQuery`/`tenantMutation` | Hele kjeden over, kun admin (oppgave 03) |
 | `invitations/queries:lookup`, `invitations/mutations:acceptAsCurrentUser`, `invitations/actions:acceptWithNewAccount` | `invitationQuery`/`invitationMutation`/`invitationAction` | Token i invitasjonslenken. Se [0003](0003-kontolivssyklus.md) |
 | `organizations/mutations:rename`, `audit/queries:list` | `tenantMutation`/`tenantQuery` | Hele kjeden over, kun admin. Revisjonslogg, se [0004](0004-revisjonslogg.md) (oppgave 05) |
+| `organizations/registry:lookup` (action), `organizations/registry:confirm`, `organizations/registry:current` | `tenantAction`/`tenantMutation`/`tenantQuery` | Hele kjeden over. `tenantAction` verifiserer via intern query `lib/tenantAction:resolve` med brukerens identitet. Oppslaget skriver bare forhåndsvisning via intern mutasjon med `organizationId` fra verifisert kontekst (oppgave 06) |
 | `account/actions:verifyEmail` (action) | `verificationAction` | Better Auths signerte verifiseringstoken. Se [0003](0003-kontolivssyklus.md) |
 
 Registertesten feiler hvis noen legger til en offentlig funksjon eller HTTP-rute som ikke står i `tests/helpers/public-functions.ts`. Integrasjonstesten feiler hvis en intern funksjon mangler en probe.
