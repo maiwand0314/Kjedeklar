@@ -287,6 +287,26 @@ describe("foreslått matching mot leverandører som finnes fra før", () => {
     expect(matchOf("Navn;Leverandør-ID\nTvilling AS;T-1\n", twins).match.kind).toBe("conflict");
   });
 
+  test("konfliktmeldingen nevner bare det raden faktisk har", () => {
+    const conflictMessage = (csv: string, list = existing) =>
+      preview(bytes(csv), list).rows[0].issues.find((i) => i.code === "match_conflict")?.message;
+    expect(conflictMessage("Navn;Orgnr;Leverandør-ID\nKonflikt AS;920000002;L-1002\n")).toBe(
+      "Organisasjonsnummer og leverandør-ID peker på ulike leverandører som finnes fra før. Avklar hvilken som er riktig.",
+    );
+    // Org.nr. i raden finnes ikke fra før; ID-en tilhører en leverandør med et annet org.nr.
+    expect(conflictMessage("Navn;Orgnr;Leverandør-ID\nKonflikt AS;920000037;K-9\n")).toBe(
+      "Leverandør-ID-en tilhører en leverandør som finnes fra før med et annet organisasjonsnummer. Avklar hvilken som er riktig.",
+    );
+    // Bare leverandør-ID i raden, og to leverandører har den.
+    const twins: ExistingSupplier[] = [
+      { id: "t1", name: "Tvilling En AS", externalKey: "T-1", archived: false },
+      { id: "t2", name: "Tvilling To AS", externalKey: "T-1", archived: false },
+    ];
+    expect(conflictMessage("Navn;Leverandør-ID\nTvilling AS;T-1\n", twins)).toBe(
+      "Flere leverandører som finnes fra før, har samme leverandør-ID. Avklar hvilken som er riktig.",
+    );
+  });
+
   test("treff på arkivert leverandør sies fra om", () => {
     expect(matchOf("Navn;Orgnr\nArkivert AS;920000010\n")).toEqual({
       match: { kind: "org_number", suppliers: [brief("s-arkiv")] },
