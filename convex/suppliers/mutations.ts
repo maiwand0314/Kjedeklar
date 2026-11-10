@@ -102,7 +102,10 @@ export const update = tenantMutation({
   },
 });
 
-/** Arkiverer eller gjenoppretter. Ingenting slettes: profil, innkjøpsdata og logg blir stående. */
+/**
+ * Arkiverer eller gjenoppretter. Ingenting slettes: profil, innkjøpsdata og logg blir stående.
+ * Status rører ingen profilfelt, så `rowVersion` økes ikke; ellers ville et åpent profilskjema få falsk konflikt.
+ */
 export const setArchived = tenantMutation({
   args: { supplierId: v.string(), expectedRowVersion: v.number(), archived: v.boolean() },
   returns: v.object({ rowVersion: v.number() }),
@@ -112,7 +115,7 @@ export const setArchived = tenantMutation({
     if (supplier.rowVersion !== expectedRowVersion) throw appError("CONFLICT");
     const status = archived ? ("archived" as const) : ("active" as const);
     if (supplier.status === status) return { rowVersion: supplier.rowVersion };
-    const changes = { status, archivedAt: archived ? Date.now() : undefined, rowVersion: supplier.rowVersion + 1 };
+    const changes = { status, archivedAt: archived ? Date.now() : undefined };
     await ctx.db.patch("suppliers", supplier._id, changes);
     await writeAudit(ctx, {
       organizationId,
@@ -123,7 +126,7 @@ export const setArchived = tenantMutation({
       before: supplier,
       after: { ...supplier, ...changes },
     });
-    return { rowVersion: changes.rowVersion };
+    return { rowVersion: supplier.rowVersion };
   },
 });
 

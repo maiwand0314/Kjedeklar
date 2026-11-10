@@ -37,8 +37,8 @@ export function SupplierPeriodForm({
 }) {
   const router = useRouter();
   const [values, setValues] = useState(initial);
-  const [savedVersion, setRowVersion] = useState(0);
-  const rowVersion = Math.max(savedVersion, initialRowVersion);
+  // Følger bare egen lagring; se SupplierForm.
+  const [rowVersion, setRowVersion] = useState(initialRowVersion);
   const [candidate, setCandidate] = useState("");
   const [errors, setErrors] = useState<SupplierPeriodErrors>({});
   const [message, setMessage] = useState<{ status: "ok" | "error"; text: string } | null>(null);

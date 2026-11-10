@@ -81,6 +81,11 @@ test("leverandør: opprett, innkjøp med ukjent og null, konflikt, duplikat, sø
   await profileForm.getByLabel("Egen leverandør-ID").fill("L-1001");
   await profileForm.getByRole("button", { name: "Lagre profilen" }).click();
   await expect(profileForm.getByRole("status")).toHaveText("Leverandøren er lagret.");
+  // Innkjøpsskjemaet oppdaterer siden med nyeste profilversjon. Profilskjemaet må likevel
+  // bygge på versjonen brukeren så, ellers overskrives den andre fanens endring uten konflikt.
+  const stalePeriodForm = stale.locator("form", { has: stale.getByRole("button", { name: "Lagre innkjøpsdata" }) });
+  await stalePeriodForm.getByRole("button", { name: "Lagre innkjøpsdata" }).click();
+  await expect(stalePeriodForm.getByRole("status")).toHaveText("Innkjøpsdataene er lagret.");
   await staleForm.getByRole("button", { name: "Lagre profilen" }).click();
   await expect(staleForm.getByRole("alert")).toContainText("Noen har endret leverandøren");
   await expect(staleForm.getByLabel("Navn", { exact: true })).toHaveValue("Utdatert navn AS");
@@ -116,6 +121,9 @@ test("leverandør: opprett, innkjøp med ukjent og null, konflikt, duplikat, sø
   await page.getByRole("button", { name: "Arkiver leverandøren" }).click();
   await expect(page.getByText("Arkivert.")).toBeVisible();
   await expect(summary).toContainText(/Innkjøp i perioden1\s250,50 kr/);
+  // Egen arkivering gir ingen konflikt i profilskjemaet på samme side.
+  await profileForm.getByRole("button", { name: "Lagre profilen" }).click();
+  await expect(profileForm.getByRole("status")).toHaveText("Leverandøren er lagret.");
   await page.getByRole("link", { name: "Til leverandørlisten" }).click();
   await expect(rows).toHaveCount(2);
   await page.getByRole("navigation", { name: "Vis leverandører" }).getByRole("link", { name: "Arkiverte" }).click();

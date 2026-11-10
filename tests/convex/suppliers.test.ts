@@ -160,10 +160,11 @@ describe("arkivering", () => {
     const { t, fx, supplierId, args } = await withSupplier();
     await asA(t, fx).mutation(savePeriod, { ...args, expectedRowVersion: 0, ...SYNTHETIC_SUPPLIER_PERIOD, spendOre: 50_000_00n });
     const target = { organizationId: fx.orgA, supplierId };
-    expect(await asA(t, fx).mutation(setArchived, { ...target, expectedRowVersion: 1, archived: true })).toEqual({ rowVersion: 2 });
+    // Status rører ingen profilfelt, så versjonen står: et åpent profilskjema får ikke falsk konflikt.
+    expect(await asA(t, fx).mutation(setArchived, { ...target, expectedRowVersion: 1, archived: true })).toEqual({ rowVersion: 1 });
 
     const [archived] = await suppliers(t);
-    expect(archived).toMatchObject({ ...SYNTHETIC_SUPPLIER, status: "archived", archivedAt: expect.any(Number), rowVersion: 2 });
+    expect(archived).toMatchObject({ ...SYNTHETIC_SUPPLIER, status: "archived", archivedAt: expect.any(Number), rowVersion: 1 });
     expect(await periodRows(t)).toMatchObject([{ supplierId, spendOre: 50_000_00n }]);
     const listed = (archivedOnly: boolean) => asA(t, fx).query(list, { organizationId: fx.orgA, paginationOpts: firstPage, archived: archivedOnly });
     expect((await listed(false)).page).toEqual([]);
@@ -172,10 +173,10 @@ describe("arkivering", () => {
     expect((await asA(t, fx).query(get, args)).periodData).toMatchObject({ spendOre: 50_000_00n });
 
     // Samme tilstand en gang til er ingen endring og gir ingen ny hendelse.
-    expect(await asA(t, fx).mutation(setArchived, { ...target, expectedRowVersion: 2, archived: true })).toEqual({ rowVersion: 2 });
-    await asA(t, fx).mutation(setArchived, { ...target, expectedRowVersion: 2, archived: false });
+    expect(await asA(t, fx).mutation(setArchived, { ...target, expectedRowVersion: 1, archived: true })).toEqual({ rowVersion: 1 });
+    await asA(t, fx).mutation(setArchived, { ...target, expectedRowVersion: 1, archived: false });
     const [restored] = await suppliers(t);
-    expect(restored).toMatchObject({ status: "active", rowVersion: 3 });
+    expect(restored).toMatchObject({ status: "active", rowVersion: 1 });
     expect(restored).not.toHaveProperty("archivedAt");
     const events = (await auditRows(t)).filter((e) => e.entityType === "supplier").map((e) => [e.eventType, e.safeDiff.status]);
     expect(events).toEqual([

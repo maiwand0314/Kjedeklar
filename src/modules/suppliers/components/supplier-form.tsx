@@ -32,9 +32,9 @@ export function SupplierForm({
 }) {
   const router = useRouter();
   const [values, setValues] = useState(initial);
-  // Nyeste kjente versjon: egen lagring eller siden (f.eks. etter arkivering), det som er høyest.
-  const [savedVersion, setRowVersion] = useState(0);
-  const rowVersion = Math.max(savedVersion, target?.rowVersion ?? 0);
+  // Versjonen verdiene i skjemaet bygger på. Følger bare egen lagring, ikke siden:
+  // router.refresh() gir nye props, men skjemaet beholder verdiene brukeren så.
+  const [rowVersion, setRowVersion] = useState(target?.rowVersion ?? 0);
   const [errors, setErrors] = useState<SupplierErrors>({});
   const [message, setMessage] = useState<{ status: "ok" | "error"; text: string } | null>(null);
   const [pending, startTransition] = useTransition();

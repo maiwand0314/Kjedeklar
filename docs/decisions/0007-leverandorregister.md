@@ -31,6 +31,8 @@
 
 ## Redigering og arkivering
 - Endring, arkivering og lagring av innkjøpsdata krever versjonen brukeren så (`expectedRowVersion`). Er den utdatert, avvises endringen med `CONFLICT`, og skjemaet beholder det brukeren har skrevet.
+- Et skjema sender versjonen verdiene i skjemaet bygger på, og den oppdateres bare av skjemaets egen lagring. Nye props etter `router.refresh()` (f.eks. etter lagring i et annet skjema på siden) endrer den ikke, ellers kunne en utdatert fane overskrive en annens endring uten konflikt.
+- Arkivering og gjenoppretting øker ikke `rowVersion`. Status rører ingen profilfelt, og et åpent profilskjema skal ikke få falsk konflikt etter egen arkivering.
 - Arkivering setter `status: "archived"` og `archivedAt`. Ingenting slettes: profil, innkjøpsdata og revisjonslogg blir stående, og leverandøren kan gjenopprettes. Det finnes ingen funksjon som sletter leverandører.
 
 ## Liste og søk
