@@ -46,7 +46,14 @@ export function proposeMatches(rows: ImportRow[], existing: readonly ExistingSup
     const otherOrgNumber = keyMatches.some((s) => registryOrgNumber && s.registryOrgNumber && s.registryOrgNumber !== registryOrgNumber);
 
     if (identified.length > 1 || otherOrgNumber) {
-      warn("match_conflict", "Organisasjonsnummer og leverandør-ID peker på ulike leverandører som finnes fra før. Avklar hvilken som er riktig.");
+      // Meldingen nevner bare identifikatorer raden faktisk har og som traff noe.
+      const why =
+        keyMatches.length > 1
+          ? "Flere leverandører som finnes fra før, har samme leverandør-ID."
+          : orgMatches.length === 0
+            ? "Leverandør-ID-en tilhører en leverandør som finnes fra før med et annet organisasjonsnummer."
+            : "Organisasjonsnummer og leverandør-ID peker på ulike leverandører som finnes fra før.";
+      warn("match_conflict", `${why} Avklar hvilken som er riktig.`);
       return { kind: "conflict", suppliers: brief(identified) };
     }
     if (identified.length === 1) {
