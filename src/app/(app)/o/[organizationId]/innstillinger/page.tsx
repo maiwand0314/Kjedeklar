@@ -6,7 +6,7 @@ import { RenameOrganizationForm } from "@/modules/organizations/components/renam
 
 export const metadata = { title: "Innstillinger" };
 
-const ENTITY_TYPES = ["organization", "membership", "invitation", "applicability", "reportingPeriod", "businessProfile", "supplier", "supplierPeriod"] as const;
+const ENTITY_TYPES = ["organization", "membership", "invitation", "applicability", "reportingPeriod", "businessProfile", "supplier", "supplierPeriod", "importBatch"] as const;
 type EntityType = (typeof ENTITY_TYPES)[number];
 
 export default async function SettingsPage({

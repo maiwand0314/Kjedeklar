@@ -69,7 +69,7 @@ En verdi som ikke kan tolkes sikkert, får ingen normalisert verdi og en synlig 
 - En formel i et beløpsfelt regnes aldri ut; den er et ugyldig beløp.
 
 ## Kjente begrensninger
-- **`externalKey` er fortsatt ikke unik** per organisasjon. Forhåndsvisningen tåler det (flere treff blir konflikt), men oppgave 11 må avgjøre regelen før den lagrer.
+- `externalKey` ble unik per organisasjon i oppgave 11 (beslutning 0009). Forhåndsvisningen tåler fortsatt eldre dubletter: flere treff blir konflikt.
 - Bare UTF-8. Windows-1252 og UTF-16 må lagres på nytt som UTF-8.
 - Filer uten overskriftsrad støttes ikke.
 - Tre-bokstavers landkoder (NOR, CHN) kjennes ikke igjen.

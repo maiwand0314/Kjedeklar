@@ -20,6 +20,8 @@ import type { DataModel, Doc, Id } from "../../convex/_generated/dataModel";
 import type { TenantTable } from "../../convex/lib/tenant";
 import {
   SYNTHETIC_APPLICABILITY_INPUT,
+  SYNTHETIC_IMPORT_BATCH,
+  SYNTHETIC_IMPORT_ROW,
   SYNTHETIC_PERIOD,
   SYNTHETIC_PROFILE_ANSWERS,
   SYNTHETIC_REGISTRY_PROFILE,
@@ -32,6 +34,7 @@ export type Owner = {
   userId: string;
   reportingPeriodId: Id<"reportingPeriods">;
   supplierId: Id<"suppliers">;
+  importBatchId: Id<"importBatches">;
 };
 
 export type TenantTableCase<T extends TenantTable> = {
@@ -136,6 +139,26 @@ export const tenantTableCases: { [T in TenantTable]: TenantTableCase<T> } = {
     // Admin lagrer innkjøpsdata i egen organisasjon.
     tenantCanModifyOwn: true,
     tenantCanInsertOwn: true,
+  },
+  importBatches: {
+    newDoc: ({ organizationId, userId, reportingPeriodId }) => ({
+      organizationId,
+      reportingPeriodId,
+      ...SYNTHETIC_IMPORT_BATCH,
+      createdAt: Date.now(),
+      createdBy: userId,
+      expiresAt: Date.now() + 3_600_000,
+    }),
+    patch: { policy: { known: "skip" } },
+    // Admin velger og bekrefter; grunnlaget opprettes bare av intern mutasjon fra import-actionen.
+    tenantCanModifyOwn: true,
+    tenantCanInsertOwn: false,
+  },
+  importRows: {
+    newDoc: ({ organizationId, importBatchId }) => ({ organizationId, batchId: importBatchId, ...SYNTHETIC_IMPORT_ROW }),
+    patch: { decision: "skip" },
+    tenantCanModifyOwn: true,
+    tenantCanInsertOwn: false,
   },
   registrySnapshots: {
     newDoc: ({ organizationId, userId }) => ({

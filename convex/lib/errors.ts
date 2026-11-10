@@ -11,7 +11,10 @@ export type AppErrorCode =
   | "CONFLICT"
   | "PREVIEW_EXPIRED"
   | "PERIOD_EXISTS"
-  | "SUPPLIER_EXISTS";
+  | "SUPPLIER_EXISTS"
+  | "SUPPLIER_KEY_EXISTS"
+  | "IMPORT_EXPIRED"
+  | "IMPORT_UNDECIDED";
 
 const messages: Record<AppErrorCode, string> = {
   UNAUTHENTICATED: "Du må logge inn.",
@@ -26,6 +29,9 @@ const messages: Record<AppErrorCode, string> = {
   PREVIEW_EXPIRED: "Oppslaget er for gammelt. Slå opp på nytt før du bekrefter.",
   PERIOD_EXISTS: "Det finnes allerede en rapportperiode med disse datoene.",
   SUPPLIER_EXISTS: "Det finnes allerede en leverandør med dette organisasjonsnummeret. Se også blant arkiverte leverandører.",
+  SUPPLIER_KEY_EXISTS: "Det finnes allerede en leverandør med denne leverandør-ID-en. Se også blant arkiverte leverandører.",
+  IMPORT_EXPIRED: "Importgrunnlaget er utløpt. Last opp filen på nytt og gå gjennom valgene.",
+  IMPORT_UNDECIDED: "Noen oppføringer mangler valg. Ta stilling til alle før importen bekreftes.",
 };
 
 export function appError(code: AppErrorCode) {

@@ -32,8 +32,8 @@ test("CSV-forhåndsvisning: grenser, kolonnevalg, avklaringer, ubetrodd tekst og
   await expect(page.getByRole("heading", { level: 1, name: "Finnes Fra Før AS" })).toBeVisible();
 
   await page.getByRole("link", { name: "Til leverandørlisten" }).click();
-  await page.getByRole("link", { name: "Forhåndsvis CSV-fil" }).click();
-  await expect(page.getByRole("heading", { level: 1, name: "Forhåndsvis CSV-fil" })).toBeVisible();
+  await page.getByRole("link", { name: "Importer fra CSV" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Importer fra CSV" })).toBeVisible();
 
   // Malen kan lastes ned og er en CSV-fil.
   const template = await page.request.get((await page.getByRole("link", { name: /Last ned en mal/ }).getAttribute("href")) ?? "");

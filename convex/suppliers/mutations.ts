@@ -1,10 +1,9 @@
 import { v } from "convex/values";
-import { nameKey, normalizeSupplier, normalizeSupplierPeriod, type SupplierPeriodData } from "../../src/domain/suppliers/supplier";
-import type { Id } from "../_generated/dataModel";
-import type { QueryCtx } from "../_generated/server";
+import { nameKey, normalizeSupplierPeriod, type SupplierPeriodData } from "../../src/domain/suppliers/supplier";
 import { writeAudit } from "../lib/audit";
 import { appError } from "../lib/errors";
-import { getOwned, tenantMutation, type Tenant } from "../lib/tenant";
+import { getOwned, tenantMutation } from "../lib/tenant";
+import { checkedProfile } from "./model";
 import { supplierPeriodFields, supplierProfileFields } from "./validators";
 
 /** Valgfrie felt som fjernes når de ikke lenger er oppgitt (patch med undefined sletter feltet). */
@@ -16,31 +15,6 @@ const CLEARED_PROFILE = {
   industryCode: undefined,
 };
 const CLEARED_PERIOD = { spendOre: undefined, purchaseCategory: undefined, purchaseDescription: undefined };
-
-/**
- * Validerer profilen og kontrollerer at norsk org.nr. ikke allerede er brukt av
- * en annen leverandør i organisasjonen (også arkiverte). Likt navn stopper
- * ingenting; det vises bare som forslag om mulig duplikat.
- */
-async function checkedProfile(
-  ctx: { db: QueryCtx["db"]; tenant: Tenant },
-  args: Parameters<typeof normalizeSupplier>[0],
-  self?: Id<"suppliers">,
-) {
-  const parsed = normalizeSupplier(args);
-  if ("errors" in parsed) throw appError("INVALID_INPUT");
-  const { registryOrgNumber } = parsed.value;
-  if (registryOrgNumber) {
-    const existing = await ctx.db
-      .query("suppliers")
-      .withIndex("by_organizationId_and_registryOrgNumber", (q) =>
-        q.eq("organizationId", ctx.tenant.organizationId).eq("registryOrgNumber", registryOrgNumber),
-      )
-      .first();
-    if (existing && existing._id !== self) throw appError("SUPPLIER_EXISTS");
-  }
-  return parsed.value;
-}
 
 /** Det som kan stå i revisjonsloggen om innkjøpsdata. Kjøpsbeskrivelsen (fritekst) er ikke med. */
 const periodSnapshot = (data: SupplierPeriodData) => ({

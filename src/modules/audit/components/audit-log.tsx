@@ -22,6 +22,9 @@ const EVENTS: Record<string, string> = {
   "supplier.archived": "Leverandør arkivert",
   "supplier.restored": "Leverandør gjenopprettet",
   "supplier_period.saved": "Innkjøpsdata lagret",
+  "import.created": "Importgrunnlag laget",
+  "import.confirmed": "Import bekreftet",
+  "import.applied": "Import gjennomført",
 };
 
 const FIELDS: Record<string, string> = {
@@ -45,6 +48,18 @@ const FIELDS: Record<string, string> = {
   purchaseCategory: "Kategori",
   productionCountries: "Kjente produksjonsland",
   upstreamUnknown: "Oppstrøms ukjent",
+  rowCount: "Rader i filen",
+  entryCount: "Leverandører i filen",
+  policyKnown: "Finnes fra før",
+  policyNewWarning: "Nye med avklaringer",
+  policyError: "Rader med feil",
+  policyUnclear: "Uklare treff",
+  created: "Opprettet",
+  updated: "Oppdatert",
+  unchanged: "Uendret",
+  skipped: "Utelatt",
+  conflicts: "Ikke importert",
+  processed: "Behandlet",
   ...Object.fromEntries(PROFILE_TOPICS.map((t) => [t.key, t.label])),
 };
 
@@ -60,6 +75,12 @@ const VALUES: Record<string, string> = {
   manual_review: "manuell avklaring",
   open: "åpen",
   archived: "arkivert",
+  draft: "utkast",
+  committing: "bekreftet, pågår",
+  committed: "fullført",
+  create: "opprett",
+  update: "oppdater",
+  skip: "utelat",
   described: "beskrevet",
   not_established: "ikke etablert",
   unknown: "ikke besvart",
@@ -75,6 +96,7 @@ const FILTERS = [
   { key: "businessProfile", label: "Virksomhetsprofil" },
   { key: "supplier", label: "Leverandører" },
   { key: "supplierPeriod", label: "Innkjøpsdata" },
+  { key: "importBatch", label: "Import" },
 ] as const;
 
 type EntityType = NonNullable<(typeof FILTERS)[number]["key"]>;
@@ -134,7 +156,7 @@ export async function AuditLog({
         Revisjonslogg
       </h2>
       <p className="mt-1 text-sm text-muted">
-        Endringer i virksomheten, medlemskap, invitasjoner, rapportperioder, virksomhetsprofil og leverandører. Loggen kan ikke endres fra appen.
+        Endringer i virksomheten, medlemskap, invitasjoner, rapportperioder, virksomhetsprofil, leverandører og import. Loggen kan ikke endres fra appen.
       </p>
       <nav aria-label="Filtrer revisjonslogg" className="mt-4 flex flex-wrap gap-2 text-sm">
         {FILTERS.map((f) => (

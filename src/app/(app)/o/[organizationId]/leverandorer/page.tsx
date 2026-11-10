@@ -46,7 +46,7 @@ export default async function SuppliersPage({ params, searchParams }: PageProps<
           Ny leverandør
         </Link>
         <Link href={href("/import")} className="inline-block rounded border border-input px-4 py-2 font-medium">
-          Forhåndsvis CSV-fil
+          Importer fra CSV
         </Link>
       </p>
 

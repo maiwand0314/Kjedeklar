@@ -80,6 +80,9 @@ export function tenantRules(scope: TenantScope): ExhaustiveRules {
     // Admin oppretter og redigerer i egen organisasjon. Ingen funksjon sletter.
     suppliers: { read: sameTenant, modify: sameTenant, insert: sameTenant },
     supplierPeriods: { read: sameTenant, modify: sameTenant, insert: sameTenant },
+    // Grunnlaget lagres av intern mutasjon fra import-actionen. Admin velger og bekrefter i egen organisasjon.
+    importBatches: { read: sameTenant, modify: sameTenant, insert: deny },
+    importRows: { read: sameTenant, modify: sameTenant, insert: deny },
   };
 }
 
@@ -111,6 +114,8 @@ export function userRules(
     businessProfileRevisions: { read: deny, modify: deny, insert: deny },
     suppliers: { read: deny, modify: deny, insert: deny },
     supplierPeriods: { read: deny, modify: deny, insert: deny },
+    importBatches: { read: deny, modify: deny, insert: deny },
+    importRows: { read: deny, modify: deny, insert: deny },
   };
 }
 
@@ -166,5 +171,7 @@ export function invitationRules(scope: InvitationScope): ExhaustiveRules {
     businessProfileRevisions: { read: deny, modify: deny, insert: deny },
     suppliers: { read: deny, modify: deny, insert: deny },
     supplierPeriods: { read: deny, modify: deny, insert: deny },
+    importBatches: { read: deny, modify: deny, insert: deny },
+    importRows: { read: deny, modify: deny, insert: deny },
   };
 }

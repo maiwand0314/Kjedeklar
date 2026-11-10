@@ -76,6 +76,36 @@ export const SYNTHETIC_SUPPLIER_DOC = {
 /** Syntetiske innkjøpsdata: alt ukjent. */
 export const SYNTHETIC_SUPPLIER_PERIOD = { productionCountries: [], upstreamUnknown: true };
 
+/** Syntetisk importgrunnlag slik det lagres (uten organisasjon, periode og bruker): ett utkast uten oppføringer som mangler valg. */
+export const SYNTHETIC_IMPORT_BATCH = {
+  status: "draft",
+  idempotencyKey: "syntetisk",
+  fileHash: "0".repeat(64),
+  normalizedHash: "1".repeat(64),
+  mappingVersion: "csv-import-v1",
+  fileName: "syntetisk.csv",
+  mapping: { name: 0 },
+  rowCount: 1,
+  entryCount: 1,
+  kindCounts: { new_clean: 1, new_warning: 0, known: 0, unclear: 0, error: 0 },
+  policy: {},
+  rowVersion: 1,
+  nextRowNumber: 0,
+  processed: 0,
+  result: { created: 0, updated: 0, unchanged: 0, skipped: 0, conflicts: 0 },
+} as const;
+/** Syntetisk oppføring: ny leverandør uten avklaringer. */
+export const SYNTHETIC_IMPORT_ROW = {
+  rowNumber: 2,
+  sourceRows: [2],
+  sourceRowCount: 1,
+  values: { name: "Syntetisk Importert AS" },
+  issues: [],
+  kind: "new_clean" as const,
+  matchKind: "new" as const,
+  candidates: [],
+};
+
 type Common = {
   boundary: "tenant" | "user" | "invitation" | "verification";
   /** Argumenter i tillegg til `organizationId` for tenantfunksjoner. */
@@ -102,6 +132,27 @@ const ownPeriod = async (run: Run, organizationId: string, userId: string) => ({
 /** Setter inn en egen leverandør og gir id-en som `supplierId`. */
 const ownSupplier = async (run: Run, organizationId: string, userId: string) => ({
   supplierId: await run((db) => db.insert("suppliers", { organizationId, ...SYNTHETIC_SUPPLIER_DOC, createdAt: Date.now(), createdBy: userId })),
+});
+
+/** Setter inn et eget importgrunnlag med én oppføring og gir id-ene som `batchId` og `rowId`. */
+const ownBatch = (status: "draft" | "committing") => async (run: Run, organizationId: string, userId: string) => {
+  const { reportingPeriodId } = await ownPeriod(run, organizationId, userId);
+  return await run(async (db) => {
+    const batchId = await db.insert("importBatches", {
+      organizationId,
+      reportingPeriodId,
+      ...SYNTHETIC_IMPORT_BATCH,
+      status,
+      createdAt: Date.now(),
+      createdBy: userId,
+      expiresAt: Date.now() + 3_600_000,
+    });
+    const rowId = await db.insert("importRows", { organizationId, batchId, ...SYNTHETIC_IMPORT_ROW });
+    return { batchId, rowId };
+  });
+};
+const ownBatchOnly = (status: "draft" | "committing") => async (run: Run, organizationId: string, userId: string) => ({
+  batchId: (await ownBatch(status)(run, organizationId, userId)).batchId,
 });
 
 export type PublicFunctionReview =
@@ -266,6 +317,73 @@ export const reviewedPublicFunctions: Record<string, PublicFunctionReview> = {
     boundary: "tenant",
     sampleArgs: { file: new TextEncoder().encode("Navn\nSyntetisk Leverandør AS\n").buffer },
     note: "Leser en CSV-fil i minnet og foreslår matching mot egne leverandører. Endrer og lagrer ingenting.",
+  },
+  "suppliers/import/prepare:prepare": {
+    kind: "action",
+    ref: api.suppliers.import.prepare.prepare,
+    boundary: "tenant",
+    sampleArgs: {
+      file: new TextEncoder().encode("Navn\nSyntetisk Leverandør AS\n").buffer,
+      fileName: "syntetisk.csv",
+      reportingPeriodId: "ukjent",
+    },
+    note: "Lager et importgrunnlag (normaliserte oppføringer, aldri råfilen) for egen periode. Endrer ingen leverandørdata.",
+    prepareOwn: ownPeriod,
+  },
+  "suppliers/import/batches:list": {
+    kind: "query",
+    ref: api.suppliers.import.batches.list,
+    boundary: "tenant",
+    sampleArgs: {},
+    note: "De siste importene i valgt organisasjon.",
+  },
+  "suppliers/import/batches:get": {
+    kind: "query",
+    ref: api.suppliers.import.batches.get,
+    boundary: "tenant",
+    sampleArgs: { batchId: "ukjent" },
+    note: "Ett eget importgrunnlag (getOwned) med fellesvalg og antall.",
+    prepareOwn: ownBatchOnly("draft"),
+  },
+  "suppliers/import/batches:rows": {
+    kind: "query",
+    ref: api.suppliers.import.batches.rows,
+    boundary: "tenant",
+    sampleArgs: { batchId: "ukjent", paginationOpts: { numItems: 5, cursor: null } },
+    note: "Oppføringene i et eget importgrunnlag (getOwned), paginert.",
+    prepareOwn: ownBatchOnly("draft"),
+  },
+  "suppliers/import/batches:setPolicy": {
+    kind: "mutation",
+    ref: api.suppliers.import.batches.setPolicy,
+    boundary: "tenant",
+    sampleArgs: { batchId: "ukjent", expectedRowVersion: 1, policy: { known: "skip" } },
+    note: "Fellesvalg i et eget utkast (getOwned) med versjonssjekk. Endrer ingen leverandørdata.",
+    prepareOwn: ownBatchOnly("draft"),
+  },
+  "suppliers/import/batches:decide": {
+    kind: "mutation",
+    ref: api.suppliers.import.batches.decide,
+    boundary: "tenant",
+    sampleArgs: { batchId: "ukjent", rowId: "ukjent", expectedRowVersion: 1, decision: "skip" },
+    note: "Valg for én oppføring i et eget utkast. Batch, oppføring og valgt leverandør lastes med getOwned.",
+    prepareOwn: ownBatch("draft"),
+  },
+  "suppliers/import/batches:startCommit": {
+    kind: "mutation",
+    ref: api.suppliers.import.batches.startCommit,
+    boundary: "tenant",
+    sampleArgs: { batchId: "ukjent", expectedRowVersion: 1 },
+    note: "Bekrefter et eget utkast (getOwned) når alle oppføringer har valg. Med revisjonslogg.",
+    prepareOwn: ownBatchOnly("draft"),
+  },
+  "suppliers/import/batches:commitChunk": {
+    kind: "mutation",
+    ref: api.suppliers.import.batches.commitChunk,
+    boundary: "tenant",
+    sampleArgs: { batchId: "ukjent" },
+    note: "Gjennomfører neste stykke av en egen, bekreftet import (getOwned på batch og leverandører). Med revisjonslogg.",
+    prepareOwn: ownBatchOnly("committing"),
   },
   "organizations/registry:current": {
     kind: "query",

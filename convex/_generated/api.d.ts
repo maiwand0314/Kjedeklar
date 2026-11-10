@@ -48,8 +48,12 @@ import type * as organizations_registryInternal from "../organizations/registryI
 import type * as organizations_registryValidators from "../organizations/registryValidators.js";
 import type * as organizations_reportingPeriods from "../organizations/reportingPeriods.js";
 import type * as suppliers_import_actions from "../suppliers/import/actions.js";
+import type * as suppliers_import_batches from "../suppliers/import/batches.js";
 import type * as suppliers_import_internal from "../suppliers/import/internal.js";
+import type * as suppliers_import_prepare from "../suppliers/import/prepare.js";
+import type * as suppliers_import_store from "../suppliers/import/store.js";
 import type * as suppliers_import_validators from "../suppliers/import/validators.js";
+import type * as suppliers_model from "../suppliers/model.js";
 import type * as suppliers_mutations from "../suppliers/mutations.js";
 import type * as suppliers_queries from "../suppliers/queries.js";
 import type * as suppliers_validators from "../suppliers/validators.js";
@@ -101,8 +105,12 @@ declare const fullApi: ApiFromModules<{
   "organizations/registryValidators": typeof organizations_registryValidators;
   "organizations/reportingPeriods": typeof organizations_reportingPeriods;
   "suppliers/import/actions": typeof suppliers_import_actions;
+  "suppliers/import/batches": typeof suppliers_import_batches;
   "suppliers/import/internal": typeof suppliers_import_internal;
+  "suppliers/import/prepare": typeof suppliers_import_prepare;
+  "suppliers/import/store": typeof suppliers_import_store;
   "suppliers/import/validators": typeof suppliers_import_validators;
+  "suppliers/model": typeof suppliers_model;
   "suppliers/mutations": typeof suppliers_mutations;
   "suppliers/queries": typeof suppliers_queries;
   "suppliers/validators": typeof suppliers_validators;

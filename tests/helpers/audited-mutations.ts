@@ -24,6 +24,21 @@ export const auditedMutations: Record<string, AuditClassification> = {
   "suppliers/mutations:update": { logged: true },
   "suppliers/mutations:setArchived": { logged: true },
   "suppliers/mutations:savePeriod": { logged: true },
+  "suppliers/import/batches:startCommit": { logged: true },
+  "suppliers/import/batches:commitChunk": { logged: true },
+  "suppliers/import/store:finalizeBatch": { logged: true },
+  "suppliers/import/batches:setPolicy": {
+    exempt: "Fellesvalg i et importutkast; endrer ingen leverandørdata. Valgene som gjaldt, logges når importen bekreftes.",
+  },
+  "suppliers/import/batches:decide": {
+    exempt: "Valg for én oppføring i et importutkast; endrer ingen leverandørdata. Bekreftelsen og gjennomføringen logges.",
+  },
+  "suppliers/import/store:createBatch": {
+    exempt: "Oppretter et grunnlag som ikke er synlig før alle oppføringene er lagret; da logges det (finalizeBatch).",
+  },
+  "suppliers/import/store:addEntries": {
+    exempt: "Lagrer oppføringer i et grunnlag under oppretting; logges samlet når grunnlaget er ferdig (finalizeBatch).",
+  },
   "organizations/registryInternal:storePreview": {
     exempt: "Lagrer bare en forhåndsvisning av et Brreg-oppslag; ingen kundedata endres før bekreftelse, som logges.",
   },
@@ -31,4 +46,5 @@ export const auditedMutations: Record<string, AuditClassification> = {
     exempt: "Lagrer bare tokenhash ved e-postsending; logges ikke for å holde token unna loggen.",
   },
   "ops/testing:expireInvitation": { exempt: "Testfunksjon, bare på test-backend." },
+  "ops/testing:setImportRowName": { exempt: "Testfunksjon, bare på test-backend." },
 };
