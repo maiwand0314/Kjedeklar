@@ -1,0 +1,14 @@
+Navn;Innkjøp
+Eksakt AS;90 071 992 547 409,93
+Tusenpunktum AS;1.234.567,89
+Amerikansk AS;"1,234,567.89"
+Tvetydig Punktum AS;1.234
+Tvetydig Komma AS;"12,345"
+Negativ AS;-5 000
+Kreditnota AS;(1 250,50)
+Euro AS;EUR 1 000
+Krone AS;kr 2 500,-
+Vitenskapelig AS;1,25E+06
+Ukjent AS;
+Null AS;0
+Tre Desimaler AS;0,125

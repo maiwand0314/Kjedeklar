@@ -190,6 +190,11 @@ describe("tenant-isolasjon mot lokal Convex-backend", () => {
       args: ({ fx }) => ({ invitationId: fx.orgA }),
       verifyNoEffect: async () => {},
     },
+    "suppliers/import/internal:suppliersForMatching": {
+      // Query: et vellykket kall ville returnert B sine leverandører. Avslaget er beviset.
+      args: ({ fx }) => ({ organizationId: fx.orgB, paginationOpts: { numItems: 5, cursor: null } }),
+      verifyNoEffect: async () => {},
+    },
     "invitations/internal:findValid": {
       // Query: et vellykket kall ville bekreftet et token. Avslaget er beviset.
       args: () => ({ token: "x".repeat(43) }),

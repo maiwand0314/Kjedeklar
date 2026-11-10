@@ -48,8 +48,10 @@ const kroner = new Intl.NumberFormat("nb-NO");
 /** Øre → «70 000 000 kr» (med øre bare når det finnes). Tom verdi er «ikke oppgitt». */
 export function formatKroner(ore: bigint | null): string {
   if (ore === null) return "ikke oppgitt";
-  const rest = ore % 100n;
-  return `${kroner.format(ore / 100n)}${rest ? `,${String(rest).padStart(2, "0")}` : ""} kr`;
+  // Fortegnet settes for seg, så øredelen av et negativt beløp (kreditnota) ikke får eget minustegn.
+  const abs = ore < 0n ? -ore : ore;
+  const rest = abs % 100n;
+  return `${ore < 0n ? "−" : ""}${kroner.format(abs / 100n)}${rest ? `,${String(rest).padStart(2, "0")}` : ""} kr`;
 }
 
 /** Øre → tekst for skjemafelt («70000000» eller «70000000,5»), tom når ukjent. */

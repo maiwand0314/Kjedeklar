@@ -41,9 +41,12 @@ export default async function SuppliersPage({ params, searchParams }: PageProps<
         Leverandørene virksomheten kjøper fra. Innkjøpsbeløp og produksjonsland registreres per rapportperiode på
         hver leverandør.
       </p>
-      <p className="mt-4">
+      <p className="mt-4 flex flex-wrap gap-2">
         <Link href={href("/ny")} className="inline-block rounded bg-primary px-4 py-2 font-medium text-primary-foreground">
           Ny leverandør
+        </Link>
+        <Link href={href("/import")} className="inline-block rounded border border-input px-4 py-2 font-medium">
+          Forhåndsvis CSV-fil
         </Link>
       </p>
 

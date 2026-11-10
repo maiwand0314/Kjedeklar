@@ -1,0 +1,3 @@
+# CSV-fixtures og malen må beholde tegnsett, BOM og linjeskift byte for byte.
+tests/fixtures/csv/*.csv -text
+public/maler/*.csv -text

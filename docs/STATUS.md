@@ -13,6 +13,7 @@ Startpakke opprettet 6. november 2026. Dokumentasjonen ble samme dag skrevet om 
 | 07 | Implementert og verifisert lokalt (branch `feature/07-applicability`) | Lokalt med Docker: lint, typecheck, 265 enhets-/convex-test-tester, 78 integrasjonstester, 13 e2e-tester (to kjøringer) og build | Veiledende; konsern, utenlandske virksomheter og ukjent historikk gir manuell avklaring. Lovteksten lest 9.11.2026; må leses på nytt ved lovendring |
 | 08 | Implementert, verifisert lokalt og i CI, review-merknader rettet (PR #10) | Lokalt med Docker: lint, typecheck, 330 enhets-/convex-test-tester, 92 integrasjonstester, 14 e2e-tester og build. Etter review: lint, typecheck, enhetstester og e2e på nytt (ingen endring i Convex) | Perioder kan ikke endres eller slettes. Innholdet i eldre profilversjoner kan ikke åpnes i appen. Ugyldig periode i adressen gir «Ikke funnet» med HTTP 200 (beslutning 0006) |
 | 09 | Implementert og verifisert lokalt (branch `feature/09-suppliers`) | Lokalt med Docker: lint, typecheck, 417 enhets-/convex-test-tester, 112 integrasjonstester, 15 e2e-tester og build | Søk bare på starten av navnet. `externalKey` er ikke unik ennå. Ingen risiko, import eller Brreg-beriking (senere oppgaver) |
+| 10 | Implementert og verifisert lokalt (branch `feature/10-csv-preview`) | Lokalt med Docker: lint, typecheck, 538 enhets-/convex-test-tester, 120 integrasjonstester, 16 e2e-tester og build | Bare forhåndsvisning; ingenting importeres før oppgave 11. Bare UTF-8. `externalKey` er fortsatt ikke unik. To lokale e2e-kjøringer fikk tidsavbrudd av uavklart årsak (se under) |
 
 Oppdater ved hver oppgave. Bruk «implementert», «verifisert» og «ekstern avklaring» presist. Et lokalt fake-resultat betyr ikke at en ekstern integrasjon er godkjent.
 
@@ -593,6 +594,75 @@ Underveis feilet to tester på grunn av selve testen, ikke koden: en testtittel 
 - **Ingen adresse eller valuta** på leverandøren; beløp er alltid NOK.
 - **Ugyldig leverandør-id i adressen gir HTTP 200** med «Ikke funnet»-siden.
 - **Leverandørnavn i revisjonsloggen** kan være et personnavn for enkeltpersonforetak; avklares i oppgave 27.
+
+## Oppgave 10 – CSV-opplasting og forhåndsvisning
+
+Beslutninger og begrunnelser står i `docs/decisions/0008-csv-forhandsvisning.md`.
+
+### Endret
+- **Ny pakke:** `papaparse` 5.7.0 (og `@types/papaparse` 5.5.2), låst eksakt. Ingen egne avhengigheter.
+- **`src/domain/import/`** (ren TypeScript, samme kode i tester og i Convex):
+  - `csv.ts` leser bytes til en tabell: UTF-8 med eller uten BOM, semikolon eller komma, siterte felt, radnummer som i et regneark, og avvisning av hele filen ved for stor fil, feil tegnsett, tom fil, for mange rader eller kolonner;
+  - `amount.ts` tolker norske beløp til øre som `bigint` og melder fra om tvetydige beløp i stedet for å gjette;
+  - `country.ts` kjenner igjen landkoder og norske og engelske landnavn fra en fast tabell;
+  - `mapping.ts` foreslår kolonner fra overskriftene;
+  - `normalize.ts` gir normaliserte verdier, feil og avklaringer per rad, og dubletter i filen;
+  - `match.ts` foreslår matching mot leverandører som finnes fra før;
+  - `preview.ts` setter stegene sammen.
+- **`suppliers/import/actions:preview`** (`tenantAction`): tar filen som bytes, håndhever 2 MiB og 2 000 rader, og returnerer forhåndsvisningen. Leverandørene hentes av en intern query med `organizationId` fra verifisert tenant. Ingen tabell, fillagring, jobb eller logg.
+- **Siden «Forhåndsvis CSV-fil»** under Leverandører:
+  - filvalg med avvisning av for store filer før opplasting;
+  - valg av skilletegn, desimaltegn, kolonne per felt og kodeverk for bransjekode, med oppdatert forhåndsvisning for hvert valg;
+  - oppsummering, filter på rader med feil eller avklaringer, og 50 rader per side;
+  - for hver rad: normalisert verdi og teksten i filen per felt, forslag til matching, og feil og avklaringer i full bredde.
+- **Syntetisk mal:** `public/maler/leverandorer-mal.csv`, lenket fra siden.
+- **`next.config.ts`:** grensen for server-actions er satt til `3mb` (standard 1 MB), så filer på inntil 2 MiB kommer gjennom.
+- **Rettet underveis:** `formatKroner` viste negative beløp feil («−2 500,-50 kr»). Den viser nå «−2 500,50 kr». Feilen ble funnet av e2e-testen og har fått enhetstest.
+- **`SelectField`** lar ikke lenger lange alternativer gjøre siden bredere enn skjermen.
+- **Ikke bygget:** selve importen, tabellene `importBatches`/`importRows` og kobling til rapportperiode (oppgave 11).
+
+### Akseptkriterier
+1. *Kolonnemapping og feil kan gjennomgås før import:* e2e endrer kolonnevalg, desimaltegn og filter og ser radene oppdateres. Ingenting kan importeres ennå.
+2. *Ukjent land, ugyldig org.nr., tvetydig beløp og negative beløp blir synlige avklaringer:* enhetstester per type, og e2e ser hver melding på riktig rad i feilfilen.
+3. *Filer over grense avvises tidlig; filinnhold renderes som tekst:* nettleseren avviser uten opplasting (e2e teller forespørsler), server-actionen kontrollerer størrelsen før filen leses, og Convex kontrollerer på nytt. Script, HTML og formler vises som tekst i e2e, uten dialog og uten nye elementer på siden.
+4. *Råfil lagres ikke:* convex-testen sammenligner alle tabeller, fillagring og planlagte funksjoner før og etter, og en statisk test stopper skriving, fillagring, jobber og logging i koden for forhåndsvisningen.
+
+### Tester
+- `tests/fixtures/csv/`: BOM med semikolon og CRLF, komma, anførselstegn med linjeskift, tomme felt, lignende navn, beløp, ISO-8859-1 (ugyldig tegnsett), ubetrodd tekst og en feilfil. Fil- og radgrensen lages i testene.
+- `tests/unit/csv-parse.test.ts` (16), `csv-amount.test.ts` (55), `csv-preview.test.ts` (24) og `csv-no-storage.test.ts` (16).
+- `tests/convex/csv-preview.test.ts` (7): malen, matching bare mot egne leverandører, henting over flere sider, at ingenting lagres, servergrenser, brukerens valg og fremmed organisasjon.
+- `tests/integration/csv-preview.test.ts` (5) mot lokal backend: parseren i Convex sin kjøretid, eksakt beløp over 2^53 øre gjennom hele veien, en fil like under 2 MiB med 2 000 rader, matching og svar uten noe fra den andre organisasjonen, og uendrede leverandører og revisjonslogg.
+- `tests/e2e/import.spec.ts`: hele flyten i nettleser, også en fil på over 1,5 MB gjennom server-actionen og visning på smal skjerm uten vannrett rulling av siden.
+- Registrene er oppdatert: den offentlige actionen og den interne queryen har fått sine standardtester for tenantgrensen.
+
+### Kjørte kommandoer (10.11.2026, lokalt med Docker)
+```text
+pnpm convex:deploy:local          OK (convex/_generated oppdatert med ekte codegen)
+pnpm lint / pnpm typecheck        OK
+pnpm test:unit                    538/538
+pnpm test:integration             120/120
+pnpm test:e2e                     16/16 i siste kjøring
+pnpm build                        OK
+```
+Hele e2e-suiten ble kjørt fire ganger, pluss én delkjøring. Bare den siste fulle kjøringen var helt grønn:
+- **Kjøring 1:** importtesten feilet på en påstand i selve testen (elementet var ikke rullet inn i bildet). Rettet. Testen hadde da brukt 30 sekunder, mot 10–11 til vanlig.
+- **Kjøring 2:** importtesten traff tidsgrensen på 30 sekunder allerede ved opprettelsen av den første leverandøren. **Årsaken er ikke funnet.** Mønsteret ligner den kjente, lokale tregheten ved innlogging, men det er ikke bekreftet, fordi sporingsfilen ble overskrevet av neste kjøring.
+- **Delkjøring** (de fire første testfilene) og **kjøring 4:** grønne. Importtesten brukte 10 sekunder.
+- **Kjøring 3** ble kjørt med sporing påslått. Da traff leverandørtesten fra oppgave 09 tidsgrensen. Sporingen viste ingen steg som hang: testen bruker 22–25 av 30 sekunder til vanlig og ble for treg med sporing. Den testen har altså liten margin.
+
+### Manuell prøve
+- Jeg har sett på skjermbilder av forhåndsvisningen med feilfilen (`tests/fixtures/csv/feilfil.csv`) på stor og smal skjerm. Første utgave skjulte forslag og avklaringer utenfor høyre kant; tabellen ble lagt om, og skjermbildene ble kontrollert på nytt.
+- Ingen menneskelig prøve i nettleser.
+- Slik prøver du selv: Leverandører → Forhåndsvis CSV-fil → last ned malen og last den opp → last opp `tests/fixtures/csv/feilfil.csv` → bytt desimaltegn til komma og se at det tvetydige beløpet avklares.
+
+### Ikke gjort / begrensninger
+- **Ingen import.** Forhåndsvisningen lagrer ingenting, og siden sier det.
+- **`externalKey` er fortsatt ikke unik.** Flere treff på samme ID vises som konflikt. Regelen må avgjøres i oppgave 11.
+- **Bare UTF-8.** Eldre Excel-filer i Windows-1252 avvises med forklaring.
+- **Produksjonsland kan ikke leses fra fil**; «land» er registreringsland.
+- **Navnelikhet** fanger ikke skrivefeil eller delvise navn.
+- **Grensen på 3 MB for server-actions gjelder hele appen.**
+- **Tidsavbruddene i e2e er ikke forklart** (se over). CI viser om de også skjer der.
 
 ## Åpne eksterne avklaringer
 - Convex DPA, underleverandører og plassering av backup, logg og support (beslutning 0001). Må lukkes før ekte kundedata.
