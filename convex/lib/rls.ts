@@ -77,6 +77,9 @@ export function tenantRules(scope: TenantScope): ExhaustiveRules {
     reportingPeriods: { read: sameTenant, modify: deny, insert: sameTenant },
     // Ny rad per lagring; gamle versjoner endres aldri.
     businessProfileRevisions: { read: sameTenant, modify: deny, insert: sameTenant },
+    // Admin oppretter og redigerer i egen organisasjon. Ingen funksjon sletter.
+    suppliers: { read: sameTenant, modify: sameTenant, insert: sameTenant },
+    supplierPeriods: { read: sameTenant, modify: sameTenant, insert: sameTenant },
   };
 }
 
@@ -106,6 +109,8 @@ export function userRules(
     applicabilityAssessments: { read: deny, modify: deny, insert: deny },
     reportingPeriods: { read: deny, modify: deny, insert: deny },
     businessProfileRevisions: { read: deny, modify: deny, insert: deny },
+    suppliers: { read: deny, modify: deny, insert: deny },
+    supplierPeriods: { read: deny, modify: deny, insert: deny },
   };
 }
 
@@ -159,5 +164,7 @@ export function invitationRules(scope: InvitationScope): ExhaustiveRules {
     applicabilityAssessments: { read: deny, modify: deny, insert: deny },
     reportingPeriods: { read: deny, modify: deny, insert: deny },
     businessProfileRevisions: { read: deny, modify: deny, insert: deny },
+    suppliers: { read: deny, modify: deny, insert: deny },
+    supplierPeriods: { read: deny, modify: deny, insert: deny },
   };
 }

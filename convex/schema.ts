@@ -8,6 +8,7 @@ import {
 } from "./organizations/applicabilityValidators";
 import { profileAnswerFields } from "./organizations/profileValidators";
 import { registryProfileValidator } from "./organizations/registryValidators";
+import { supplierPeriodFields, supplierProfileFields } from "./suppliers/validators";
 
 // Better Auth-tabellene ligger i komponenten @convex-dev/better-auth, ikke her.
 export default defineSchema({
@@ -81,6 +82,35 @@ export default defineSchema({
     confirmedBy: v.optional(v.string()),
     confirmedAt: v.optional(v.number()),
   }).index("by_organizationId_and_reportingPeriodId_and_revision", ["organizationId", "reportingPeriodId", "revision"]),
+
+  // Leverandørprofil (oppgave 09), adskilt fra innkjøpsdata per periode. Norsk
+  // org.nr. er unikt per organisasjon når det er satt (kontrolleres i
+  // mutasjonen). Arkivering sletter ingenting. `nameKey` er navnet i små
+  // bokstaver, for sortering, søk og forslag om mulig duplikat.
+  suppliers: defineTable({
+    organizationId: v.id("organizations"),
+    ...supplierProfileFields,
+    nameKey: v.string(),
+    status: v.union(v.literal("active"), v.literal("archived")),
+    archivedAt: v.optional(v.number()),
+    rowVersion: v.number(),
+    createdAt: v.number(),
+    createdBy: v.string(),
+  })
+    .index("by_organizationId_and_registryOrgNumber", ["organizationId", "registryOrgNumber"])
+    .index("by_organizationId_and_status_and_nameKey", ["organizationId", "status", "nameKey"]),
+
+  // Innkjøp fra én leverandør i én rapportperiode; én rad per par (kontrolleres
+  // i mutasjonen). Manglende `spendOre` er ukjent beløp, `0n` er kjent null.
+  supplierPeriods: defineTable({
+    organizationId: v.id("organizations"),
+    supplierId: v.id("suppliers"),
+    reportingPeriodId: v.id("reportingPeriods"),
+    ...supplierPeriodFields,
+    rowVersion: v.number(),
+    updatedAt: v.number(),
+    updatedBy: v.string(),
+  }).index("by_organizationId_and_supplierId_and_reportingPeriodId", ["organizationId", "supplierId", "reportingPeriodId"]),
 
   memberships: defineTable({
     organizationId: v.id("organizations"),

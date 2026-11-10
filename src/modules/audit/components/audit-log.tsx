@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Table } from "@/components/ui/table";
 import { api } from "@/convex/_generated/api";
 import { fetchAuthQuery } from "@/lib/auth-server";
+import { formatKroner } from "@/domain/applicability/form";
 import { PROFILE_TOPICS } from "@/domain/reporting/profile";
 
 const EVENTS: Record<string, string> = {
@@ -16,6 +17,11 @@ const EVENTS: Record<string, string> = {
   "applicability.assessed": "Pliktvurdering lagret",
   "reporting_period.created": "Rapportperiode opprettet",
   "business_profile.saved": "Virksomhetsprofil lagret",
+  "supplier.created": "Leverandør opprettet",
+  "supplier.updated": "Leverandør endret",
+  "supplier.archived": "Leverandør arkivert",
+  "supplier.restored": "Leverandør gjenopprettet",
+  "supplier_period.saved": "Innkjøpsdata lagret",
 };
 
 const FIELDS: Record<string, string> = {
@@ -30,6 +36,15 @@ const FIELDS: Record<string, string> = {
   publicationDueDate: "Publiseringsfrist",
   revision: "Versjon",
   confirmed: "Bekreftet",
+  registryOrgNumber: "Organisasjonsnummer",
+  externalKey: "Egen leverandør-ID",
+  registeredCountry: "Registreringsland",
+  industryCodeSystem: "Kodeverk",
+  industryCode: "Bransjekode",
+  spendOre: "Innkjøp",
+  purchaseCategory: "Kategori",
+  productionCountries: "Kjente produksjonsland",
+  upstreamUnknown: "Oppstrøms ukjent",
   ...Object.fromEntries(PROFILE_TOPICS.map((t) => [t.key, t.label])),
 };
 
@@ -44,6 +59,7 @@ const VALUES: Record<string, string> = {
   likely_out: "sannsynlig ikke omfattet",
   manual_review: "manuell avklaring",
   open: "åpen",
+  archived: "arkivert",
   described: "beskrevet",
   not_established: "ikke etablert",
   unknown: "ikke besvart",
@@ -57,6 +73,8 @@ const FILTERS = [
   { key: "applicability", label: "Pliktvurdering" },
   { key: "reportingPeriod", label: "Rapportperioder" },
   { key: "businessProfile", label: "Virksomhetsprofil" },
+  { key: "supplier", label: "Leverandører" },
+  { key: "supplierPeriod", label: "Innkjøpsdata" },
 ] as const;
 
 type EntityType = NonNullable<(typeof FILTERS)[number]["key"]>;
@@ -70,6 +88,7 @@ const dateFormat = new Intl.DateTimeFormat("nb-NO", {
 function formatValue(field: string, value: unknown): string {
   if (value === undefined || value === null) return "–";
   if (field === "expiresAt" && typeof value === "number") return dateFormat.format(new Date(value));
+  if (field === "spendOre" && typeof value === "string") return formatKroner(BigInt(value));
   if (typeof value === "string") return VALUES[value] ?? value;
   if (typeof value === "boolean") return value ? "ja" : "nei";
   return String(value);
@@ -115,7 +134,7 @@ export async function AuditLog({
         Revisjonslogg
       </h2>
       <p className="mt-1 text-sm text-muted">
-        Endringer i virksomheten, medlemskap, invitasjoner, rapportperioder og virksomhetsprofil. Loggen kan ikke endres fra appen.
+        Endringer i virksomheten, medlemskap, invitasjoner, rapportperioder, virksomhetsprofil og leverandører. Loggen kan ikke endres fra appen.
       </p>
       <nav aria-label="Filtrer revisjonslogg" className="mt-4 flex flex-wrap gap-2 text-sm">
         {FILTERS.map((f) => (

@@ -47,6 +47,9 @@ import type * as organizations_registry from "../organizations/registry.js";
 import type * as organizations_registryInternal from "../organizations/registryInternal.js";
 import type * as organizations_registryValidators from "../organizations/registryValidators.js";
 import type * as organizations_reportingPeriods from "../organizations/reportingPeriods.js";
+import type * as suppliers_mutations from "../suppliers/mutations.js";
+import type * as suppliers_queries from "../suppliers/queries.js";
+import type * as suppliers_validators from "../suppliers/validators.js";
 
 import type {
   ApiFromModules,
@@ -94,6 +97,9 @@ declare const fullApi: ApiFromModules<{
   "organizations/registryInternal": typeof organizations_registryInternal;
   "organizations/registryValidators": typeof organizations_registryValidators;
   "organizations/reportingPeriods": typeof organizations_reportingPeriods;
+  "suppliers/mutations": typeof suppliers_mutations;
+  "suppliers/queries": typeof suppliers_queries;
+  "suppliers/validators": typeof suppliers_validators;
 }>;
 
 /**
