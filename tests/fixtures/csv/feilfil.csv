@@ -1,0 +1,11 @@
+﻿Navn;Organisasjonsnummer;Leverandør-ID;Land;Innkjøp (NOK);Kategori
+Alt I Orden AS;920000002;F-1;Norge;125 000;Kontorrekvisita
+;920000010;F-2;Norge;50 000;Mangler navn
+Feil Orgnr AS;123456789;F-3;Sverige;10 000;Ugyldig org.nr.
+Ukjent Land AS;;F-4;Kinna;75 000;Ukjent land
+Tvetydig Beløp AS;;F-5;Kina;1.234;Tvetydig beløp
+Kreditnota AS;;F-6;Norge;-2 500,50;Negativt beløp
+Dublett AS;920000002;F-7;Norge;1 000;Samme org.nr. som rad 2
+<script>alert('xss')</script>;;F-8;;;Script-lignende navn
+Euro AS;;F-9;Tyskland;EUR 900;Annen valuta
+Uten Beløp AS;;F-10;;;Ukjent beløp og land

@@ -1,0 +1,6 @@
+Navn;Beskrivelse;Innkjøp
+<script>alert('xss')</script>;<img src=x onerror=alert(1)>;100
+"=HYPERLINK(""http://ondsinnet.example"";""Klikk"")";=1+1;200
++47 Leverandør AS;@SUM(A1:A9);300
+-Minus AS;"=cmd|' /C calc'!A0";400
+@Krøllalfa AS;{{7*7}};500

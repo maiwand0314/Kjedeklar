@@ -260,6 +260,13 @@ export const reviewedPublicFunctions: Record<string, PublicFunctionReview> = {
     note: "Én egen leverandør (getOwned) med innkjøpsdata for egen periode (getOwned).",
     prepareOwn: ownSupplier,
   },
+  "suppliers/import/actions:preview": {
+    kind: "action",
+    ref: api.suppliers.import.actions.preview,
+    boundary: "tenant",
+    sampleArgs: { file: new TextEncoder().encode("Navn\nSyntetisk Leverandør AS\n").buffer },
+    note: "Leser en CSV-fil i minnet og foreslår matching mot egne leverandører. Endrer og lagrer ingenting.",
+  },
   "organizations/registry:current": {
     kind: "query",
     ref: api.organizations.registry.current,
