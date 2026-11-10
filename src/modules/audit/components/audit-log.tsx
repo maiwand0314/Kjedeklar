@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Table } from "@/components/ui/table";
 import { api } from "@/convex/_generated/api";
 import { fetchAuthQuery } from "@/lib/auth-server";
+import { PROFILE_TOPICS } from "@/domain/reporting/profile";
 
 const EVENTS: Record<string, string> = {
   "organization.provisioned": "Virksomheten ble opprettet",
@@ -13,6 +14,8 @@ const EVENTS: Record<string, string> = {
   "invitation.revoked": "Invitasjon tilbakekalt",
   "invitation.accepted": "Invitasjon godtatt",
   "applicability.assessed": "Pliktvurdering lagret",
+  "reporting_period.created": "Rapportperiode opprettet",
+  "business_profile.saved": "Virksomhetsprofil lagret",
 };
 
 const FIELDS: Record<string, string> = {
@@ -22,6 +25,12 @@ const FIELDS: Record<string, string> = {
   expiresAt: "Utløper",
   result: "Resultat",
   ruleVersion: "Regelversjon",
+  startDate: "Fra og med",
+  endDate: "Til og med",
+  publicationDueDate: "Publiseringsfrist",
+  revision: "Versjon",
+  confirmed: "Bekreftet",
+  ...Object.fromEntries(PROFILE_TOPICS.map((t) => [t.key, t.label])),
 };
 
 const VALUES: Record<string, string> = {
@@ -34,6 +43,10 @@ const VALUES: Record<string, string> = {
   likely_in: "sannsynlig omfattet",
   likely_out: "sannsynlig ikke omfattet",
   manual_review: "manuell avklaring",
+  open: "åpen",
+  described: "beskrevet",
+  not_established: "ikke etablert",
+  unknown: "ikke besvart",
 };
 
 const FILTERS = [
@@ -42,9 +55,11 @@ const FILTERS = [
   { key: "membership", label: "Medlemskap" },
   { key: "invitation", label: "Invitasjoner" },
   { key: "applicability", label: "Pliktvurdering" },
+  { key: "reportingPeriod", label: "Rapportperioder" },
+  { key: "businessProfile", label: "Virksomhetsprofil" },
 ] as const;
 
-type EntityType = "organization" | "membership" | "invitation" | "applicability";
+type EntityType = NonNullable<(typeof FILTERS)[number]["key"]>;
 
 const dateFormat = new Intl.DateTimeFormat("nb-NO", {
   dateStyle: "medium",
@@ -56,6 +71,7 @@ function formatValue(field: string, value: unknown): string {
   if (value === undefined || value === null) return "–";
   if (field === "expiresAt" && typeof value === "number") return dateFormat.format(new Date(value));
   if (typeof value === "string") return VALUES[value] ?? value;
+  if (typeof value === "boolean") return value ? "ja" : "nei";
   return String(value);
 }
 
@@ -72,10 +88,13 @@ export async function AuditLog({
   organizationId,
   entityType,
   cursor,
+  period,
 }: {
   organizationId: string;
   entityType?: EntityType;
   cursor?: string;
+  /** Valgt rapportperiode fra adressen; følger med lenkene i loggen. */
+  period?: string;
 }) {
   const result = await fetchAuthQuery(api.audit.queries.list, {
     organizationId,
@@ -85,7 +104,7 @@ export async function AuditLog({
   const base = `/o/${organizationId}/innstillinger`;
   const href = (params: Record<string, string | undefined>) => {
     const search = new URLSearchParams(
-      Object.entries(params).filter((e): e is [string, string] => e[1] !== undefined),
+      Object.entries({ ...params, periode: period }).filter((e): e is [string, string] => e[1] !== undefined),
     ).toString();
     return `${base}${search ? `?${search}` : ""}#revisjonslogg`;
   };
@@ -96,7 +115,7 @@ export async function AuditLog({
         Revisjonslogg
       </h2>
       <p className="mt-1 text-sm text-muted">
-        Endringer i virksomheten, medlemskap og invitasjoner. Loggen kan ikke endres fra appen.
+        Endringer i virksomheten, medlemskap, invitasjoner, rapportperioder og virksomhetsprofil. Loggen kan ikke endres fra appen.
       </p>
       <nav aria-label="Filtrer revisjonslogg" className="mt-4 flex flex-wrap gap-2 text-sm">
         {FILTERS.map((f) => (

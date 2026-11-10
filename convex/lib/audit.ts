@@ -19,6 +19,12 @@ export const AUDIT_DIFF_FIELDS: Record<AuditEntityType, readonly string[]> = {
   membership: ["role", "status"],
   invitation: ["status", "expiresAt"],
   applicability: ["result", "ruleVersion"],
+  reportingPeriod: ["startDate", "endDate", "publicationDueDate", "status"],
+  // Versjon, bekreftelse og status per tema. Selve svarteksten logges aldri.
+  businessProfile: [
+    "revision", "confirmed", "organizationDescription", "operations", "countries", "responsibility",
+    "policies", "routines", "stakeholderDialogue", "remediationProcess",
+  ],
 };
 
 type DiffValue = string | number | boolean | null;

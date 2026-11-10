@@ -73,6 +73,10 @@ export function tenantRules(scope: TenantScope): ExhaustiveRules {
     },
     // Ny rad per vurdering; historikk endres aldri.
     applicabilityAssessments: { read: sameTenant, modify: deny, insert: sameTenant },
+    // Perioder opprettes av admin og endres ikke fra appen i MVP.
+    reportingPeriods: { read: sameTenant, modify: deny, insert: sameTenant },
+    // Ny rad per lagring; gamle versjoner endres aldri.
+    businessProfileRevisions: { read: sameTenant, modify: deny, insert: sameTenant },
   };
 }
 
@@ -100,6 +104,8 @@ export function userRules(
     auditEvents: { read: deny, modify: deny, insert: deny },
     registrySnapshots: { read: deny, modify: deny, insert: deny },
     applicabilityAssessments: { read: deny, modify: deny, insert: deny },
+    reportingPeriods: { read: deny, modify: deny, insert: deny },
+    businessProfileRevisions: { read: deny, modify: deny, insert: deny },
   };
 }
 
@@ -151,5 +157,7 @@ export function invitationRules(scope: InvitationScope): ExhaustiveRules {
     },
     registrySnapshots: { read: deny, modify: deny, insert: deny },
     applicabilityAssessments: { read: deny, modify: deny, insert: deny },
+    reportingPeriods: { read: deny, modify: deny, insert: deny },
+    businessProfileRevisions: { read: deny, modify: deny, insert: deny },
   };
 }

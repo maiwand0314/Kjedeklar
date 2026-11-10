@@ -6,7 +6,7 @@ import { RenameOrganizationForm } from "@/modules/organizations/components/renam
 
 export const metadata = { title: "Innstillinger" };
 
-const ENTITY_TYPES = ["organization", "membership", "invitation", "applicability"] as const;
+const ENTITY_TYPES = ["organization", "membership", "invitation", "applicability", "reportingPeriod", "businessProfile"] as const;
 type EntityType = (typeof ENTITY_TYPES)[number];
 
 export default async function SettingsPage({
@@ -14,7 +14,7 @@ export default async function SettingsPage({
   searchParams,
 }: PageProps<"/o/[organizationId]/innstillinger">) {
   const { organizationId } = await params;
-  const { logg, etter } = await searchParams;
+  const { logg, etter, periode } = await searchParams;
   const entityType = ENTITY_TYPES.find((t) => t === logg) as EntityType | undefined;
   const organization = await fetchAuthQuery(api.organizations.queries.current, { organizationId });
   return (
@@ -35,6 +35,7 @@ export default async function SettingsPage({
         organizationId={organizationId}
         entityType={entityType}
         cursor={typeof etter === "string" ? etter : undefined}
+        period={typeof periode === "string" ? periode : undefined}
       />
     </>
   );

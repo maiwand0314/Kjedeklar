@@ -1,12 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { SECTIONS } from "../sections";
 
-/** Menylenker innen valgt organisasjon. Aktiv side markeres for skjermlesere med aria-current. */
-export function NavLinks({ organizationId }: { organizationId: string }) {
+/**
+ * Menylenker innen valgt organisasjon. Aktiv side markeres for skjermlesere med
+ * aria-current. Valgt rapportperiode (`?periode=`) følger med lenkene, men bare
+ * når den er en av organisasjonens egne perioder.
+ */
+export function NavLinks({ organizationId, periodIds }: { organizationId: string; periodIds: string[] }) {
   const pathname = usePathname();
+  const period = useSearchParams().get("periode");
+  const query = period && periodIds.includes(period) ? `?periode=${period}` : "";
   return (
     <ul className="flex flex-col gap-1">
       {SECTIONS.map(({ slug, label }) => {
@@ -15,7 +21,7 @@ export function NavLinks({ organizationId }: { organizationId: string }) {
         return (
           <li key={slug}>
             <Link
-              href={href}
+              href={`${href}${query}`}
               aria-current={active ? "page" : undefined}
               // Lukk mobilmenyen (<details>) etter valg; layouten blir stående ved navigering.
               onClick={(e) => e.currentTarget.closest("details")?.removeAttribute("open")}

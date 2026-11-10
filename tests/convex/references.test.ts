@@ -11,7 +11,8 @@ import { RLS_CONFIG, tenantRules } from "../../convex/lib/rls";
 import { getOwned, type Tenant, type TenantTable } from "../../convex/lib/tenant";
 import schema from "../../convex/schema";
 import { expectAppError, setupTest, twoTenants } from "./setup";
-import { insertRaw, tenantTableCases, type TenantTableCase } from "./tenant-tables";
+import { SYNTHETIC_PERIOD } from "../helpers/public-functions";
+import { insertRaw, tenantTableCases, type Owner, type TenantTableCase } from "./tenant-tables";
 
 const tables = Object.keys(tenantTableCases) as TenantTable[];
 
@@ -37,23 +38,24 @@ describe.each(tables)("referanser i %s", (table) => {
       role: "admin",
       membershipId: fx.membershipA,
     };
+    // Én periode per organisasjon, så tabeller som peker på en periode får en i samme tenant.
+    const [periodA, periodB] = await t.run((ctx) =>
+      Promise.all(
+        [fx.orgA, fx.orgB].map((organizationId) =>
+          ctx.db.insert("reportingPeriods", { organizationId, ...SYNTHETIC_PERIOD, status: "open", createdAt: Date.now(), createdBy: "oppsett" }),
+        ),
+      ),
+    );
+    const inA = (userId: string): Owner => ({ organizationId: fx.orgA, userId, reportingPeriodId: periodA });
+    const inB = (userId: string): Owner => ({ organizationId: fx.orgB, userId, reportingPeriodId: periodB });
     const ids = await t.run(async (ctx) => {
-      const own = await insertRaw(ctx.db, table, {
-        organizationId: fx.orgA,
-        userId: `eget-${table}`,
-      });
-      const foreign = await insertRaw(ctx.db, table, {
-        organizationId: fx.orgB,
-        userId: `fremmed-${table}`,
-      });
-      const deleted = await insertRaw(ctx.db, table, {
-        organizationId: fx.orgA,
-        userId: `slettet-${table}`,
-      });
+      const own = await insertRaw(ctx.db, table, inA(`eget-${table}`));
+      const foreign = await insertRaw(ctx.db, table, inB(`fremmed-${table}`));
+      const deleted = await insertRaw(ctx.db, table, inA(`slettet-${table}`));
       await ctx.db.delete(table, deleted);
       return { own, foreign, deleted };
     });
-    return { t, fx, tenant, ...ids };
+    return { t, fx, tenant, ...ids, inA, inB };
   }
 
   test("getOwned godtar eget og avviser fremmed, slettet, ugyldig og annen tabell likt", async () => {
@@ -85,38 +87,26 @@ describe.each(tables)("referanser i %s", (table) => {
   });
 
   test("innpakket skriving kan ikke endre, slette, erstatte eller opprette i fremmed organisasjon", async () => {
-    const { t, fx, tenant, foreign } = await setup();
+    const { t, tenant, foreign, inA, inB } = await setup();
     const before = await t.run((ctx) => ctx.db.get(table, foreign));
     await t.run(async (ctx) => {
       const db = wrapDatabaseWriter({}, ctx.db, tenantRules(tenant), RLS_CONFIG);
       await expect(db.patch(table, foreign, c.patch as never)).rejects.toThrow();
       await expect(
-        db.replace(
-          table,
-          foreign,
-          c.newDoc({ organizationId: tenant.organizationId, userId: "kapret" }) as never,
-        ),
+        db.replace(table, foreign, c.newDoc(inA("kapret")) as never),
       ).rejects.toThrow();
       await expect(db.delete(table, foreign)).rejects.toThrow();
-      await expect(
-        db.insert(
-          table,
-          c.newDoc({ organizationId: fx.orgB, userId: "inntrenger" }) as never,
-        ),
-      ).rejects.toThrow();
+      await expect(db.insert(table, c.newDoc(inB("inntrenger")) as never)).rejects.toThrow();
     });
     expect(await t.run((ctx) => ctx.db.get(table, foreign))).toEqual(before);
   });
 
   test("egne dokumenter kan bare endres eller opprettes der tabellen tillater det", async () => {
-    const { t, tenant, own } = await setup();
+    const { t, tenant, own, inA } = await setup();
     await t.run(async (ctx) => {
       const db = wrapDatabaseWriter({}, ctx.db, tenantRules(tenant), RLS_CONFIG);
       const patch = db.patch(table, own, c.patch as never);
-      const insert = db.insert(
-        table,
-        c.newDoc({ organizationId: tenant.organizationId, userId: "ny" }) as never,
-      );
+      const insert = db.insert(table, c.newDoc(inA("ny")) as never);
       if (c.tenantCanModifyOwn) await expect(patch).resolves.toBeUndefined();
       else await expect(patch).rejects.toThrow();
       if (c.tenantCanInsertOwn) await expect(insert).resolves.toBeTruthy();
