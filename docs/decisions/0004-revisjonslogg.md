@@ -18,6 +18,8 @@
 | applicability | `result`, `ruleVersion` |
 | reportingPeriod | `startDate`, `endDate`, `publicationDueDate`, `status` |
 | businessProfile | `revision`, `confirmed` og status per tema (`described`/`not_established`/`unknown`), aldri svarteksten |
+| supplier | `name`, `registryOrgNumber`, `externalKey`, `registeredCountry`, `industryCodeSystem`, `industryCode`, `status` |
+| supplierPeriod | `spendOre` (tekst i øre), `purchaseCategory`, `productionCountries` (koder), `upstreamUnknown`, aldri kjøpsbeskrivelsen |
 
   Aldri passord, token, tokenhash, e-postadresser eller fritekst. Objekter og lister utelates. En invitasjon identifiseres med id, ikke e-post.
 - **Logget nå:**
@@ -30,6 +32,8 @@
 | `applicability.assessed` | admin lagrer pliktvurdering (oppgave 07) | bruker |
 | `reporting_period.created` | admin oppretter rapportperiode (oppgave 08) | bruker |
 | `business_profile.saved` | admin lagrer ny versjon av virksomhetsprofilen (oppgave 08) | bruker |
+| `supplier.created` / `supplier.updated` / `supplier.archived` / `supplier.restored` | admin oppretter, endrer, arkiverer eller gjenoppretter leverandør (oppgave 09) | bruker |
+| `supplier_period.saved` | admin lagrer innkjøpsdata for en leverandør i en periode (oppgave 09) | bruker |
 | `invitation.created` / `invitation.renewed` / `invitation.revoked` | admin | bruker |
 | `invitation.created` | operatør-bootstrap | system |
 | `invitation.accepted` og `membership.created` / `membership.status_changed` | aksept | aksepterende bruker |

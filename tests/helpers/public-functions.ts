@@ -64,6 +64,18 @@ export const SYNTHETIC_PROFILE_ANSWERS: ProfileAnswers = {
   policies: { status: "not_established", text: "" },
 };
 
+/** Syntetisk leverandør uten org.nr.: bare navnet er kjent. */
+export const SYNTHETIC_SUPPLIER = { name: "Syntetisk Leverandør AS" } as const;
+/** Samme leverandør slik den lagres (uten organisasjon og opprettelse). */
+export const SYNTHETIC_SUPPLIER_DOC = {
+  ...SYNTHETIC_SUPPLIER,
+  nameKey: "syntetisk leverandør as",
+  status: "active",
+  rowVersion: 1,
+} as const;
+/** Syntetiske innkjøpsdata: alt ukjent. */
+export const SYNTHETIC_SUPPLIER_PERIOD = { productionCountries: [], upstreamUnknown: true };
+
 type Common = {
   boundary: "tenant" | "user" | "invitation" | "verification";
   /** Argumenter i tillegg til `organizationId` for tenantfunksjoner. */
@@ -85,6 +97,11 @@ const ownPeriod = async (run: Run, organizationId: string, userId: string) => ({
   reportingPeriodId: await run((db) =>
     db.insert("reportingPeriods", { organizationId, ...SYNTHETIC_PERIOD, status: "open", createdAt: Date.now(), createdBy: userId }),
   ),
+});
+
+/** Setter inn en egen leverandør og gir id-en som `supplierId`. */
+const ownSupplier = async (run: Run, organizationId: string, userId: string) => ({
+  supplierId: await run((db) => db.insert("suppliers", { organizationId, ...SYNTHETIC_SUPPLIER_DOC, createdAt: Date.now(), createdBy: userId })),
 });
 
 export type PublicFunctionReview =
@@ -193,6 +210,55 @@ export const reviewedPublicFunctions: Record<string, PublicFunctionReview> = {
     sampleArgs: { reportingPeriodId: "ukjent" },
     note: "Siste versjon og versjonshistorikk for egen periode (getOwned).",
     prepareOwn: ownPeriod,
+  },
+  "suppliers/mutations:create": {
+    kind: "mutation",
+    ref: api.suppliers.mutations.create,
+    boundary: "tenant",
+    sampleArgs: SYNTHETIC_SUPPLIER,
+    note: "Oppretter leverandør i valgt organisasjon. Org.nr. er unikt per organisasjon (indeksoppslag). Med revisjonslogg.",
+  },
+  "suppliers/mutations:update": {
+    kind: "mutation",
+    ref: api.suppliers.mutations.update,
+    boundary: "tenant",
+    sampleArgs: { supplierId: "ukjent", expectedRowVersion: 1, ...SYNTHETIC_SUPPLIER },
+    note: "Endrer egen leverandør (getOwned) med versjonssjekk og revisjonslogg.",
+    prepareOwn: ownSupplier,
+  },
+  "suppliers/mutations:setArchived": {
+    kind: "mutation",
+    ref: api.suppliers.mutations.setArchived,
+    boundary: "tenant",
+    sampleArgs: { supplierId: "ukjent", expectedRowVersion: 1, archived: true },
+    note: "Arkiverer eller gjenoppretter egen leverandør (getOwned). Ingenting slettes. Med revisjonslogg.",
+    prepareOwn: ownSupplier,
+  },
+  "suppliers/mutations:savePeriod": {
+    kind: "mutation",
+    ref: api.suppliers.mutations.savePeriod,
+    boundary: "tenant",
+    sampleArgs: { supplierId: "ukjent", reportingPeriodId: "ukjent", expectedRowVersion: 0, ...SYNTHETIC_SUPPLIER_PERIOD },
+    note: "Lagrer innkjøpsdata for egen leverandør i egen periode (getOwned på begge), med versjonssjekk og revisjonslogg.",
+    prepareOwn: async (run, organizationId, userId) => ({
+      ...(await ownSupplier(run, organizationId, userId)),
+      ...(await ownPeriod(run, organizationId, userId)),
+    }),
+  },
+  "suppliers/queries:list": {
+    kind: "query",
+    ref: api.suppliers.queries.list,
+    boundary: "tenant",
+    sampleArgs: { paginationOpts: { numItems: 5, cursor: null } },
+    note: "Leverandører i valgt organisasjon, paginert over indeks som starter med organizationId.",
+  },
+  "suppliers/queries:get": {
+    kind: "query",
+    ref: api.suppliers.queries.get,
+    boundary: "tenant",
+    sampleArgs: { supplierId: "ukjent" },
+    note: "Én egen leverandør (getOwned) med innkjøpsdata for egen periode (getOwned).",
+    prepareOwn: ownSupplier,
   },
   "organizations/registry:current": {
     kind: "query",

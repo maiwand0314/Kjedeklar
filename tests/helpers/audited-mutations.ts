@@ -20,6 +20,10 @@ export const auditedMutations: Record<string, AuditClassification> = {
   "organizations/applicability:assess": { logged: true },
   "organizations/reportingPeriods:create": { logged: true },
   "organizations/businessProfile:save": { logged: true },
+  "suppliers/mutations:create": { logged: true },
+  "suppliers/mutations:update": { logged: true },
+  "suppliers/mutations:setArchived": { logged: true },
+  "suppliers/mutations:savePeriod": { logged: true },
   "organizations/registryInternal:storePreview": {
     exempt: "Lagrer bare en forhåndsvisning av et Brreg-oppslag; ingen kundedata endres før bekreftelse, som logges.",
   },

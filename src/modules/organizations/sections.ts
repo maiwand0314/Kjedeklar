@@ -12,14 +12,7 @@ export type Section = {
 export const SECTIONS: readonly Section[] = [
   { slug: "", label: "Oversikt" },
   { slug: "virksomheten", label: "Virksomheten" },
-  {
-    slug: "leverandorer",
-    label: "Leverandører",
-    placeholder: {
-      title: "Ingen leverandører",
-      text: "Her skal du importere og vedlikeholde leverandørregisteret. Funksjonen er ikke tilgjengelig ennå.",
-    },
-  },
+  { slug: "leverandorer", label: "Leverandører" },
   {
     slug: "risikovurderinger",
     label: "Risikovurderinger",

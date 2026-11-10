@@ -17,7 +17,8 @@ export function NavLinks({ organizationId, periodIds }: { organizationId: string
     <ul className="flex flex-col gap-1">
       {SECTIONS.map(({ slug, label }) => {
         const href = slug ? `/o/${organizationId}/${slug}` : `/o/${organizationId}`;
-        const active = pathname === href;
+        // Undersider (f.eks. én leverandør) hører til seksjonen sin.
+        const active = pathname === href || (slug !== "" && pathname.startsWith(`${href}/`));
         return (
           <li key={slug}>
             <Link

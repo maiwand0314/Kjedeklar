@@ -23,10 +23,16 @@ import {
   SYNTHETIC_PERIOD,
   SYNTHETIC_PROFILE_ANSWERS,
   SYNTHETIC_REGISTRY_PROFILE,
+  SYNTHETIC_SUPPLIER_DOC,
 } from "../helpers/public-functions";
 
-/** `reportingPeriodId` er en periode i samme organisasjon, for tabeller som peker på en. */
-export type Owner = { organizationId: Id<"organizations">; userId: string; reportingPeriodId: Id<"reportingPeriods"> };
+/** `reportingPeriodId` og `supplierId` er dokumenter i samme organisasjon, for tabeller som peker på dem. */
+export type Owner = {
+  organizationId: Id<"organizations">;
+  userId: string;
+  reportingPeriodId: Id<"reportingPeriods">;
+  supplierId: Id<"suppliers">;
+};
 
 export type TenantTableCase<T extends TenantTable> = {
   /** Et gyldig nytt dokument i organisasjonen. */
@@ -106,6 +112,29 @@ export const tenantTableCases: { [T in TenantTable]: TenantTableCase<T> } = {
     patch: { revision: 2 },
     // Ny rad per lagring; versjoner endres aldri.
     tenantCanModifyOwn: false,
+    tenantCanInsertOwn: true,
+  },
+  suppliers: {
+    newDoc: ({ organizationId, userId }) => ({ organizationId, ...SYNTHETIC_SUPPLIER_DOC, createdAt: Date.now(), createdBy: userId }),
+    patch: { name: "Kapret AS" },
+    // Admin oppretter, endrer og arkiverer i egen organisasjon.
+    tenantCanModifyOwn: true,
+    tenantCanInsertOwn: true,
+  },
+  supplierPeriods: {
+    newDoc: ({ organizationId, userId, reportingPeriodId, supplierId }) => ({
+      organizationId,
+      supplierId,
+      reportingPeriodId,
+      productionCountries: [],
+      upstreamUnknown: true,
+      rowVersion: 1,
+      updatedAt: Date.now(),
+      updatedBy: userId,
+    }),
+    patch: { upstreamUnknown: false },
+    // Admin lagrer innkjøpsdata i egen organisasjon.
+    tenantCanModifyOwn: true,
     tenantCanInsertOwn: true,
   },
   registrySnapshots: {

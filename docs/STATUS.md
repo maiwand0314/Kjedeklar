@@ -12,6 +12,7 @@ Startpakke opprettet 6. november 2026. Dokumentasjonen ble samme dag skrevet om 
 | 06 | Implementert og verifisert lokalt (branch `feature/06-brreg-onboarding`) | Lint, typecheck, 196 enhets-/convex-test-tester, 71 integrasjonstester (to kjøringer), 12 e2e-tester og build. Live-kontroll mot Enhetsregisteret OK (manuell, ikke i CI) | SN-versjon oppgis ikke av Brreg. Ingen e2e av selve oppslaget (krever nettverk) |
 | 07 | Implementert og verifisert lokalt (branch `feature/07-applicability`) | Lokalt med Docker: lint, typecheck, 265 enhets-/convex-test-tester, 78 integrasjonstester, 13 e2e-tester (to kjøringer) og build | Veiledende; konsern, utenlandske virksomheter og ukjent historikk gir manuell avklaring. Lovteksten lest 9.11.2026; må leses på nytt ved lovendring |
 | 08 | Implementert, verifisert lokalt og i CI, review-merknader rettet (PR #10) | Lokalt med Docker: lint, typecheck, 330 enhets-/convex-test-tester, 92 integrasjonstester, 14 e2e-tester og build. Etter review: lint, typecheck, enhetstester og e2e på nytt (ingen endring i Convex) | Perioder kan ikke endres eller slettes. Innholdet i eldre profilversjoner kan ikke åpnes i appen. Ugyldig periode i adressen gir «Ikke funnet» med HTTP 200 (beslutning 0006) |
+| 09 | Implementert og verifisert lokalt (branch `feature/09-suppliers`) | Lokalt med Docker: lint, typecheck, 417 enhets-/convex-test-tester, 112 integrasjonstester, 15 e2e-tester og build | Søk bare på starten av navnet. `externalKey` er ikke unik ennå. Ingen risiko, import eller Brreg-beriking (senere oppgaver) |
 
 Oppdater ved hver oppgave. Bruk «implementert», «verifisert» og «ekstern avklaring» presist. Et lokalt fake-resultat betyr ikke at en ekstern integrasjon er godkjent.
 
@@ -531,6 +532,67 @@ Underveis:
 - **Ugyldig periode i adressen gir HTTP 200** med «Ikke funnet»-siden.
 - **Pliktvurderingen er ikke koblet til rapportperioden.**
 - **Temaene og spørsmålene er ikke faglig kvalitetssikret** mot åpenhetsloven § 5 og OECD-veilederen.
+
+## Oppgave 09 – leverandørregister med manuell registrering
+
+Beslutninger og begrunnelser står i `docs/decisions/0007-leverandorregister.md`.
+
+### Endret
+- **`src/domain/suppliers/`** (ren TypeScript):
+  - `countries.ts` har de 249 landkodene i ISO 3166-1 alfa-2 og norske navn til visning;
+  - `supplier.ts` har validering av profil og innkjøpsdata, navnenøkkel og tolking av skjemaet for innkjøp. Beløp tolkes med den eksisterende `parseKronerToOre`.
+- **`suppliers`:** profil med navn, norsk org.nr., egen leverandør-ID, registreringsland, kodeverk og bransjekode, pluss `status`, `archivedAt` og `rowVersion`. Felt som mangler, er ukjente.
+- **`supplierPeriods`:** innkjøpsdata per leverandør og rapportperiode med `spendOre` (`int64`, mangler når ukjent), kategori, beskrivelse, kjente produksjonsland, `upstreamUnknown` og egen `rowVersion`.
+- **Indekser** starter med `organizationId`. RLS tillater lesing, innsetting og endring i egen organisasjon. Ingen funksjon sletter.
+- **`suppliers/mutations`** (`tenantMutation`, alle med revisjonslogg i samme mutasjon):
+  - `create` og `update` validerer på serveren og avviser org.nr. som finnes fra før i organisasjonen (`SUPPLIER_EXISTS`);
+  - `update`, `setArchived` og `savePeriod` avviser utdatert `expectedRowVersion` (`CONFLICT`);
+  - `savePeriod` laster både leverandør og periode med `getOwned`.
+- **`suppliers/queries`** (`tenantQuery`): `list` er paginert over indeks, med aktive eller arkiverte og søk på starten av navnet. `get` gir profilen, innkjøpsdata for valgt periode og andre leverandører med samme navn.
+- **Sider:** Leverandører (liste, søk, aktive og arkiverte), Ny leverandør og detaljside med profilskjema, innkjøp for valgt rapportperiode og arkivering. Valgt periode (`?periode=`) følger lenkene.
+- **Visning:** «Ukjent» står som tekst for beløp, registreringsland, produksjonsland og leddene bak leverandøren. Registreringsland og produksjonsland vises som to forskjellige rader.
+- **Menyen** markerer nå seksjonen også på undersider.
+- **Revisjonsloggen i Innstillinger** har tekst og filter for «Leverandører» og «Innkjøpsdata», og viser beløp i kroner.
+- **Ikke bygget:** risiko, CSV-import og Brreg-beriking av leverandører (senere oppgaver).
+
+### Akseptkriterier
+1. *Leverandørprofil er adskilt fra årets innkjøpsdata:* to tabeller. Convex-testen viser at lagring av innkjøpsdata ikke endrer leverandørdokumentet, og at hver periode har sin egen rad.
+2. *Beløp lagres eksakt i øre og vises norsk; ukjent er forskjellig fra null:* enhetstester for tolking og et beløp over `Number.MAX_SAFE_INTEGER`, convex- og integrasjonstester for ukjent, `0n` og stort beløp, og e2e for «Ukjent» → «0 kr» → «1 250,50 kr».
+3. *Norsk registrering gjør ikke produksjonslandet kjent:* convex- og integrasjonstest, og e2e viser «Registreringsland Norge» sammen med «Kjente produksjonsland Ukjent».
+4. *Arkivering bevarer historikk; alle endringer får audit:* convex-, integrasjons- og e2e-tester for arkivering og gjenoppretting, registertesten for at alle fire mutasjoner logger, og rollback-test.
+
+### Tester
+- `tests/unit/suppliers.test.ts` (36 tester): landkoder, profilvalidering, navnenøkkel, norsk desimaltolking, store beløp, ugyldige beløp og innkjøpsdata.
+- `tests/convex/suppliers.test.ts`: opprettelse, org.nr. i to organisasjoner og dobbelt i samme (også arkivert), likt navn uten sammenslåing, ugyldig input, endring med fjerning av felt, konflikt, fremmed og ugyldig id, arkivering og gjenoppretting, ukjent mot null, fremmed periode og leverandør i sju kombinasjoner, revisjonslogg uten kjøpsbeskrivelse, og paginert liste med søk.
+- `tests/convex/suppliers-rollback.test.ts`: feiler `writeAudit`, lagres ingen av de fire endringene.
+- `tests/integration/suppliers.test.ts` mot lokal backend med to innloggede organisasjoner: org.nr. på tvers og dobbelt, to samtidige opprettelser (én `SUPPLIER_EXISTS`, én leverandør), to samtidige endringer og lagringer (én `CONFLICT`), fremmed periode- og leverandørreferanse avvist uten lekkasje eller endring, arkivering, revisjonslogg og uinnloggede kall.
+- `tests/e2e/suppliers.spec.ts`: hele flyten i nettleser, med feil ved feltene, konflikt fra utdatert fane, duplikat, søk, arkivering, revisjonslogg og ugyldig id i adressen.
+- Registrene er oppdatert: offentlige funksjoner, kundetabeller (`getOwned`/RLS) og revisjonslogging av mutasjoner.
+
+### Kjørte kommandoer (10.11.2026, lokalt med Docker)
+```text
+pnpm convex:deploy:local          OK (convex/_generated oppdatert med ekte codegen)
+pnpm lint / pnpm typecheck        OK
+pnpm test:unit                    417/417
+pnpm test:integration             112/112
+pnpm test:e2e                     15/15
+pnpm build                        OK
+```
+Underveis feilet to tester på grunn av selve testen, ikke koden: en testtittel kunne ikke skrive ut et `bigint`, og en rad-velger i e2e traff to rader. Begge er rettet, og kjøringene over er etter rettelsene.
+
+### Manuell prøve
+- Jeg har sett på skjermbilder av detaljsiden på stor og smal skjerm. Listen er bare kontrollert gjennom e2e-testen.
+- Ingen menneskelig prøve i nettleser.
+- Slik prøver du selv: Leverandører → Ny leverandør → fyll inn navn → på detaljsiden: la beløpet stå tomt, lagre, skriv 0, lagre → legg til et produksjonsland → arkiver og gjenopprett.
+
+### Ikke gjort / begrensninger
+- **Søket treffer bare starten av navnet**, og ikke org.nr.
+- **`externalKey` er ikke unik.** Må avgjøres før importen i oppgave 11 matcher på den.
+- **Mulig duplikat** foreslås bare for helt like navn.
+- **Listen viser ikke innkjøpsbeløp**, og det er ingen sortering på beløp (kommer med risiko).
+- **Ingen adresse eller valuta** på leverandøren; beløp er alltid NOK.
+- **Ugyldig leverandør-id i adressen gir HTTP 200** med «Ikke funnet»-siden.
+- **Leverandørnavn i revisjonsloggen** kan være et personnavn for enkeltpersonforetak; avklares i oppgave 27.
 
 ## Åpne eksterne avklaringer
 - Convex DPA, underleverandører og plassering av backup, logg og support (beslutning 0001). Må lukkes før ekte kundedata.

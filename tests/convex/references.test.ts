@@ -11,7 +11,7 @@ import { RLS_CONFIG, tenantRules } from "../../convex/lib/rls";
 import { getOwned, type Tenant, type TenantTable } from "../../convex/lib/tenant";
 import schema from "../../convex/schema";
 import { expectAppError, setupTest, twoTenants } from "./setup";
-import { SYNTHETIC_PERIOD } from "../helpers/public-functions";
+import { SYNTHETIC_PERIOD, SYNTHETIC_SUPPLIER_DOC } from "../helpers/public-functions";
 import { insertRaw, tenantTableCases, type Owner, type TenantTableCase } from "./tenant-tables";
 
 const tables = Object.keys(tenantTableCases) as TenantTable[];
@@ -38,16 +38,18 @@ describe.each(tables)("referanser i %s", (table) => {
       role: "admin",
       membershipId: fx.membershipA,
     };
-    // Én periode per organisasjon, så tabeller som peker på en periode får en i samme tenant.
-    const [periodA, periodB] = await t.run((ctx) =>
+    // Én periode og én leverandør per organisasjon, så tabeller som peker på dem får en i samme tenant.
+    const [refsA, refsB] = await t.run((ctx) =>
       Promise.all(
-        [fx.orgA, fx.orgB].map((organizationId) =>
-          ctx.db.insert("reportingPeriods", { organizationId, ...SYNTHETIC_PERIOD, status: "open", createdAt: Date.now(), createdBy: "oppsett" }),
-        ),
+        [fx.orgA, fx.orgB].map(async (organizationId) => ({
+          organizationId,
+          reportingPeriodId: await ctx.db.insert("reportingPeriods", { organizationId, ...SYNTHETIC_PERIOD, status: "open", createdAt: Date.now(), createdBy: "oppsett" }),
+          supplierId: await ctx.db.insert("suppliers", { organizationId, ...SYNTHETIC_SUPPLIER_DOC, createdAt: Date.now(), createdBy: "oppsett" }),
+        })),
       ),
     );
-    const inA = (userId: string): Owner => ({ organizationId: fx.orgA, userId, reportingPeriodId: periodA });
-    const inB = (userId: string): Owner => ({ organizationId: fx.orgB, userId, reportingPeriodId: periodB });
+    const inA = (userId: string): Owner => ({ ...refsA, userId });
+    const inB = (userId: string): Owner => ({ ...refsB, userId });
     const ids = await t.run(async (ctx) => {
       const own = await insertRaw(ctx.db, table, inA(`eget-${table}`));
       const foreign = await insertRaw(ctx.db, table, inB(`fremmed-${table}`));

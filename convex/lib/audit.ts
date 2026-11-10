@@ -25,6 +25,9 @@ export const AUDIT_DIFF_FIELDS: Record<AuditEntityType, readonly string[]> = {
     "revision", "confirmed", "organizationDescription", "operations", "countries", "responsibility",
     "policies", "routines", "stakeholderDialogue", "remediationProcess",
   ],
+  supplier: ["name", "registryOrgNumber", "externalKey", "registeredCountry", "industryCodeSystem", "industryCode", "status"],
+  // Beløp som tekst i øre og land som kommaseparerte koder. Kjøpsbeskrivelsen (fritekst) logges aldri.
+  supplierPeriod: ["spendOre", "purchaseCategory", "productionCountries", "upstreamUnknown"],
 };
 
 type DiffValue = string | number | boolean | null;
