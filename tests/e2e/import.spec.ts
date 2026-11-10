@@ -8,6 +8,8 @@ test.beforeEach(async ({ context }) => {
 const SHOTS = process.env.IMPORT_SHOTS;
 
 test("CSV-forhåndsvisning: grenser, kolonnevalg, avklaringer, ubetrodd tekst og ingen lagring", async ({ page }) => {
+  // Lang flyt (innlogging, ny leverandør, mange opplastinger) nær standardgrensen på 30 s; gi den tredobbel tid.
+  test.slow();
   // Egen fixture, så leverandørene ikke påvirker andre tester.
   const fx = createTenantFixture();
   // Filinnhold skal aldri kjøre som skript: en dialog fra siden er en feil.

@@ -6,6 +6,8 @@ test.beforeEach(async ({ context }) => {
 });
 
 test("leverandør: opprett, innkjøp med ukjent og null, konflikt, duplikat, søk og arkivering", async ({ page, context }) => {
+  // Lang flyt som bruker 22–25 av standardgrensen på 30 s; gi den tredobbel tid.
+  test.slow();
   // Egen fixture, så leverandørene ikke påvirker andre tester.
   const fx = createTenantFixture();
   await page.goto("/logg-inn");
