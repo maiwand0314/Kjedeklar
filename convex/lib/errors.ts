@@ -33,7 +33,7 @@ const messages: Record<AppErrorCode, string> = {
   SUPPLIER_KEY_EXISTS: "Det finnes allerede en leverandør med denne leverandør-ID-en. Se også blant arkiverte leverandører.",
   IMPORT_EXPIRED: "Importgrunnlaget er utløpt. Last opp filen på nytt og gå gjennom valgene.",
   IMPORT_STALE:
-    "En annen import til samme rapportperiode pågår eller er gjennomført etter at dette grunnlaget ble laget. Last opp filen på nytt, så forslagene bygger på leverandørene slik de er nå.",
+    "En annen import til samme rapportperiode pågår eller er gjennomført etter at dette grunnlaget ble laget. Fullfør en import som ikke er ferdig, og last opp filen på nytt, så forslagene bygger på leverandørene slik de er nå.",
   IMPORT_UNDECIDED: "Noen oppføringer mangler valg. Ta stilling til alle før importen bekreftes.",
 };
 
