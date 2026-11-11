@@ -121,7 +121,8 @@ export default defineSchema({
   importBatches: defineTable({ organizationId: v.id("organizations"), ...importBatchFields })
     .index("by_organizationId_and_idempotencyKey", ["organizationId", "idempotencyKey"])
     .index("by_organizationId", ["organizationId"])
-    .index("by_organizationId_and_reportingPeriodId_and_status_and_committedAt", ["organizationId", "reportingPeriodId", "status", "committedAt"]),
+    // «period» er reportingPeriodId; Convex tillater indeksnavn på høyst 64 tegn.
+    .index("by_organizationId_and_period_and_status_and_committedAt", ["organizationId", "reportingPeriodId", "status", "committedAt"]),
 
   // Én oppføring per leverandør i filen, med valg og resultat. `rowNumber` er
   // første rad i filen oppføringen bygger på.

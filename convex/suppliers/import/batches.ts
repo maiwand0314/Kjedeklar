@@ -50,7 +50,7 @@ export async function isSuperseded(db: QueryCtx["db"], batch: Pick<Batch, "organ
   const inPeriod = (status: "committing" | "committed") =>
     db
       .query("importBatches")
-      .withIndex("by_organizationId_and_reportingPeriodId_and_status_and_committedAt", (q) => {
+      .withIndex("by_organizationId_and_period_and_status_and_committedAt", (q) => {
         const scoped = q.eq("organizationId", batch.organizationId).eq("reportingPeriodId", batch.reportingPeriodId).eq("status", status);
         return status === "committed" ? scoped.gt("committedAt", batch.createdAt) : scoped;
       })
