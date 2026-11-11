@@ -96,3 +96,20 @@ export const auditRollbackProbe = internalMutation({
     return null;
   },
 });
+
+/**
+ * Test: setter navnet på en importoppføring. Med tomt navn feiler oppføringen
+ * når importen gjennomføres, så testen kan vise at stykket rulles tilbake og at
+ * importen står som ikke fullført. Bare på test-backenden.
+ */
+export const setImportRowName = internalMutation({
+  args: { rowId: v.id("importRows"), name: v.string() },
+  returns: v.null(),
+  handler: async (ctx, { rowId, name }) => {
+    assertLocalEnv(["test"]);
+    const row = await ctx.db.get("importRows", rowId);
+    if (!row) throw new ConvexError({ code: "NOT_FOUND", message: "Ukjent oppføring" });
+    await ctx.db.patch("importRows", rowId, { values: { ...row.values, name } });
+    return null;
+  },
+});

@@ -195,6 +195,33 @@ describe("tenant-isolasjon mot lokal Convex-backend", () => {
       args: ({ fx }) => ({ organizationId: fx.orgB, paginationOpts: { numItems: 5, cursor: null } }),
       verifyNoEffect: async () => {},
     },
+    "suppliers/import/store:createBatch": {
+      args: ({ fx }) => ({
+        organizationId: fx.orgB,
+        userId: fx.userA.userId,
+        reportingPeriodId: "ukjent",
+        fileName: "kapret.csv",
+        fileHash: "0".repeat(64),
+        normalizedHash: "1".repeat(64),
+        mapping: { name: 0 },
+        rowCount: 1,
+        entryCount: 1,
+      }),
+      verifyNoEffect: async () => {},
+    },
+    "suppliers/import/store:addEntries": {
+      args: ({ fx }) => ({ organizationId: fx.orgB, batchId: fx.orgB, entries: [] }),
+      verifyNoEffect: async () => {},
+    },
+    "suppliers/import/store:finalizeBatch": {
+      args: ({ fx }) => ({
+        organizationId: fx.orgB,
+        userId: fx.userA.userId,
+        batchId: fx.orgB,
+        kindCounts: { new_clean: 0, new_warning: 0, known: 0, unclear: 0, error: 0 },
+      }),
+      verifyNoEffect: async () => {},
+    },
     "invitations/internal:findValid": {
       // Query: et vellykket kall ville bekreftet et token. Avslaget er beviset.
       args: () => ({ token: "x".repeat(43) }),
@@ -209,6 +236,10 @@ describe("tenant-isolasjon mot lokal Convex-backend", () => {
       verifyNoEffect: async ({ fx, a }) => {
         expect((await a.query(listMine, {})).map((o) => o.id)).toEqual([fx.orgA]);
       },
+    },
+    "ops/testing:setImportRowName": {
+      args: ({ fx }) => ({ rowId: fx.orgA, name: "Kapret AS" }),
+      verifyNoEffect: async () => {},
     },
     "ops/testing:expireInvitation": {
       args: ({ fx }) => ({ invitationId: fx.orgA }),

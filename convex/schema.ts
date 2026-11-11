@@ -8,6 +8,7 @@ import {
 } from "./organizations/applicabilityValidators";
 import { profileAnswerFields } from "./organizations/profileValidators";
 import { registryProfileValidator } from "./organizations/registryValidators";
+import { importBatchFields, importRowFields } from "./suppliers/import/validators";
 import { supplierPeriodFields, supplierProfileFields } from "./suppliers/validators";
 
 // Better Auth-tabellene ligger i komponenten @convex-dev/better-auth, ikke her.
@@ -98,6 +99,7 @@ export default defineSchema({
     createdBy: v.string(),
   })
     .index("by_organizationId_and_registryOrgNumber", ["organizationId", "registryOrgNumber"])
+    .index("by_organizationId_and_externalKey", ["organizationId", "externalKey"])
     .index("by_organizationId_and_status_and_nameKey", ["organizationId", "status", "nameKey"]),
 
   // Innkjøp fra én leverandør i én rapportperiode; én rad per par (kontrolleres
@@ -111,6 +113,22 @@ export default defineSchema({
     updatedAt: v.number(),
     updatedBy: v.string(),
   }).index("by_organizationId_and_supplierId_and_reportingPeriodId", ["organizationId", "supplierId", "reportingPeriodId"]),
+
+  // Importgrunnlag fra en CSV-fil (oppgave 11). Råfilen lagres aldri, bare
+  // normaliserte oppføringer. «preparing» til alle oppføringene er lagret, så
+  // «draft» mens brukeren velger, «committing» fra bekreftelse til alt er
+  // behandlet, og «committed». Ingenting slettes fra appen.
+  importBatches: defineTable({ organizationId: v.id("organizations"), ...importBatchFields })
+    .index("by_organizationId_and_idempotencyKey", ["organizationId", "idempotencyKey"])
+    .index("by_organizationId", ["organizationId"])
+    // «period» er reportingPeriodId; Convex tillater indeksnavn på høyst 64 tegn.
+    .index("by_organizationId_and_period_and_status_and_committedAt", ["organizationId", "reportingPeriodId", "status", "committedAt"]),
+
+  // Én oppføring per leverandør i filen, med valg og resultat. `rowNumber` er
+  // første rad i filen oppføringen bygger på.
+  importRows: defineTable({ organizationId: v.id("organizations"), ...importRowFields })
+    .index("by_organizationId_and_batchId_and_rowNumber", ["organizationId", "batchId", "rowNumber"])
+    .index("by_organizationId_and_batchId_and_kind_and_decision", ["organizationId", "batchId", "kind", "decision"]),
 
   memberships: defineTable({
     organizationId: v.id("organizations"),

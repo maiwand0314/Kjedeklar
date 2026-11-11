@@ -27,7 +27,7 @@
 - **Norsk org.nr.** er unikt per organisasjon når det er satt. Det kontrolleres med indeksoppslag (`by_organizationId_and_registryOrgNumber`) i samme mutasjon som oppretter eller endrer, også mot arkiverte leverandører. To samtidige forsøk gir én leverandør og én `SUPPLIER_EXISTS`. Samme nummer i to organisasjoner er to uavhengige dokumenter.
 - Indeksen heter `by_organizationId_and_registryOrgNumber`, ikke `by_org_orgnumber` som i oppgaveteksten, for å følge navnemønsteret i resten av skjemaet.
 - **Likt navn** stopper ingenting og slås aldri sammen. Detaljsiden viser andre aktive leverandører med samme navn som «Mulig duplikat», og kunden avgjør selv.
-- **Egen leverandør-ID** (`externalKey`) er ikke unik ennå. Det må avgjøres før importen bruker den til å matche rader (oppgave 11).
+- **Egen leverandør-ID** (`externalKey`) er unik per organisasjon når den er satt, fra oppgave 11 (indeks `by_organizationId_and_externalKey`, `SUPPLIER_KEY_EXISTS`). Se beslutning 0009.
 
 ## Redigering og arkivering
 - Endring, arkivering og lagring av innkjøpsdata krever versjonen brukeren så (`expectedRowVersion`). Er den utdatert, avvises endringen med `CONFLICT`, og skjemaet beholder det brukeren har skrevet.

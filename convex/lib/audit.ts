@@ -28,6 +28,11 @@ export const AUDIT_DIFF_FIELDS: Record<AuditEntityType, readonly string[]> = {
   supplier: ["name", "registryOrgNumber", "externalKey", "registeredCountry", "industryCodeSystem", "industryCode", "status"],
   // Beløp som tekst i øre og land som kommaseparerte koder. Kjøpsbeskrivelsen (fritekst) logges aldri.
   supplierPeriod: ["spendOre", "purchaseCategory", "productionCountries", "upstreamUnknown"],
+  // Bare status, antall og fellesvalg. Enkeltendringene står på importradene; filinnhold logges aldri.
+  importBatch: [
+    "status", "rowCount", "entryCount", "policyKnown", "policyNewWarning", "policyError", "policyUnclear",
+    "created", "updated", "unchanged", "skipped", "conflicts", "processed",
+  ],
 };
 
 type DiffValue = string | number | boolean | null;

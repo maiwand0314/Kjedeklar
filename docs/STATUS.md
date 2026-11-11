@@ -13,7 +13,8 @@ Startpakke opprettet 6. november 2026. Dokumentasjonen ble samme dag skrevet om 
 | 07 | Implementert og verifisert lokalt (branch `feature/07-applicability`) | Lokalt med Docker: lint, typecheck, 265 enhets-/convex-test-tester, 78 integrasjonstester, 13 e2e-tester (to kjøringer) og build | Veiledende; konsern, utenlandske virksomheter og ukjent historikk gir manuell avklaring. Lovteksten lest 9.11.2026; må leses på nytt ved lovendring |
 | 08 | Implementert, verifisert lokalt og i CI, review-merknader rettet (PR #10) | Lokalt med Docker: lint, typecheck, 330 enhets-/convex-test-tester, 92 integrasjonstester, 14 e2e-tester og build. Etter review: lint, typecheck, enhetstester og e2e på nytt (ingen endring i Convex) | Perioder kan ikke endres eller slettes. Innholdet i eldre profilversjoner kan ikke åpnes i appen. Ugyldig periode i adressen gir «Ikke funnet» med HTTP 200 (beslutning 0006) |
 | 09 | Implementert og verifisert lokalt (branch `feature/09-suppliers`) | Lokalt med Docker: lint, typecheck, 417 enhets-/convex-test-tester, 112 integrasjonstester, 15 e2e-tester og build | Søk bare på starten av navnet. `externalKey` er ikke unik ennå. Ingen risiko, import eller Brreg-beriking (senere oppgaver) |
-| 10 | Implementert og verifisert lokalt (branch `feature/10-csv-preview`) | Lokalt med Docker: lint, typecheck, 538 enhets-/convex-test-tester, 120 integrasjonstester, 16 e2e-tester og build | Bare forhåndsvisning; ingenting importeres før oppgave 11. Bare UTF-8. `externalKey` er fortsatt ikke unik. To lokale e2e-kjøringer fikk tidsavbrudd av uavklart årsak (se under) |
+| 10 | Implementert, verifisert lokalt og i CI, merget (PR #12 og #13) | Lokalt med Docker: lint, typecheck, 538 enhets-/convex-test-tester, 120 integrasjonstester, 16 e2e-tester og build | Bare forhåndsvisning; ingenting importeres før oppgave 11. Bare UTF-8. `externalKey` er fortsatt ikke unik. To lokale e2e-kjøringer fikk tidsavbrudd av uavklart årsak (se under) |
+| 11 | Implementert og verifisert lokalt (branch `feature/11-csv-import`) | Lokalt med Docker: lint, typecheck, 601 enhets-/convex-test-tester, 145 integrasjonstester, 17 e2e-tester og build | Importen drives av nettleseren og fortsetter ikke av seg selv etter et avbrudd. Revisjonslogg per batch, ikke per leverandør. Feilrader kan ikke rettes i appen |
 
 Oppdater ved hver oppgave. Bruk «implementert», «verifisert» og «ekstern avklaring» presist. Et lokalt fake-resultat betyr ikke at en ekstern integrasjon er godkjent.
 
@@ -655,6 +656,10 @@ Hele e2e-suiten ble kjørt fire ganger, pluss én delkjøring. Bare den siste fu
 - Ingen menneskelig prøve i nettleser.
 - Slik prøver du selv: Leverandører → Forhåndsvis CSV-fil → last ned malen og last den opp → last opp `tests/fixtures/csv/feilfil.csv` → bytt desimaltegn til komma og se at det tvetydige beløpet avklares.
 
+### Rettet etter review (PR #12 og #13)
+- De to lange e2e-flytene (`suppliers.spec.ts` og `import.spec.ts`) har fått `test.slow()`, som tredobler tidsgrensen for bare dem. Bekreftet med full e2e-kjøring lokalt (16/16) og grønn CI på 7bb1c87. Årsaken til det ene tidsavbruddet ved opprettelse av leverandør er fortsatt ikke funnet.
+- PR #13: konfliktmeldingen i forhåndsvisningen nevner bare identifikatorene raden faktisk har.
+
 ### Ikke gjort / begrensninger
 - **Ingen import.** Forhåndsvisningen lagrer ingenting, og siden sier det.
 - **`externalKey` er fortsatt ikke unik.** Flere treff på samme ID vises som konflikt. Regelen må avgjøres i oppgave 11.
@@ -663,6 +668,76 @@ Hele e2e-suiten ble kjørt fire ganger, pluss én delkjøring. Bare den siste fu
 - **Navnelikhet** fanger ikke skrivefeil eller delvise navn.
 - **Grensen på 3 MB for server-actions gjelder hele appen.**
 - **Tidsavbruddene i e2e er ikke forklart** (se over). CI viser om de også skjer der.
+
+## Oppgave 11 – bekreftet, idempotent CSV-import
+
+Beslutninger og begrunnelser står i `docs/decisions/0009-csv-import.md`.
+
+### Endret
+- **`src/domain/import/plan.ts`** (ren TypeScript): slår sammen rader for samme leverandør til én oppføring med summert beløp, gir hver oppføring en type, og avgjør hvilke valg som er tillatt og hvilket valg som gjelder.
+- **`importBatches` og `importRows`:** importgrunnlaget. Bare normaliserte verdier, radnummer, meldinger og hasher lagres; aldri filen eller teksten fra cellene. RLS tillater lesing og endring i egen organisasjon; opprettelse skjer bare i intern mutasjon.
+- **`suppliers/import/prepare:prepare`** (`tenantAction`): leser filen på nytt, lager oppføringene og lagrer grunnlaget i stykker på 200 via interne mutasjoner (`store.ts`). Perioden og hver foreslått leverandør kontrolleres mot organisasjonen i samme transaksjon som lagrer dem.
+- **`suppliers/import/batches`** (`tenantQuery`/`tenantMutation`):
+  - `list`, `get` og `rows` (paginert) for oversikt og gjennomgang;
+  - `setPolicy` og `decide` for fellesvalg og valg per oppføring, med versjonssjekk;
+  - `startCommit` bekrefter når alt har valg, grunnlaget ikke er utløpt og versjonen stemmer;
+  - `commitChunk` gjennomfører 100 oppføringer per transaksjon og kan kalles til importen er ferdig.
+- **Leverandør-ID er unik per organisasjon** når den er satt, også ved manuell registrering (`SUPPLIER_KEY_EXISTS`). Kontrollen av profilen er flyttet til `convex/suppliers/model.ts` og brukes av både registrering og import.
+- **Grensesnitt:**
+  - «Klargjør import» under forhåndsvisningen, med valg av rapportperiode;
+  - egen side per import med fellesvalg, valg per oppføring, bekreftelse med fremdrift, «Fortsett importen» etter avbrudd, og resultat;
+  - liste over de ti siste importene.
+- **Revisjonsloggen i Innstillinger** har tekst og filter for «Import».
+- **`Table`** lar innhold måle seg mot tabellens synlige bredde, så meldingslinjer ikke blir bredere enn tabellen.
+- **Ikke bygget:** bakgrunnsjobb for gjennomføringen (oppgave 12), retting av feilrader i appen og sletting av importgrunnlag.
+
+### Akseptkriterier
+1. *Dobbeltklikk, retry og identisk fil gir ikke flere leverandører eller dobbelt beløp:* convex- og integrasjonstester for gjentatt klargjøring, gjentatt bekreftelse, gjentatt gjennomføring og ny import av samme fil. E2e dobbeltklikker bekreftelsen og importerer samme fil to ganger.
+2. *Stale eller utløpt preview, eller endret leverandør etter preview, gir konflikt og ny bekreftelse:* utløpt grunnlag og eldre regelversjon gir `IMPORT_EXPIRED`, utdatert versjon gir `CONFLICT`, og endret leverandør eller endret beløp gir «ikke importert» på oppføringen uten overskriving.
+3. *Resultat viser opprettet, oppdatert, utelatt og valgte feilrader:* resultatsiden har antallene, og hver oppføring viser sitt resultat. E2e kontrollerer begge.
+4. *Fremmed batch eller `targetSupplierId` kan ikke importeres:* convex- og integrasjonstester med fremmed batch, fremmed periode, fremmed leverandør, egen leverandør utenfor forslagene og oppføring fra et annet grunnlag.
+
+### Tester
+- `tests/unit/import-plan.test.ts` (12): sammenslåing og summering, ukjent mot null, kreditnota, feilrader utenfor summen, motstrid i filen, typer, tillatte valg og fingeravtrykk.
+- `tests/convex/import.test.ts` (13): grunnlag uten råfil, idempotent klargjøring, valg og avvisninger, full gjennomføring med beløp og profil, gjentakelser, utløp, konflikter, stykkevis gjennomføring og unik leverandør-ID.
+- `tests/convex/import-rollback.test.ts` (3): feiler revisjonsloggen, lagres ingenting fra det steget. Feil midt i importen ruller tilbake hele stykket, og importen kan fortsettes.
+- `tests/integration/import.test.ts` (5) mot lokal backend:
+  - 2 000 oppføringer klargjort og gjennomført av to samtidige klienter, uten dubletter;
+  - feil midt i importen: stykket rulles tilbake, importen står som ikke fullført og fortsettes;
+  - gjentatt fil, samtidig dobbel klargjøring og endrede valg;
+  - leverandør endret etter grunnlaget;
+  - fremmed batch, periode og leverandør.
+- `tests/e2e/import-commit.spec.ts`: forhåndsvisning, klargjøring, valg, dobbeltklikk på bekreftelse, resultat, beløp og liste, ny import av samme fil, revisjonslogg, smal skjerm og ugyldig id i adressen.
+- Registrene er oppdatert: åtte offentlige funksjoner, to kundetabeller, åtte mutasjoner og fire interne funksjoner.
+
+### Kjørte kommandoer (10.11.2026, lokalt med Docker)
+```text
+pnpm convex:deploy:local          OK (convex/_generated oppdatert med ekte codegen)
+pnpm lint / pnpm typecheck        OK
+pnpm test:unit                    601/601
+pnpm test:integration             145/145
+pnpm test:e2e                     17/17
+pnpm build                        OK
+```
+Underveis:
+- Første integrasjonskjøring av importen feilet: to klienter som gjennomførte samme import samtidig, fikk en samtidighetsfeil fra Convex. Ingenting ble behandlet to ganger, men feilen nådde klienten. Testen og grensesnittet venter nå og prøver igjen.
+- En convex-test fant at gjentatt import av samme fil ikke ble gjenkjent, fordi fingeravtrykket ble regnet ut etter matchingen. Rettet.
+- E2e fant at valg ikke ble vist før serveren hadde svart, og at lange meldinger ble kuttet på stor skjerm. Begge er rettet.
+- E2e-suiten ble kjørt én gang i full bredde etter siste endring, og den var grønn. Tidsavbruddene fra oppgave 10 kom ikke tilbake i denne kjøringen.
+
+### Manuell prøve
+- Jeg har sett på skjermbilder av utkastsiden og resultatsiden på stor skjerm. Smal skjerm er bare kontrollert av e2e-testen (ingen vannrett rulling av siden, og valgene er synlige).
+- Ingen menneskelig prøve i nettleser.
+- Slik prøver du selv: Leverandører → Importer fra CSV → last opp malen → Klargjør import → velg for hver type → Bekreft og importer → se resultatet og leverandørlisten. Last så opp samme fil en gang til.
+
+### Ikke gjort / begrensninger
+- **Importen drives av nettleseren.** Lukkes fanen midt i en stor import, står importen som ikke fullført til noen velger «Fortsett importen».
+- **Revisjonslogg per batch.** En leverandør opprettet ved import står ikke som egen hendelse under «Leverandører» i loggen.
+- **Feilrader kan ikke rettes i appen.**
+- **Oppdatering endrer ikke leverandørens profil**, bare periodens innkjøpsdata.
+- **Arkivering etter at grunnlaget ble laget oppdages ikke.**
+- **Importgrunnlag slettes ikke**; lagringstid avklares i oppgave 27.
+- **Convex sine grenser er lest fra dokumentasjonen på nett**, ikke fra den installerte pakken, som ikke har dem. 2 000 oppføringer er prøvd mot lokal backend.
 
 ## Åpne eksterne avklaringer
 - Convex DPA, underleverandører og plassering av backup, logg og support (beslutning 0001). Må lukkes før ekte kundedata.

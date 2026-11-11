@@ -129,7 +129,7 @@ export function PreviewTable({ preview, organizationId }: { preview: ImportPrevi
                 <td />
                 <td colSpan={fields.length + 1} className="pt-0!">
                   {/* Holder seg i synsfeltet når tabellen rulles vannrett på smale skjermer. */}
-                  <div className="sticky left-0 w-[calc(100vw-5rem)] max-w-full">
+                  <div className="sticky left-0 w-[calc(100cqw-4rem)]">
                     <p>
                       <span className="text-muted">Forslag:</span> <Proposal row={row} organizationId={organizationId} />
                     </p>

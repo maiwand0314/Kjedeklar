@@ -11,7 +11,7 @@ import { RLS_CONFIG, tenantRules } from "../../convex/lib/rls";
 import { getOwned, type Tenant, type TenantTable } from "../../convex/lib/tenant";
 import schema from "../../convex/schema";
 import { expectAppError, setupTest, twoTenants } from "./setup";
-import { SYNTHETIC_PERIOD, SYNTHETIC_SUPPLIER_DOC } from "../helpers/public-functions";
+import { SYNTHETIC_IMPORT_BATCH, SYNTHETIC_PERIOD, SYNTHETIC_SUPPLIER_DOC } from "../helpers/public-functions";
 import { insertRaw, tenantTableCases, type Owner, type TenantTableCase } from "./tenant-tables";
 
 const tables = Object.keys(tenantTableCases) as TenantTable[];
@@ -39,7 +39,7 @@ describe.each(tables)("referanser i %s", (table) => {
       membershipId: fx.membershipA,
     };
     // Én periode og én leverandør per organisasjon, så tabeller som peker på dem får en i samme tenant.
-    const [refsA, refsB] = await t.run((ctx) =>
+    const [partA, partB] = await t.run((ctx) =>
       Promise.all(
         [fx.orgA, fx.orgB].map(async (organizationId) => ({
           organizationId,
@@ -48,8 +48,22 @@ describe.each(tables)("referanser i %s", (table) => {
         })),
       ),
     );
-    const inA = (userId: string): Owner => ({ ...refsA, userId });
-    const inB = (userId: string): Owner => ({ ...refsB, userId });
+    const [batchA, batchB] = await t.run((ctx) =>
+      Promise.all(
+        [partA, partB].map(({ organizationId, reportingPeriodId }) =>
+          ctx.db.insert("importBatches", {
+            organizationId,
+            reportingPeriodId,
+            ...SYNTHETIC_IMPORT_BATCH,
+            createdAt: Date.now(),
+            createdBy: "oppsett",
+            expiresAt: Date.now() + 3_600_000,
+          }),
+        ),
+      ),
+    );
+    const inA = (userId: string): Owner => ({ ...partA, importBatchId: batchA, userId });
+    const inB = (userId: string): Owner => ({ ...partB, importBatchId: batchB, userId });
     const ids = await t.run(async (ctx) => {
       const own = await insertRaw(ctx.db, table, inA(`eget-${table}`));
       const foreign = await insertRaw(ctx.db, table, inB(`fremmed-${table}`));

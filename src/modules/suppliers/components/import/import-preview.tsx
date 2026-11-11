@@ -1,11 +1,16 @@
 "use client";
 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
+import { Button } from "@/components/ui/button";
 import { SelectField } from "@/components/ui/select-field";
 import { FILE_TOO_LARGE_MESSAGE, MAX_FILE_BYTES, MAX_ROWS, type DecimalFormat, type Delimiter } from "@/domain/import/limits";
 import { IMPORT_FIELDS, type ColumnMapping, type ImportField } from "@/domain/import/mapping";
+import { formatPeriod } from "@/domain/reporting/period";
 import { INDUSTRY_CODE_SYSTEMS, type IndustryCodeSystem } from "@/domain/suppliers/supplier";
 import { previewSupplierImportAction, type ImportPreview as Preview } from "../../import-actions";
+import { prepareSupplierImportAction } from "../../import-batch-actions";
 import { PreviewTable } from "./preview-table";
 
 /** Valgene brukeren kan gjøre. Det som mangler, foreslår serveren ut fra filen. */
@@ -18,12 +23,18 @@ const DECIMAL_LABELS: Record<DecimalFormat, string> = {
   dot: "Punktum: 1,234 leses som 1 234 kroner",
 };
 
+type Period = { id: string; startDate: string; endDate: string };
+
 /**
  * Opplasting og forhåndsvisning av en CSV-fil. Filen holdes i nettleseren og
  * sendes på nytt hver gang et valg endres; den lagres ikke på serveren, og
- * forhåndsvisningen endrer ingenting i leverandørregisteret.
+ * forhåndsvisningen endrer ingenting i leverandørregisteret. «Klargjør import»
+ * lager et importgrunnlag for valgt rapportperiode, som gjennomgås på egen side.
  */
-export function ImportPreview({ organizationId }: { organizationId: string }) {
+export function ImportPreview({ organizationId, periods, initialPeriodId }: { organizationId: string; periods: Period[]; initialPeriodId?: string }) {
+  const router = useRouter();
+  const [periodId, setPeriodId] = useState(initialPeriodId ?? periods[0]?.id ?? "");
+  const [preparing, startPreparing] = useTransition();
   const [file, setFile] = useState<File | null>(null);
   const [fileCount, setFileCount] = useState(0);
   const [preview, setPreview] = useState<Preview | null>(null);
@@ -80,6 +91,27 @@ export function ImportPreview({ organizationId }: { organizationId: string }) {
     if (value === "") delete mapping[field];
     else mapping[field] = Number(value);
     change({ mapping });
+  }
+
+  /** Sender filen og de gjeldende valgene til klargjøring, og åpner grunnlaget. */
+  function prepare() {
+    if (!file || !preview) return;
+    const { delimiter, mapping, decimal, industryCodeSystem } = preview;
+    setError(null);
+    startPreparing(async () => {
+      const data = new FormData();
+      data.set("file", file);
+      data.set("periodId", periodId);
+      data.set("options", JSON.stringify({ delimiter, mapping, decimal, industryCodeSystem }));
+      let result;
+      try {
+        result = await prepareSupplierImportAction(organizationId, data);
+      } catch {
+        result = { status: "rejected" as const, message: "Importgrunnlaget kunne ikke lages. Prøv igjen." };
+      }
+      if (result.status === "ok") router.push(`/o/${organizationId}/leverandorer/import/${result.batchId}?periode=${periodId}`);
+      else setError(result.message);
+    });
   }
 
   const summary = preview?.summary;
@@ -198,8 +230,7 @@ export function ImportPreview({ organizationId }: { organizationId: string }) {
               3. Gå gjennom radene
             </h2>
             <p className="mt-1 text-sm text-muted">
-              Ingenting er lagret. Forhåndsvisningen endrer ikke leverandørregisteret, og filen lagres ikke. Import av
-              radene er ikke tilgjengelig ennå.
+              Ingenting er lagret. Forhåndsvisningen endrer ikke leverandørregisteret, og filen lagres ikke.
             </p>
             {summary && preview.rows.length > 0 && (
               <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-[14rem_1fr]" data-testid="import-summary">
@@ -219,6 +250,41 @@ export function ImportPreview({ organizationId }: { organizationId: string }) {
                 {/* Ny fil gir ny tabell, så filter og side starter på nytt. Nye valg beholder dem. */}
                 <PreviewTable key={fileCount} preview={preview} organizationId={organizationId} />
               </div>
+            )}
+          </section>
+
+          <section aria-labelledby="klargjor-heading">
+            <h2 id="klargjor-heading" className="text-xl font-semibold">
+              4. Klargjør import
+            </h2>
+            {periods.length === 0 ? (
+              <p className="mt-2">
+                Innkjøpsdata importeres for en rapportperiode.{" "}
+                <Link href={`/o/${organizationId}/virksomheten#rapportperiode-heading`} className="underline">
+                  Opprett en rapportperiode
+                </Link>{" "}
+                først.
+              </p>
+            ) : (
+              <>
+                <p className="mt-1 text-sm text-muted">
+                  Kjedeklar leser filen på nytt og lager et importgrunnlag. Fortsatt endres ingenting i
+                  leverandørregisteret: på neste side velger du hva som skal skje med hver oppføring, og bekrefter.
+                  Rader med samme organisasjonsnummer eller leverandør-ID slås sammen til én leverandør.
+                </p>
+                <div className="mt-4 flex flex-wrap items-end gap-4">
+                  <SelectField id="import-period" label="Rapportperiode beløpene gjelder" value={periodId} onChange={(e) => setPeriodId(e.target.value)}>
+                    {periods.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {formatPeriod(p)}
+                      </option>
+                    ))}
+                  </SelectField>
+                  <Button disabled={preparing || pending || preview.problems.length > 0 || preview.rows.length === 0} onClick={prepare}>
+                    {preparing ? "Klargjør …" : "Klargjør import"}
+                  </Button>
+                </div>
+              </>
             )}
           </section>
         </>
