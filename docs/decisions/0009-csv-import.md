@@ -60,6 +60,7 @@
 
 ## Utløp og endringer etter grunnlaget
 - Et utkast må bekreftes innen **24 timer** (`IMPORT_EXPIRED`). Fristen er romslig fordi gjennomgang av en stor fil tar tid; det som beskytter mot foreldede opplysninger, er versjonskontrollen under.
+- Et utkast kan ikke bekreftes når en annen import til samme periode pågår, eller er fullført etter at utkastet ble laget (`IMPORT_STALE`). Forslagene i utkastet bygger da på leverandørene slik de var før, og en rad med bare navn ville blitt opprettet på nytt. Samme fil lastet opp igjen gir et nytt grunnlag, ikke det utdaterte utkastet.
 - Grunnlaget lagrer `mappingVersion`. Et grunnlag laget med eldre regler kan ikke bekreftes.
 - Batchen har `rowVersion`, som øker ved hvert valg. Bekreftelsen må oppgi versjonen brukeren så (`CONFLICT` ellers).
 - For hver mulig leverandør lagres **versjonen av profilen og av periodens innkjøpsdata** slik de var da grunnlaget ble laget. Er noen av dem endret når oppføringen gjennomføres, får oppføringen resultatet **«ikke importert»**, og ingenting overskrives.

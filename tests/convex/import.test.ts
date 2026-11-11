@@ -352,6 +352,31 @@ describe("bekreftelse og gjennomføring", () => {
     expect({ suppliers: await all(env.t, "suppliers"), periods: await all(env.t, "supplierPeriods") }).toEqual(before);
   });
 
+  test("utkast laget før en annen import til samme periode kan ikke bekreftes; ny opplasting gir nye forslag", async () => {
+    const env = await start();
+    const a = asA(env.t, env.fx);
+    // Bare navn: ingen org.nr. eller ID som kan stoppe en ny leverandør ved gjennomføringen.
+    const csv = "Navn;Beløp\nUtenlandsk Ltd;1 000\n";
+    // To utkast for samme periode, f.eks. dobbeltklikk før det første fantes, eller nytt desimaltegn.
+    const first = await prepared(env, csv);
+    const second = await prepared(env, csv, { decimal: "comma" });
+    expect(second).not.toBe(first);
+
+    await a.mutation(startCommit, { organizationId: env.fx.orgA, batchId: first, expectedRowVersion: 1 });
+    // Mens den første pågår, og etter at den er fullført.
+    await expectAppError(a.mutation(startCommit, { organizationId: env.fx.orgA, batchId: second, expectedRowVersion: 1 }), "IMPORT_STALE");
+    await commit(env, first);
+    await expectAppError(a.mutation(startCommit, { organizationId: env.fx.orgA, batchId: second, expectedRowVersion: 1 }), "IMPORT_STALE");
+    const suppliers = await all(env.t, "suppliers");
+    expect(suppliers.map((s) => s.name)).toEqual(["Utenlandsk Ltd"]);
+    expect(await spendOf(env, suppliers[0]._id)).toBe(100_000n);
+
+    // Samme fil og valg på nytt gir ikke det utdaterte utkastet tilbake, men et nytt med navnetreff som må avklares.
+    const again = await prepared(env, csv, { decimal: "comma" });
+    expect(again).not.toBe(second);
+    expect(await batchOf(env, again)).toMatchObject({ kindCounts: { new_clean: 0, unclear: 1 }, undecided: 1 });
+  });
+
   test("utløpt grunnlag og grunnlag fra en eldre versjon kan ikke bekreftes eller endres", async () => {
     const env = await start();
     const a = asA(env.t, env.fx);

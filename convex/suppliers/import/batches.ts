@@ -42,6 +42,22 @@ const publicStatus = v.union(v.literal("draft"), v.literal("committing"), v.lite
 const isExpired = (batch: Batch, now: number) =>
   batch.status === "draft" && (batch.expiresAt <= now || batch.mappingVersion !== IMPORT_MAPPING_VERSION);
 
+/**
+ * En annen import til samme periode pågår, eller er fullført etter at grunnlaget ble laget. Da bygger
+ * forslagene på leverandørene slik de var før, og en rad med bare navn ville blitt opprettet to ganger.
+ */
+export async function isSuperseded(db: QueryCtx["db"], batch: Pick<Batch, "organizationId" | "reportingPeriodId" | "createdAt">) {
+  const inPeriod = (status: "committing" | "committed") =>
+    db
+      .query("importBatches")
+      .withIndex("by_organizationId_and_reportingPeriodId_and_status_and_committedAt", (q) => {
+        const scoped = q.eq("organizationId", batch.organizationId).eq("reportingPeriodId", batch.reportingPeriodId).eq("status", status);
+        return status === "committed" ? scoped.gt("committedAt", batch.createdAt) : scoped;
+      })
+      .first();
+  return (await inPeriod("committing")) !== null || (await inPeriod("committed")) !== null;
+}
+
 /** Et grunnlag under oppretting finnes ikke for brukeren ennå. */
 async function ownedBatch(ctx: ReadCtx, batchId: string) {
   const batch = await getOwned(ctx, "importBatches", batchId);
@@ -297,6 +313,7 @@ export const startCommit = tenantMutation({
     const existing = await ownedBatch(ctx, batchId);
     if (existing.status !== "draft") return { status: existing.status };
     const batch = await draft(ctx, batchId, expectedRowVersion);
+    if (await isSuperseded(ctx.db, batch)) throw appError("IMPORT_STALE");
     for (const kind of DECIDED_KINDS) {
       if (!batch.policy[kind] && (await undecidedOf(ctx, batch, kind).first())) throw appError("IMPORT_UNDECIDED");
     }

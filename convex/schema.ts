@@ -120,7 +120,8 @@ export default defineSchema({
   // behandlet, og «committed». Ingenting slettes fra appen.
   importBatches: defineTable({ organizationId: v.id("organizations"), ...importBatchFields })
     .index("by_organizationId_and_idempotencyKey", ["organizationId", "idempotencyKey"])
-    .index("by_organizationId", ["organizationId"]),
+    .index("by_organizationId", ["organizationId"])
+    .index("by_organizationId_and_reportingPeriodId_and_status_and_committedAt", ["organizationId", "reportingPeriodId", "status", "committedAt"]),
 
   // Én oppføring per leverandør i filen, med valg og resultat. `rowNumber` er
   // første rad i filen oppføringen bygger på.

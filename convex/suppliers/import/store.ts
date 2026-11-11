@@ -10,6 +10,7 @@ import type { Id } from "../../_generated/dataModel";
 import { internalMutation, type MutationCtx } from "../../_generated/server";
 import { writeAudit } from "../../lib/audit";
 import { notFound } from "../../lib/errors";
+import { isSuperseded } from "./batches";
 import { industryCodeSystemValidator } from "../validators";
 import {
   columnMappingValidator,
@@ -64,10 +65,11 @@ export const createBatch = internalMutation({
       .withIndex("by_organizationId_and_idempotencyKey", (q) => q.eq("organizationId", organizationId).eq("idempotencyKey", idempotencyKey))
       .order("desc")
       .take(10);
-    const current = same.find(
-      (b) => b.status === "committing" || (b.status === "draft" && b.expiresAt > now && b.mappingVersion === IMPORT_MAPPING_VERSION),
-    );
-    if (current) return { batchId: current._id, reused: true };
+    for (const b of same) {
+      const usableDraft = b.status === "draft" && b.expiresAt > now && b.mappingVersion === IMPORT_MAPPING_VERSION;
+      // Et utdatert utkast gis ikke tilbake: ny opplasting skal gi forslag mot dagens leverandører.
+      if (b.status === "committing" || (usableDraft && !(await isSuperseded(ctx.db, b)))) return { batchId: b._id, reused: true };
+    }
     const batchId = await ctx.db.insert("importBatches", {
       organizationId,
       reportingPeriodId: period._id,
