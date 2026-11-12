@@ -786,7 +786,7 @@ pnpm test:e2e                     17/17
 pnpm build                        OK
 ```
 Underveis:
-- **Maskinen blokkerte arbeidet en stund.** Repoet lå på Skrivebordet, som iCloud synkroniserer. iCloud hadde flyttet innholdet i 1 237 filer under `node_modules` og noen under `.git/objects` ut av disken, så `convex dev --once`, typesjekk og alle convex-tester hang. Etter avtale ble repoet klonet på nytt til `~/Projects/Kjedeklar`, og det ucommittede arbeidet ble kopiert over og kontrollert fil for fil. Alle kjøringene over er fra den nye mappen.
+- **Maskinen blokkerte arbeidet en stund.** Repoet lå på Skrivebordet, som iCloud synkroniserer. iCloud hadde flyttet innholdet i 1 237 filer under `node_modules` og 71 under `.git/objects` ut av disken, så `convex dev --once`, typesjekk og alle convex-tester hang. Repoet ligger nå i `~/Downloads/Developer/Kjedeklar`: de 71 git-objektene ble hentet på nytt fra GitHub (alle kom tilbake), `node_modules` ble installert på nytt, og mappen ble flyttet. Kjøringene over er gjort utenfor iCloud; lint, typecheck, enhetstester, integrasjonstester og build er også kjørt fra den endelige plasseringen, e2e er ikke det.
 - Første integrasjonskjøring hadde én feil i en ny test: den brukte samme idempotensnøkkel for tre leverandører. Det viste også at en gjenbrukt nøkkel for et annet dokument ga en urelatert jobb tilbake. Nå avvises det med `CONFLICT`.
 - Workpool 0.4.16 ble utgitt dagen før og ble valgt bort til fordel for 0.4.15, som da var to uker gammel.
 
@@ -798,7 +798,7 @@ Underveis:
 - **Ingen visning, avbryting eller ny start** av jobber for brukeren.
 - **Handlere må selv være idempotente mot eksterne tjenester.** Mekanismen hindrer bare dobbel skriving i databasen.
 - **Ikke prøvd mot Convex Cloud.** Workpool er bare kjørt i convex-test og mot lokal selvhostet backend.
-- **Den gamle mappen `~/Desktop/Kjedeklar` finnes fortsatt.** Den skal ikke brukes.
+- **Én uforklart testfeil.** `tests/convex/jobs.test.ts` («dobbel innsending gir én jobb») feilet én gang i en full kjøring rett etter pakkeinstallasjon. Feilmeldingen ble ikke fanget opp, og testen har bestått i ti kjøringer etterpå, også med tom testbuffer. Årsaken er ikke funnet.
 
 ## Åpne eksterne avklaringer
 - Convex DPA, underleverandører og plassering av backup, logg og support (beslutning 0001). Må lukkes før ekte kundedata.
