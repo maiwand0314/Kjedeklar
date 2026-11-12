@@ -83,6 +83,8 @@ export function tenantRules(scope: TenantScope): ExhaustiveRules {
     // Grunnlaget lagres av intern mutasjon fra import-actionen. Admin velger og bekrefter i egen organisasjon.
     importBatches: { read: sameTenant, modify: sameTenant, insert: deny },
     importRows: { read: sameTenant, modify: sameTenant, insert: deny },
+    // Admin oppretter jobber i egen organisasjon. Status endres bare av interne jobbfunksjoner.
+    jobs: { read: sameTenant, modify: deny, insert: sameTenant },
   };
 }
 
@@ -116,6 +118,7 @@ export function userRules(
     supplierPeriods: { read: deny, modify: deny, insert: deny },
     importBatches: { read: deny, modify: deny, insert: deny },
     importRows: { read: deny, modify: deny, insert: deny },
+    jobs: { read: deny, modify: deny, insert: deny },
   };
 }
 
@@ -173,5 +176,6 @@ export function invitationRules(scope: InvitationScope): ExhaustiveRules {
     supplierPeriods: { read: deny, modify: deny, insert: deny },
     importBatches: { read: deny, modify: deny, insert: deny },
     importRows: { read: deny, modify: deny, insert: deny },
+    jobs: { read: deny, modify: deny, insert: deny },
   };
 }

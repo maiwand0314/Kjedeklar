@@ -21,6 +21,7 @@
 | supplier | `name`, `registryOrgNumber`, `externalKey`, `registeredCountry`, `industryCodeSystem`, `industryCode`, `status` |
 | supplierPeriod | `spendOre` (tekst i øre), `purchaseCategory`, `productionCountries` (koder), `upstreamUnknown`, aldri kjøpsbeskrivelsen |
 | importBatch | `status`, antall (`rowCount`, `entryCount`, `processed`, `created`, `updated`, `unchanged`, `skipped`, `conflicts`) og fellesvalgene, aldri filinnhold |
+| job | `type`, `status`, `attempts`, `maxAttempts`, `errorCode` (kort kode, aldri feilmelding) |
 
   Aldri passord, token, tokenhash, e-postadresser eller fritekst. Objekter og lister utelates. En invitasjon identifiseres med id, ikke e-post.
 - **Logget nå:**
@@ -36,6 +37,8 @@
 | `supplier.created` / `supplier.updated` / `supplier.archived` / `supplier.restored` | admin oppretter, endrer, arkiverer eller gjenoppretter leverandør (oppgave 09) | bruker |
 | `supplier_period.saved` | admin lagrer innkjøpsdata for en leverandør i en periode (oppgave 09) | bruker |
 | `import.created` / `import.confirmed` / `import.applied` | admin klargjør, bekrefter og gjennomfører en CSV-import (oppgave 11). Per batch, ikke per leverandør; se beslutning 0009 | bruker |
+| `job.created` | admin oppretter en bakgrunnsjobb (oppgave 12) | bruker |
+| `job.succeeded` / `job.failed` | jobben får sluttstatus; se beslutning 0010 | system |
 | `invitation.created` / `invitation.renewed` / `invitation.revoked` | admin | bruker |
 | `invitation.created` | operatør-bootstrap | system |
 | `invitation.accepted` og `membership.created` / `membership.status_changed` | aksept | aksepterende bruker |

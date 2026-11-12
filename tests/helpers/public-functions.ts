@@ -155,6 +155,27 @@ const ownBatchOnly = (status: "draft" | "committing") => async (run: Run, organi
   batchId: (await ownBatch(status)(run, organizationId, userId)).batchId,
 });
 
+/** Syntetisk jobb slik den lagres (uten organisasjon, referanse og bruker). */
+export const SYNTHETIC_JOB = {
+  type: "test.probe",
+  idempotencyKey: "syntetisk",
+  status: "queued" as const,
+  attempts: 0,
+  maxAttempts: 3,
+  runAfter: 0,
+  createdAt: 0,
+};
+
+/** Setter inn en egen leverandør og gir id-en som `inputRef` for en testjobb. */
+const ownJobInput = async (run: Run, organizationId: string, userId: string) => ({
+  inputRef: (await ownSupplier(run, organizationId, userId)).supplierId,
+});
+/** Setter inn en egen jobb og gir id-en som `jobId`. */
+const ownJob = async (run: Run, organizationId: string, userId: string) => {
+  const { inputRef } = await ownJobInput(run, organizationId, userId);
+  return { jobId: await run((db) => db.insert("jobs", { organizationId, inputRef, ...SYNTHETIC_JOB, createdBy: userId })) };
+};
+
 export type PublicFunctionReview =
   | (Common & { kind: "query"; ref: PublicQuery })
   | (Common & { kind: "mutation"; ref: PublicMutation })
@@ -384,6 +405,29 @@ export const reviewedPublicFunctions: Record<string, PublicFunctionReview> = {
     sampleArgs: { batchId: "ukjent" },
     note: "Gjennomfører neste stykke av en egen, bekreftet import (getOwned på batch og leverandører). Med revisjonslogg.",
     prepareOwn: ownBatchOnly("committing"),
+  },
+  "jobs/mutations:enqueue": {
+    kind: "mutation",
+    ref: api.jobs.mutations.enqueue,
+    boundary: "tenant",
+    sampleArgs: { type: "test.probe", inputRef: "ukjent", idempotencyKey: "syntetisk" },
+    note: "Oppretter en bakgrunnsjobb av en tillatt type for et eget dokument (getOwned), idempotent. Med revisjonslogg.",
+    prepareOwn: ownJobInput,
+  },
+  "jobs/queries:get": {
+    kind: "query",
+    ref: api.jobs.queries.get,
+    boundary: "tenant",
+    sampleArgs: { jobId: "ukjent" },
+    note: "Status for én egen jobb (getOwned).",
+    prepareOwn: ownJob,
+  },
+  "jobs/queries:list": {
+    kind: "query",
+    ref: api.jobs.queries.list,
+    boundary: "tenant",
+    sampleArgs: {},
+    note: "De siste jobbene i valgt organisasjon.",
   },
   "organizations/registry:current": {
     kind: "query",

@@ -23,6 +23,15 @@ import type * as invitations_internal from "../invitations/internal.js";
 import type * as invitations_model from "../invitations/model.js";
 import type * as invitations_mutations from "../invitations/mutations.js";
 import type * as invitations_queries from "../invitations/queries.js";
+import type * as jobs_handlers from "../jobs/handlers.js";
+import type * as jobs_internal from "../jobs/internal.js";
+import type * as jobs_model from "../jobs/model.js";
+import type * as jobs_mutations from "../jobs/mutations.js";
+import type * as jobs_pool from "../jobs/pool.js";
+import type * as jobs_queries from "../jobs/queries.js";
+import type * as jobs_run from "../jobs/run.js";
+import type * as jobs_testHandler from "../jobs/testHandler.js";
+import type * as jobs_types from "../jobs/types.js";
 import type * as lib_audit from "../lib/audit.js";
 import type * as lib_auditTypes from "../lib/auditTypes.js";
 import type * as lib_errors from "../lib/errors.js";
@@ -80,6 +89,15 @@ declare const fullApi: ApiFromModules<{
   "invitations/model": typeof invitations_model;
   "invitations/mutations": typeof invitations_mutations;
   "invitations/queries": typeof invitations_queries;
+  "jobs/handlers": typeof jobs_handlers;
+  "jobs/internal": typeof jobs_internal;
+  "jobs/model": typeof jobs_model;
+  "jobs/mutations": typeof jobs_mutations;
+  "jobs/pool": typeof jobs_pool;
+  "jobs/queries": typeof jobs_queries;
+  "jobs/run": typeof jobs_run;
+  "jobs/testHandler": typeof jobs_testHandler;
+  "jobs/types": typeof jobs_types;
   "lib/audit": typeof lib_audit;
   "lib/auditTypes": typeof lib_auditTypes;
   "lib/errors": typeof lib_errors;
@@ -144,4 +162,5 @@ export declare const internal: FilterApi<
 
 export declare const components: {
   betterAuth: import("@convex-dev/better-auth/_generated/component.js").ComponentApi<"betterAuth">;
+  jobWorkpool: import("@convex-dev/workpool/_generated/component.js").ComponentApi<"jobWorkpool">;
 };

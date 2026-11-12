@@ -14,7 +14,8 @@ Startpakke opprettet 6. november 2026. Dokumentasjonen ble samme dag skrevet om 
 | 08 | Implementert, verifisert lokalt og i CI, review-merknader rettet (PR #10) | Lokalt med Docker: lint, typecheck, 330 enhets-/convex-test-tester, 92 integrasjonstester, 14 e2e-tester og build. Etter review: lint, typecheck, enhetstester og e2e på nytt (ingen endring i Convex) | Perioder kan ikke endres eller slettes. Innholdet i eldre profilversjoner kan ikke åpnes i appen. Ugyldig periode i adressen gir «Ikke funnet» med HTTP 200 (beslutning 0006) |
 | 09 | Implementert og verifisert lokalt (branch `feature/09-suppliers`) | Lokalt med Docker: lint, typecheck, 417 enhets-/convex-test-tester, 112 integrasjonstester, 15 e2e-tester og build | Søk bare på starten av navnet. `externalKey` er ikke unik ennå. Ingen risiko, import eller Brreg-beriking (senere oppgaver) |
 | 10 | Implementert, verifisert lokalt og i CI, merget (PR #12 og #13) | Lokalt med Docker: lint, typecheck, 538 enhets-/convex-test-tester, 120 integrasjonstester, 16 e2e-tester og build | Bare forhåndsvisning; ingenting importeres før oppgave 11. Bare UTF-8. `externalKey` er fortsatt ikke unik. To lokale e2e-kjøringer fikk tidsavbrudd av uavklart årsak (se under) |
-| 11 | Implementert og verifisert lokalt (branch `feature/11-csv-import`) | Lokalt med Docker: lint, typecheck, 601 enhets-/convex-test-tester, 145 integrasjonstester, 17 e2e-tester og build | Importen drives av nettleseren og fortsetter ikke av seg selv etter et avbrudd. Revisjonslogg per batch, ikke per leverandør. Feilrader kan ikke rettes i appen |
+| 11 | Implementert, verifisert lokalt og i CI, review-merknader rettet, merget (PR #14) | Lokalt med Docker: lint, typecheck, 601 enhets-/convex-test-tester, 145 integrasjonstester, 17 e2e-tester og build | Importen drives av nettleseren og fortsetter ikke av seg selv etter et avbrudd. Revisjonslogg per batch, ikke per leverandør. Feilrader kan ikke rettes i appen |
+| 12 | Implementert og verifisert lokalt (branch `feature/12-jobs`) | Lokalt med Docker: lint, typecheck, 636 enhets-/convex-test-tester, 160 integrasjonstester, 17 e2e-tester og build | Bare en kontrollert testtype; ingen jobbtype for produksjon og ingen visning i grensesnittet ennå. Workpool er under 1.0 (låst 0.4.15) |
 
 Oppdater ved hver oppgave. Bruk «implementert», «verifisert» og «ekstern avklaring» presist. Et lokalt fake-resultat betyr ikke at en ekstern integrasjon er godkjent.
 
@@ -738,6 +739,66 @@ Underveis:
 - **Arkivering etter at grunnlaget ble laget oppdages ikke.**
 - **Importgrunnlag slettes ikke**; lagringstid avklares i oppgave 27.
 - **Convex sine grenser er lest fra dokumentasjonen på nett**, ikke fra den installerte pakken, som ikke har dem. 2 000 oppføringer er prøvd mot lokal backend.
+
+## Oppgave 12 – varige bakgrunnsjobber
+
+Beslutninger og begrunnelser står i `docs/decisions/0010-bakgrunnsjobber.md`.
+
+### Endret
+- **Ny pakke:** `@convex-dev/workpool` 0.4.15, låst eksakt (under 1.0). Registrert som komponenten `jobWorkpool` i `convex/convex.config.ts`.
+- **`jobs`-tabellen:** organisasjon, type, `inputRef`, `idempotencyKey`, status, forsøk, maks forsøk, `runAfter`, feilkode og tidsstempler. Indeksene starter med `organizationId`. RLS lar tenantfunksjoner lese og opprette, aldri endre.
+- **`convex/jobs/`:**
+  - `handlers.ts` og `types.ts`: listen over tillatte jobbtyper og formen på en handler;
+  - `model.ts`: `enqueueJob`, som oppretter en jobb idempotent og legger den i køen i samme transaksjon;
+  - `mutations.ts`: `enqueue` (`tenantMutation`);
+  - `queries.ts`: `get` og `list` (`tenantQuery`);
+  - `internal.ts`: `begin`, `attemptFailed`, `complete` og `completed`;
+  - `run.ts`: den interne actionen køen kaller for hvert forsøk;
+  - `pool.ts`: køen, med fem samtidige jobber;
+  - `testHandler.ts`: den kontrollerte testtypen `test.probe`.
+- **`getOwned`** krever nå bare organisasjonen fra tenantkonteksten, så interne jobbfunksjoner kan bruke den med tenant fra den lagrede jobben.
+- **ESLint:** bare `convex/jobs/pool.ts` får koble til workpool-komponenten.
+- **Revisjonsloggen i Innstillinger** har tekst og filter for «Bakgrunnsjobber».
+- **Ikke bygget:** jobbtyper for Brreg, AI og PDF, visning av jobber, avbryting og egen workerprosess.
+
+### Akseptkriterier
+1. *Dobbel innsending gir én jobb, og samme jobb kjøres ikke dobbelt eller skriver resultat to ganger:* convex-test for gjentatt innsending og for resultat som leveres flere ganger; integrasjonstest med to samtidige klienter.
+2. *Feilet eller avbrutt action prøves på nytt til maks forsøk og får terminal feilstatus:* convex-test med falske klokker, og integrasjonstest der køen gjør tre ekte forsøk med ventetid før jobben får `failed`.
+3. *En jobb kan ikke skrive til feil tenant eller velge egen handler:* ukjent type og innebygde navn avvises, fremmed referanse avvises ved opprettelse, og en lagret jobb med fremmed referanse eller ukjent type stoppes før arbeidet.
+4. *Interne jobbfunksjoner kan ikke kalles fra klient; status leses bare av rett kunde:* én probe per intern funksjon mot lokal backend, og `NOT_FOUND` for en annen organisasjons jobb.
+
+### Tester
+- `tests/convex/jobs.test.ts` (17) med falske klokker: dobbel innsending, annen nøkkel og organisasjon, gjenbrukt nøkkel for annet dokument, tillatte typer, testtypen utenfor testmiljø, fremmed referanse, forsøk med økende ventetid, sluttstatus etter maks forsøk, stoppende feil, uventet feil uten feilmelding i loggen, resultat i feil form, idempotent resultat, sent resultat, gammelt forsøk, ukjent handler på lagret jobb, slettet eller fremmed referanse, forsøk utover maks, og status per organisasjon.
+- `tests/convex/jobs-rollback.test.ts` (1): feiler revisjonsloggen, finnes verken jobben eller noe i køen.
+- `tests/integration/jobs.test.ts` (3) mot lokal backend: to samtidige innsendinger, ekte forsøk og sluttstatus gjennom køen, og isolasjon mellom organisasjoner.
+- `tests/integration/tenancy.test.ts`: seks nye prober for de interne jobbfunksjonene, og standardtestene for de tre offentlige.
+- `tests/unit/next-no-admin-key.test.ts` (3): Next.js-koden leser ikke deploy key eller admin key og importerer ikke interne funksjoner.
+- Registrene er oppdatert: tre offentlige funksjoner, én kundetabell, fem mutasjoner og seks interne funksjoner.
+
+### Kjørte kommandoer (12.11.2026, lokalt med Docker)
+```text
+pnpm install --frozen-lockfile    OK
+pnpm convex:deploy:local          OK (komponenten jobWorkpool installert; convex/_generated oppdatert)
+pnpm lint / pnpm typecheck        OK
+pnpm test:unit                    636/636
+pnpm test:integration             160/160
+pnpm test:e2e                     17/17
+pnpm build                        OK
+```
+Underveis:
+- **Maskinen blokkerte arbeidet en stund.** Repoet lå på Skrivebordet, som iCloud synkroniserer. iCloud hadde flyttet innholdet i 1 237 filer under `node_modules` og noen under `.git/objects` ut av disken, så `convex dev --once`, typesjekk og alle convex-tester hang. Etter avtale ble repoet klonet på nytt til `~/Projects/Kjedeklar`, og det ucommittede arbeidet ble kopiert over og kontrollert fil for fil. Alle kjøringene over er fra den nye mappen.
+- Første integrasjonskjøring hadde én feil i en ny test: den brukte samme idempotensnøkkel for tre leverandører. Det viste også at en gjenbrukt nøkkel for et annet dokument ga en urelatert jobb tilbake. Nå avvises det med `CONFLICT`.
+- Workpool 0.4.16 ble utgitt dagen før og ble valgt bort til fordel for 0.4.15, som da var to uker gammel.
+
+### Manuell prøve
+- Ingen. Jobbene har ikke noe grensesnitt, og testtypen kan bare opprettes i lokale testmiljø.
+
+### Ikke gjort / begrensninger
+- **Ingen jobbtype for produksjon.** Mekanismen er bare prøvd med testtypen.
+- **Ingen visning, avbryting eller ny start** av jobber for brukeren.
+- **Handlere må selv være idempotente mot eksterne tjenester.** Mekanismen hindrer bare dobbel skriving i databasen.
+- **Ikke prøvd mot Convex Cloud.** Workpool er bare kjørt i convex-test og mot lokal selvhostet backend.
+- **Den gamle mappen `~/Desktop/Kjedeklar` finnes fortsatt.** Den skal ikke brukes.
 
 ## Åpne eksterne avklaringer
 - Convex DPA, underleverandører og plassering av backup, logg og support (beslutning 0001). Må lukkes før ekte kundedata.
