@@ -22,6 +22,7 @@ import {
   SYNTHETIC_APPLICABILITY_INPUT,
   SYNTHETIC_IMPORT_BATCH,
   SYNTHETIC_IMPORT_ROW,
+  SYNTHETIC_JOB,
   SYNTHETIC_PERIOD,
   SYNTHETIC_PROFILE_ANSWERS,
   SYNTHETIC_REGISTRY_PROFILE,
@@ -159,6 +160,13 @@ export const tenantTableCases: { [T in TenantTable]: TenantTableCase<T> } = {
     patch: { decision: "skip" },
     tenantCanModifyOwn: true,
     tenantCanInsertOwn: false,
+  },
+  jobs: {
+    newDoc: ({ organizationId, userId, supplierId }) => ({ organizationId, inputRef: supplierId, ...SYNTHETIC_JOB, createdBy: userId }),
+    patch: { status: "succeeded" },
+    // Admin oppretter jobber; status endres bare av interne jobbfunksjoner.
+    tenantCanModifyOwn: false,
+    tenantCanInsertOwn: true,
   },
   registrySnapshots: {
     newDoc: ({ organizationId, userId }) => ({

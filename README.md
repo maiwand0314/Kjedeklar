@@ -97,6 +97,7 @@ tests/{unit,convex,integration,e2e,helpers}/
 | nodemailer | 10.3.1 |
 | typescript | 5.9.3 |
 | papaparse | 5.7.0 (lagt til 10. november 2026 for CSV-import, se beslutning 0008) |
+| @convex-dev/workpool | 0.4.15 (under 1.0, låst eksakt; lagt til 12. november 2026 for bakgrunnsjobber, se beslutning 0010) |
 
 Docker-images er låst til revisjon og digest i `compose.yml`:
 - `ghcr.io/convex/convex-backend:1447815c…` (commit fra 22. oktober 2026). Convex publiserer self-hosted bare som rullerende revisjoner. Vi velger derfor bevisst en revisjon som er minst to uker gammel, og oppgraderer kontrollert ved å bytte tag og digest.

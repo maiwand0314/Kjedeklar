@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
 import betterAuthTest from "@convex-dev/better-auth/test";
+import workpoolTest from "@convex-dev/workpool/test";
 import { convexTest } from "convex-test";
 import { components } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
@@ -17,9 +18,15 @@ globalThis.fetch = (async () => {
   throw new TypeError("Nettverk er stoppet i convex-test");
 }) as typeof fetch;
 
+// convex-test er et lokalt testmiljø: funksjoner med miljøsperre (assertLocalEnv) og
+// testjobbtypen skal virke her, slik de gjør på den lokale test-backenden.
+process.env.KJEDEKLAR_ENV = "test";
+process.env.CONVEX_CLOUD_URL = "http://127.0.0.1:3220";
+
 export function setupTest() {
   const t = convexTest(schema, modules);
   betterAuthTest.register(t, "betterAuth");
+  workpoolTest.register(t, "jobWorkpool");
   return t;
 }
 

@@ -39,6 +39,15 @@ export const auditedMutations: Record<string, AuditClassification> = {
   "suppliers/import/store:addEntries": {
     exempt: "Lagrer oppføringer i et grunnlag under oppretting; logges samlet når grunnlaget er ferdig (finalizeBatch).",
   },
+  "jobs/internal:begin": { logged: true },
+  "jobs/internal:complete": { logged: true },
+  "jobs/internal:completed": { logged: true },
+  "jobs/mutations:enqueue": {
+    exempt: "Kaller enqueueJob i convex/jobs/model.ts, som skriver job.created i samme mutasjon (dekket av jobbtestene).",
+  },
+  "jobs/internal:attemptFailed": {
+    exempt: "Registrerer feilkode og ventetid for ett forsøk. Opprettelse og sluttstatus logges; hvert forsøk gjør det ikke.",
+  },
   "organizations/registryInternal:storePreview": {
     exempt: "Lagrer bare en forhåndsvisning av et Brreg-oppslag; ingen kundedata endres før bekreftelse, som logges.",
   },

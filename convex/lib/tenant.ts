@@ -168,7 +168,7 @@ export const userQuery = customQuery(query, {
  * tabell, slettet og fremmed dokument gir samme NOT_FOUND.
  */
 export async function getOwned<T extends TenantTable>(
-  ctx: { db: GenericDatabaseReader<DataModel>; tenant: Tenant },
+  ctx: { db: GenericDatabaseReader<DataModel>; tenant: Pick<Tenant, "organizationId"> },
   table: T,
   id: string,
 ): Promise<Doc<T>> {

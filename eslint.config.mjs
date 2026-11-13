@@ -83,6 +83,16 @@ const eslintConfig = defineConfig([
     },
   },
   {
+    // Eneste sted som får koble til workpool-komponenten for bakgrunnsjobber.
+    files: ["convex/jobs/pool.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        { paths: [genericConvexFunctions], patterns: [rawConvexFunctions] },
+      ],
+    },
+  },
+  {
     files: ["src/**/*.ts", "src/**/*.tsx"],
     rules: {
       "no-restricted-imports": ["error", { patterns: nextToConvexInternals }],

@@ -130,6 +130,27 @@ export default defineSchema({
     .index("by_organizationId_and_batchId_and_rowNumber", ["organizationId", "batchId", "rowNumber"])
     .index("by_organizationId_and_batchId_and_kind_and_decision", ["organizationId", "batchId", "kind", "decision"]),
 
+  // Bakgrunnsjobber (oppgave 12). Opprettes av en tenantmutasjon, idempotent på
+  // (organisasjon, type, idempotencyKey). Status endres bare av interne
+  // funksjoner. `inputRef` er id-en til et dokument i samme organisasjon, i
+  // tabellen jobbtypen arbeider på; `runAfter` er tidligste neste forsøk.
+  jobs: defineTable({
+    organizationId: v.id("organizations"),
+    type: v.string(),
+    inputRef: v.string(),
+    idempotencyKey: v.string(),
+    status: v.union(v.literal("queued"), v.literal("running"), v.literal("succeeded"), v.literal("failed")),
+    attempts: v.number(),
+    maxAttempts: v.number(),
+    runAfter: v.number(),
+    errorCode: v.optional(v.string()),
+    createdAt: v.number(),
+    createdBy: v.string(),
+    finishedAt: v.optional(v.number()),
+  })
+    .index("by_organizationId_and_type_and_idempotencyKey", ["organizationId", "type", "idempotencyKey"])
+    .index("by_organizationId", ["organizationId"]),
+
   memberships: defineTable({
     organizationId: v.id("organizations"),
     // Better Auth-brukerens id (dokument i komponentens user-tabell).

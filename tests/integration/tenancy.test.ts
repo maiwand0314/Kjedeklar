@@ -222,6 +222,31 @@ describe("tenant-isolasjon mot lokal Convex-backend", () => {
       }),
       verifyNoEffect: async () => {},
     },
+    "jobs/internal:begin": {
+      args: ({ fx }) => ({ jobId: fx.orgA }),
+      verifyNoEffect: async () => {},
+    },
+    "jobs/internal:attemptFailed": {
+      args: ({ fx }) => ({ jobId: fx.orgA, attempt: 1, errorCode: "KAPRET" }),
+      verifyNoEffect: async () => {},
+    },
+    "jobs/internal:complete": {
+      args: ({ fx }) => ({ jobId: fx.orgA, output: { echoed: "kapret" } }),
+      verifyNoEffect: async () => {},
+    },
+    "jobs/internal:completed": {
+      args: ({ fx }) => ({ workId: "kapret", context: { jobId: fx.orgA }, result: { kind: "success", returnValue: null } }),
+      verifyNoEffect: async () => {},
+    },
+    "jobs/run:run": {
+      args: ({ fx }) => ({ jobId: fx.orgA }),
+      verifyNoEffect: async () => {},
+    },
+    "jobs/testHandler:probeControl": {
+      // Query: et vellykket kall ville lest en leverandør i B. Avslaget er beviset.
+      args: ({ fx }) => ({ organizationId: fx.orgB, supplierId: fx.orgB }),
+      verifyNoEffect: async () => {},
+    },
     "invitations/internal:findValid": {
       // Query: et vellykket kall ville bekreftet et token. Avslaget er beviset.
       args: () => ({ token: "x".repeat(43) }),

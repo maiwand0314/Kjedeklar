@@ -25,6 +25,9 @@ const EVENTS: Record<string, string> = {
   "import.created": "Importgrunnlag laget",
   "import.confirmed": "Import bekreftet",
   "import.applied": "Import gjennomført",
+  "job.created": "Bakgrunnsjobb opprettet",
+  "job.succeeded": "Bakgrunnsjobb fullført",
+  "job.failed": "Bakgrunnsjobb feilet",
 };
 
 const FIELDS: Record<string, string> = {
@@ -60,6 +63,10 @@ const FIELDS: Record<string, string> = {
   skipped: "Utelatt",
   conflicts: "Ikke importert",
   processed: "Behandlet",
+  type: "Type",
+  attempts: "Forsøk",
+  maxAttempts: "Maks antall forsøk",
+  errorCode: "Feilkode",
   ...Object.fromEntries(PROFILE_TOPICS.map((t) => [t.key, t.label])),
 };
 
@@ -78,6 +85,10 @@ const VALUES: Record<string, string> = {
   draft: "utkast",
   committing: "bekreftet, pågår",
   committed: "fullført",
+  queued: "i kø",
+  running: "kjører",
+  succeeded: "fullført",
+  failed: "feilet",
   create: "opprett",
   update: "oppdater",
   skip: "utelat",
@@ -97,6 +108,7 @@ const FILTERS = [
   { key: "supplier", label: "Leverandører" },
   { key: "supplierPeriod", label: "Innkjøpsdata" },
   { key: "importBatch", label: "Import" },
+  { key: "job", label: "Bakgrunnsjobber" },
 ] as const;
 
 type EntityType = NonNullable<(typeof FILTERS)[number]["key"]>;

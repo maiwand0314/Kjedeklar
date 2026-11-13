@@ -16,7 +16,7 @@ export default defineConfig({
           name: "convex",
           include: ["tests/convex/**/*.test.ts"],
           environment: "edge-runtime",
-          server: { deps: { inline: ["convex-test", "@convex-dev/better-auth"] } },
+          server: { deps: { inline: ["convex-test", "@convex-dev/better-auth", "@convex-dev/workpool", "@convex-dev/batch-worker"] } },
         },
       },
       {

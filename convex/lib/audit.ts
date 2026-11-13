@@ -33,6 +33,8 @@ export const AUDIT_DIFF_FIELDS: Record<AuditEntityType, readonly string[]> = {
     "status", "rowCount", "entryCount", "policyKnown", "policyNewWarning", "policyError", "policyUnclear",
     "created", "updated", "unchanged", "skipped", "conflicts", "processed",
   ],
+  // Feilkoden er en kort kode fra jobbtypen, aldri en feilmelding med innhold.
+  job: ["type", "status", "attempts", "maxAttempts", "errorCode"],
 };
 
 type DiffValue = string | number | boolean | null;
