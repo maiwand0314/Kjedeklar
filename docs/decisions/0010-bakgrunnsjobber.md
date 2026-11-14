@@ -8,16 +8,16 @@
 ## Hva mekanismen er
 En liten jobbmekanisme for arbeid som ikke kan gjøres i én mutasjon: Brreg-oppslag i bolk (oppgave 13), AI (oppgave 19) og PDF (oppgave 24). Den består av `jobs`-tabellen, en liste over tillatte jobbtyper og køen `@convex-dev/workpool` 0.4.15 (låst versjon; 0.4.16 var én dag gammel da den ble valgt bort).
 
-Det er ikke et generelt automasjonssystem. Det finnes ingen egen kø og ingen egen workerprosess, og ingen jobbtype for produksjon ennå: bare en kontrollert testtype.
+Det er ikke et generelt automasjonssystem. Det finnes ingen egen kø og ingen egen workerprosess. Jobbtyper: `brreg.enrich` (oppgave 13, se [0011](0011-brreg-beriking.md)) og en kontrollert testtype.
 
 ## Livsløp
-1. **Opprettelse:** en tenantmutasjon kaller `enqueueJob` (`convex/jobs/model.ts`). Den slår opp typen i listen over tillatte handlere, laster `inputRef` med `getOwned`, og slår opp (organisasjon, type, `idempotencyKey`) i indeksen. Finnes jobben, returneres den uten ny kjøring. Ellers settes jobben inn, legges i køen og logges, alt i samme transaksjon.
+1. **Opprettelse:** en tenantmutasjon kaller `enqueueJob` (`convex/jobs/model.ts`). Det generelle endepunktet `jobs/mutations:enqueue` kan bare opprette testtyper; jobber for produksjon opprettes av egne tenantmutasjoner. Den slår opp typen i listen over tillatte handlere, laster `inputRef` med `getOwned`, og slår opp (organisasjon, type, `idempotencyKey`) i indeksen. Finnes jobben, returneres den uten ny kjøring. Ellers settes jobben inn, legges i køen og logges, alt i samme transaksjon.
 2. **Forsøk:** køen kaller den interne actionen `jobs/run:run` med bare jobb-id-en.
    - `begin` (intern mutasjon) laster jobben, kontrollerer typen og referansen på nytt, øker `attempts` og setter status `running`.
    - Handleren gjør arbeidet i actionen.
    - `complete` (intern mutasjon) validerer resultatet, skriver det og setter `succeeded`.
 3. **Feil:** `attemptFailed` registrerer feilkode og tidligste neste forsøk, og feilen kastes videre så køen prøver igjen.
-4. **Sluttstatus:** `completed` kalles av køen når den er ferdig med jobben, også når den har gitt opp, og setter `failed` hvis jobben ikke alt har sluttstatus.
+4. **Sluttstatus:** `completed` kalles av køen når den er ferdig med jobben, også når den har gitt opp, og setter `failed` hvis jobben ikke alt har sluttstatus. Settes `failed`, kaller sluttstatusen jobbtypens valgfrie `onFailed`-hook i samme mutasjon, så typens egne data kan vise feilen.
 
 Status er `queued`, `running`, `succeeded` eller `failed`.
 
@@ -73,7 +73,7 @@ Status er `queued`, `running`, `succeeded` eller `failed`.
 Diff: type, status, forsøk, maks forsøk og feilkode. Hvert enkelt forsøk logges ikke.
 
 ## Kjente begrensninger
-- Ingen jobbtype for produksjon. De kommer med oppgavene som trenger dem.
+- Bare én jobbtype for produksjon (`brreg.enrich`). Flere kommer med oppgavene som trenger dem.
 - Ingen visning av jobber i grensesnittet; bare spørringene finnes.
 - Jobber kan ikke avbrytes eller startes på nytt av brukeren.
 - `leaseUntil` og `lockedBy` fra den opprinnelige datamodellen er ikke med. De hører til PDF-workeren (oppgave 24).

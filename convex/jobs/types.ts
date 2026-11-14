@@ -20,6 +20,8 @@ export type JobHandler<Output = unknown> = {
   output: z.ZodType<Output>;
   /** Skriver resultatet, i samme mutasjon som setter jobben til fullført. Kalles høyst én gang per jobb. */
   apply?: (ctx: MutationCtx, job: Doc<"jobs">, output: Output) => Promise<void>;
+  /** Kalles i samme mutasjon som setter sluttstatus «failed», så jobbtypens egne data kan vise feilen. Referansen kan være borte. */
+  onFailed?: (ctx: MutationCtx, job: Doc<"jobs">, errorCode: string) => Promise<void>;
 };
 
 /**

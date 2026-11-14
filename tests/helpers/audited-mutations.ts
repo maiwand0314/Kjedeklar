@@ -39,6 +39,11 @@ export const auditedMutations: Record<string, AuditClassification> = {
   "suppliers/import/store:addEntries": {
     exempt: "Lagrer oppføringer i et grunnlag under oppretting; logges samlet når grunnlaget er ferdig (finalizeBatch).",
   },
+  "suppliers/enrichment:request": { logged: true },
+  "suppliers/enrichment:requestMissing": {
+    exempt: "Kaller requestOne for hver leverandør, som skriver supplier.registry_requested i samme mutasjon (dekket av beriketestene).",
+  },
+  "suppliers/enrichment:applySuggestion": { logged: true },
   "jobs/internal:begin": { logged: true },
   "jobs/internal:complete": { logged: true },
   "jobs/internal:completed": { logged: true },

@@ -56,6 +56,8 @@ import type * as organizations_registry from "../organizations/registry.js";
 import type * as organizations_registryInternal from "../organizations/registryInternal.js";
 import type * as organizations_registryValidators from "../organizations/registryValidators.js";
 import type * as organizations_reportingPeriods from "../organizations/reportingPeriods.js";
+import type * as suppliers_enrichment from "../suppliers/enrichment.js";
+import type * as suppliers_enrichmentJob from "../suppliers/enrichmentJob.js";
 import type * as suppliers_import_actions from "../suppliers/import/actions.js";
 import type * as suppliers_import_batches from "../suppliers/import/batches.js";
 import type * as suppliers_import_internal from "../suppliers/import/internal.js";
@@ -122,6 +124,8 @@ declare const fullApi: ApiFromModules<{
   "organizations/registryInternal": typeof organizations_registryInternal;
   "organizations/registryValidators": typeof organizations_registryValidators;
   "organizations/reportingPeriods": typeof organizations_reportingPeriods;
+  "suppliers/enrichment": typeof suppliers_enrichment;
+  "suppliers/enrichmentJob": typeof suppliers_enrichmentJob;
   "suppliers/import/actions": typeof suppliers_import_actions;
   "suppliers/import/batches": typeof suppliers_import_batches;
   "suppliers/import/internal": typeof suppliers_import_internal;

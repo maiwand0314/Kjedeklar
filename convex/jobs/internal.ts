@@ -34,6 +34,7 @@ async function finish(ctx: MutationCtx, job: Job, status: "succeeded" | "failed"
     before: jobSnapshot(job),
     after: jobSnapshot({ ...job, ...changes }),
   });
+  if (status === "failed") await jobHandler(job.type)?.onFailed?.(ctx, job, errorCode ?? "UNEXPECTED");
 }
 
 /** Handleren og referansen jobben gjelder, eller en feilkode når jobben ikke kan kjøres. */

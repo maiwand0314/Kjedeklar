@@ -9,7 +9,7 @@ import {
 import { profileAnswerFields } from "./organizations/profileValidators";
 import { registryProfileValidator } from "./organizations/registryValidators";
 import { importBatchFields, importRowFields } from "./suppliers/import/validators";
-import { supplierPeriodFields, supplierProfileFields } from "./suppliers/validators";
+import { industryCodeSourceValidator, registryEnrichmentValidator, supplierPeriodFields, supplierProfileFields } from "./suppliers/validators";
 
 // Better Auth-tabellene ligger i komponenten @convex-dev/better-auth, ikke her.
 export default defineSchema({
@@ -40,10 +40,14 @@ export default defineSchema({
     selectedFields: registryProfileValidator,
     sourcePayloadHash: v.string(),
     mappingVersion: v.string(),
-    status: v.union(v.literal("preview"), v.literal("confirmed")),
+    // «fetched»: hentet for en leverandør (oppgave 13). Historikk, endres ikke.
+    status: v.union(v.literal("preview"), v.literal("confirmed"), v.literal("fetched")),
+    supplierId: v.optional(v.id("suppliers")),
     confirmedAt: v.optional(v.number()),
     confirmedBy: v.optional(v.string()),
-  }).index("by_organizationId_and_fetchedAt", ["organizationId", "fetchedAt"]),
+  })
+    .index("by_organizationId_and_fetchedAt", ["organizationId", "fetchedAt"])
+    .index("by_organizationId_and_supplierId_and_fetchedAt", ["organizationId", "supplierId", "fetchedAt"]),
 
   // Veiledende pliktvurdering (oppgave 07). Ny rad per vurdering; gamle endres
   // aldri. Resultatet er regnet ut på serveren fra input og regelversjon.
@@ -92,6 +96,9 @@ export default defineSchema({
     organizationId: v.id("organizations"),
     ...supplierProfileFields,
     nameKey: v.string(),
+    // Brreg-beriking (oppgave 13). Rører ikke `rowVersion`: status er ikke en profilendring.
+    registryEnrichment: v.optional(registryEnrichmentValidator),
+    industryCodeSource: v.optional(industryCodeSourceValidator),
     status: v.union(v.literal("active"), v.literal("archived")),
     archivedAt: v.optional(v.number()),
     rowVersion: v.number(),

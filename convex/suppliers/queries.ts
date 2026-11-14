@@ -1,8 +1,9 @@
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
+import { registryStateOf } from "../../src/domain/suppliers/registry";
 import { nameKey } from "../../src/domain/suppliers/supplier";
 import { getOwned, tenantQuery } from "../lib/tenant";
-import { supplierPeriodFields, supplierProfileFields } from "./validators";
+import { registryStateValidator, supplierPeriodFields, supplierProfileFields } from "./validators";
 
 /**
  * Leverandører i valgt organisasjon, sortert på navn og paginert. Aktive som
@@ -17,6 +18,8 @@ export const list = tenantQuery({
         name: v.string(),
         registryOrgNumber: v.optional(v.string()),
         registeredCountry: v.optional(v.string()),
+        // Status for Brreg-beriking: uten norsk org.nr. er den «ikke relevant».
+        registryState: registryStateValidator,
       }),
     ),
     isDone: v.boolean(),
@@ -39,6 +42,7 @@ export const list = tenantQuery({
         name: s.name,
         registryOrgNumber: s.registryOrgNumber,
         registeredCountry: s.registeredCountry,
+        registryState: registryStateOf(s),
       })),
       isDone: result.isDone,
       continueCursor: result.continueCursor,

@@ -12,6 +12,8 @@ export const auditEventTypes = v.union(
   v.literal("supplier.updated"),
   v.literal("supplier.archived"),
   v.literal("supplier.restored"),
+  v.literal("supplier.registry_requested"),
+  v.literal("supplier.registry_fetched"),
   v.literal("supplier_period.saved"),
   v.literal("import.created"),
   v.literal("import.confirmed"),

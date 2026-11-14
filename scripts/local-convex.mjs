@@ -123,6 +123,8 @@ const setSecret = (name, value) => convex(["env", "set", name], { capture: true,
 if (!has("BETTER_AUTH_SECRET")) setSecret("BETTER_AUTH_SECRET", randomBytes(32).toString("base64"));
 setEnv("SITE_URL", target.appUrl);
 setEnv("KJEDEKLAR_ENV", target.env);
+// Test-backenden slår opp mot en falsk Brreg-tjeneste som integrasjonstestene starter på vertsmaskinen.
+if (target.env === "test") setEnv("BRREG_ENHET_URL", "http://host.docker.internal:38100/enheter/");
 setSecret("AUTH_PROXY_SECRET", proxySecret);
 // Lokal e-post går bare til Mailpit på compose-nettverket.
 setEnv("SMTP_HOST", "mailpit");

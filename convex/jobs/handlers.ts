@@ -4,11 +4,13 @@
  * `inputRef` peker inn i, hvor mange forsøk den får, hva arbeidet er (i en
  * action) og hvordan resultatet skrives (i en mutasjon). Se types.ts.
  */
+import { brregEnrichHandler } from "../suppliers/enrichmentJob";
 import { probeHandler } from "./testHandler";
 import type { JobHandler } from "./types";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- hver type har sin egen form på resultatet
 const HANDLERS: Record<string, JobHandler<any>> = {
+  "brreg.enrich": brregEnrichHandler,
   "test.probe": probeHandler,
 };
 

@@ -284,6 +284,11 @@ describe("tenant-isolasjon mot lokal Convex-backend", () => {
       args: ({ fx }) => ({ organizationId: fx.orgB }),
       verifyNoEffect: async () => {},
     },
+    "suppliers/enrichmentJob:orgNumberFor": {
+      // Query: et vellykket kall ville gitt org.nr. for en leverandør i en annen organisasjon.
+      args: ({ fx }) => ({ organizationId: fx.orgA, supplierId: "ukjent" }),
+      verifyNoEffect: async () => {},
+    },
     "organizations/registryInternal:storePreview": {
       args: ({ fx }) => ({
         organizationId: fx.orgA,

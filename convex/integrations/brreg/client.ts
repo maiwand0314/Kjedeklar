@@ -6,6 +6,7 @@
  */
 import { BRREG_MAPPING_VERSION, enhetSchema, toProfile, type RegistryProfile } from "../../../src/domain/brreg/enhet";
 import { sha256Hex } from "../../email/seal";
+import { isLocalDeploymentUrl } from "../../ops/guard";
 
 export const BRREG_ENHET_URL = "https://data.brreg.no/enhetsregisteret/api/enheter/";
 
@@ -22,6 +23,16 @@ export type BrregResult =
   | { kind: "invalid" } // 400
   | { kind: "unavailable"; reason: "timeout" | "rate_limited" | "server_error" | "network" }
   | { kind: "contract_changed" }; // svaret matcher ikke kontrakten
+
+/**
+ * Integrasjonstester peker adapteren mot en falsk Brreg-tjeneste med
+ * `BRREG_ENHET_URL`. Variabelen leses bare på en lokal test-backend; ellers
+ * brukes alltid Enhetsregisteret.
+ */
+const enhetUrl = () => {
+  const override = process.env.BRREG_ENHET_URL;
+  return override && process.env.KJEDEKLAR_ENV === "test" && isLocalDeploymentUrl(process.env.CONVEX_CLOUD_URL) ? override : BRREG_ENHET_URL;
+};
 
 type Options = {
   fetchImpl?: typeof fetch;
@@ -42,7 +53,7 @@ export async function fetchEnhet(orgNumber: string, options: Options = {}): Prom
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const response = await fetchImpl(`${BRREG_ENHET_URL}${orgNumber}`, {
+      const response = await fetchImpl(`${enhetUrl()}${orgNumber}`, {
         headers: { accept: "application/json" },
         signal: controller.signal,
       });
