@@ -99,3 +99,49 @@ export async function saveSupplierPeriodAction(
     return failure(error);
   }
 }
+
+/** Ber om Brreg-oppslag for én leverandør. Oppslaget kjører i bakgrunnen; status vises på siden. */
+export async function requestRegistryAction(organizationId: string, supplierId: unknown): Promise<FormState> {
+  const valid = id.safeParse(supplierId);
+  if (!valid.success) return INVALID_FORM;
+  try {
+    await fetchAuthMutation(api.suppliers.enrichment.request, { organizationId, supplierId: valid.data });
+  } catch (error) {
+    return failure(error);
+  }
+  revalidatePath(`/o/${organizationId}/leverandorer`);
+  return { status: "ok" };
+}
+
+/** Ber om oppslag for leverandørene som ikke er hentet ennå, høyst 50 om gangen. */
+export async function requestMissingRegistryAction(organizationId: string): Promise<FormState> {
+  try {
+    const { requested, moreAvailable } = await fetchAuthMutation(api.suppliers.enrichment.requestMissing, { organizationId });
+    revalidatePath(`/o/${organizationId}/leverandorer`);
+    const text = requested === 0 ? "Ingen leverandører venter på oppslag." : `Henter fra Enhetsregisteret for ${requested} leverandører.`;
+    return { status: "ok", message: moreAvailable ? `${text} Flere venter: trykk igjen når disse er ferdige.` : text };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+/** Godtar ett registerforslag. Kodeverket for en næringskode velges av brukeren. */
+export async function applyRegistrySuggestionAction(organizationId: string, input: unknown): Promise<FormState> {
+  const valid = z
+    .object({
+      supplierId: id,
+      expectedRowVersion: version,
+      field: z.enum(["name", "registeredCountry", "industryCode"]),
+      expectedValue: z.string().max(400),
+      industryCodeSystem: z.enum(["SN2007", "SN2025"]).optional(),
+    })
+    .safeParse(input);
+  if (!valid.success) return INVALID_FORM;
+  try {
+    await fetchAuthMutation(api.suppliers.enrichment.applySuggestion, { organizationId, ...valid.data });
+  } catch (error) {
+    return failure(error);
+  }
+  revalidatePath(`/o/${organizationId}/leverandorer`);
+  return { status: "ok" };
+}

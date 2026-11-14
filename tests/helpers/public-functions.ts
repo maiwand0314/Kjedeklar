@@ -134,6 +134,36 @@ const ownSupplier = async (run: Run, organizationId: string, userId: string) => 
   supplierId: await run((db) => db.insert("suppliers", { organizationId, ...SYNTHETIC_SUPPLIER_DOC, createdAt: Date.now(), createdBy: userId })),
 });
 
+/** Som ownSupplier, men med norsk org.nr. (for funksjoner som krever det). */
+const ownSupplierWithOrgNumber = async (run: Run, organizationId: string, userId: string) => ({
+  supplierId: await run((db) =>
+    db.insert("suppliers", { organizationId, ...SYNTHETIC_SUPPLIER_DOC, registryOrgNumber: "920000002", createdAt: Date.now(), createdBy: userId }),
+  ),
+});
+
+/** Leverandør med norsk org.nr. og et hentet registersvar, så det finnes forslag å godta. Id-en gis som `supplierId`. */
+const ownEnrichedSupplier = async (run: Run, organizationId: string, userId: string) => {
+  const orgNumber = SYNTHETIC_REGISTRY_PROFILE.orgNumber;
+  return await run(async (db) => {
+    const supplierId = await db.insert("suppliers", { organizationId, ...SYNTHETIC_SUPPLIER_DOC, registryOrgNumber: orgNumber, createdAt: Date.now(), createdBy: userId });
+    const jobId = await db.insert("jobs", { organizationId, inputRef: supplierId, ...SYNTHETIC_JOB, type: "brreg.enrich", status: "succeeded", createdBy: userId });
+    const snapshotId = await db.insert("registrySnapshots", {
+      organizationId,
+      supplierId,
+      source: "brreg-enhetsregisteret",
+      orgNumber,
+      fetchedAt: Date.now(),
+      fetchedBy: userId,
+      selectedFields: SYNTHETIC_REGISTRY_PROFILE,
+      sourcePayloadHash: "0".repeat(64),
+      mappingVersion: "brreg-enhet-v1",
+      status: "fetched",
+    });
+    await db.patch(supplierId, { registryEnrichment: { sequence: 1, jobId, orgNumber, state: "succeeded", requestedAt: 0, snapshotId, fetchedAt: Date.now() } });
+    return { supplierId };
+  });
+};
+
 /** Setter inn et eget importgrunnlag med én oppføring og gir id-ene som `batchId` og `rowId`. */
 const ownBatch = (status: "draft" | "committing") => async (run: Run, organizationId: string, userId: string) => {
   const { reportingPeriodId } = await ownPeriod(run, organizationId, userId);
@@ -330,6 +360,37 @@ export const reviewedPublicFunctions: Record<string, PublicFunctionReview> = {
     boundary: "tenant",
     sampleArgs: { supplierId: "ukjent" },
     note: "Én egen leverandør (getOwned) med innkjøpsdata for egen periode (getOwned).",
+    prepareOwn: ownSupplier,
+  },
+  "suppliers/enrichment:request": {
+    kind: "mutation",
+    ref: api.suppliers.enrichment.request,
+    boundary: "tenant",
+    sampleArgs: { supplierId: "ukjent" },
+    note: "Ber om Brreg-oppslag for egen leverandør (getOwned) via enqueueJob. Bare egen leverandør med norsk org.nr.",
+    prepareOwn: ownSupplierWithOrgNumber,
+  },
+  "suppliers/enrichment:requestMissing": {
+    kind: "mutation",
+    ref: api.suppliers.enrichment.requestMissing,
+    boundary: "tenant",
+    sampleArgs: {},
+    note: "Ber om oppslag for egne aktive leverandører med org.nr., høyst 50 om gangen.",
+  },
+  "suppliers/enrichment:applySuggestion": {
+    kind: "mutation",
+    ref: api.suppliers.enrichment.applySuggestion,
+    boundary: "tenant",
+    sampleArgs: { supplierId: "ukjent", expectedRowVersion: 1, field: "registeredCountry", expectedValue: "NO" },
+    note: "Godtar et registerforslag for egen leverandør (getOwned) med versjonssjekk og revisjonslogg.",
+    prepareOwn: ownEnrichedSupplier,
+  },
+  "suppliers/enrichment:get": {
+    kind: "query",
+    ref: api.suppliers.enrichment.get,
+    boundary: "tenant",
+    sampleArgs: { supplierId: "ukjent" },
+    note: "Beriketatus og registerforslag for egen leverandør (getOwned).",
     prepareOwn: ownSupplier,
   },
   "suppliers/import/actions:preview": {

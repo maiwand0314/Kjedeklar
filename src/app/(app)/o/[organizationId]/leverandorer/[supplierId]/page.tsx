@@ -7,6 +7,7 @@ import { countryName, countryOptions } from "@/domain/suppliers/countries";
 import { fetchAuthQuery } from "@/lib/auth-server";
 import { handlePageLoadError } from "@/lib/convex-errors";
 import { ArchiveButton } from "@/modules/suppliers/components/archive-button";
+import { RegistrySection } from "@/modules/suppliers/components/registry-section";
 import { SupplierForm } from "@/modules/suppliers/components/supplier-form";
 import { SupplierPeriodForm } from "@/modules/suppliers/components/supplier-period-form";
 
@@ -87,6 +88,8 @@ export default async function SupplierPage({
           />
         </div>
       </section>
+
+      <RegistrySection organizationId={organizationId} supplierId={supplier.id} rowVersion={supplier.rowVersion} archived={archived} />
 
       <section aria-labelledby="innkjop-heading" className="mt-12">
         <h2 id="innkjop-heading" className="text-xl font-semibold">

@@ -58,6 +58,31 @@ export type RegistryProfile = {
   deletedOn: string | null;
 };
 
+/** Samme form som `RegistryProfile`. Brukes når profilen har vært innom en jobb og må valideres på nytt. */
+export const registryProfileSchema = z.object({
+  orgNumber: z.string().regex(/^\d{9}$/),
+  name: z.string().min(1),
+  legalForm: z.string().nullable(),
+  legalFormDescription: z.string().nullable(),
+  address: z
+    .object({
+      lines: z.array(z.string()),
+      postalCode: z.string().nullable(),
+      city: z.string().nullable(),
+      municipality: z.string().nullable(),
+      countryCode: z.string().nullable(),
+    })
+    .nullable(),
+  addressKind: z.enum(["forretningsadresse", "postadresse"]).nullable(),
+  industryCode: z.string().nullable(),
+  industryDescription: z.string().nullable(),
+  industryCodeSystem: z.literal("SN"),
+  bankrupt: z.boolean().nullable(),
+  underLiquidation: z.boolean().nullable(),
+  underForcedLiquidation: z.boolean().nullable(),
+  deletedOn: z.string().nullable(),
+}) satisfies z.ZodType<RegistryProfile>;
+
 /** Datamangler som må vises og avklares, ikke fylles med standardverdier. */
 export function profileGaps(profile: RegistryProfile): string[] {
   const gaps: string[] = [];

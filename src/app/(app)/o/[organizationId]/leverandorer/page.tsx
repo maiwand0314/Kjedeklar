@@ -6,7 +6,9 @@ import { Table } from "@/components/ui/table";
 import { api } from "@/convex/_generated/api";
 import { countryName } from "@/domain/suppliers/countries";
 import { fetchAuthQuery } from "@/lib/auth-server";
+import { REGISTRY_STATE_LABELS } from "@/domain/suppliers/registry";
 import { formatOrgNumber } from "@/modules/organizations/components/registry-profile";
+import { RefreshWhileQueued, RequestMissingRegistryButton } from "@/modules/suppliers/components/registry-controls";
 
 export const metadata = { title: "Leverandører" };
 
@@ -49,6 +51,15 @@ export default async function SuppliersPage({ params, searchParams }: PageProps<
           Importer fra CSV
         </Link>
       </p>
+
+      <div className="mt-4">
+        <RequestMissingRegistryButton organizationId={organizationId} />
+        <p className="mt-1 text-sm text-muted">
+          Henter navn, organisasjonsform og næringskode for leverandører med norsk organisasjonsnummer. Importen og resten av siden kan
+          brukes mens det pågår.
+        </p>
+      </div>
+      <RefreshWhileQueued active={result.page.some((s) => s.registryState === "queued")} />
 
       <form method="get" action={base} role="search" className="mt-8 flex flex-wrap items-end gap-2">
         <Field id="supplier-search" name="sok" label="Søk på starten av navnet" defaultValue={search ?? ""} />
@@ -94,6 +105,7 @@ export default async function SuppliersPage({ params, searchParams }: PageProps<
                 <th>Navn</th>
                 <th>Organisasjonsnummer</th>
                 <th>Registreringsland</th>
+                <th>Enhetsregisteret</th>
               </tr>
             </thead>
             <tbody>
@@ -106,6 +118,7 @@ export default async function SuppliersPage({ params, searchParams }: PageProps<
                   </td>
                   <td>{s.registryOrgNumber ? formatOrgNumber(s.registryOrgNumber) : "Ukjent"}</td>
                   <td>{s.registeredCountry ? countryName(s.registeredCountry) : "Ukjent"}</td>
+                  <td>{REGISTRY_STATE_LABELS[s.registryState]}</td>
                 </tr>
               ))}
             </tbody>

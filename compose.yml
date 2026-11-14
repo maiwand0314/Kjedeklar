@@ -48,6 +48,9 @@ services:
       - "127.0.0.1:3221:3211"
     tmpfs:
       - /convex/data
+    # Integrasjonstestene kjører en falsk Brreg-tjeneste på vertsmaskinen (port 38100).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       INSTANCE_NAME: kjedeklar-test
       <<: *convex-concurrency

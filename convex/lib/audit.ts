@@ -25,7 +25,11 @@ export const AUDIT_DIFF_FIELDS: Record<AuditEntityType, readonly string[]> = {
     "revision", "confirmed", "organizationDescription", "operations", "countries", "responsibility",
     "policies", "routines", "stakeholderDialogue", "remediationProcess",
   ],
-  supplier: ["name", "registryOrgNumber", "externalKey", "registeredCountry", "industryCodeSystem", "industryCode", "status"],
+  // registryState og registrySnapshotId: Brreg-beriking. Selve registersvaret står i snapshotet, ikke i loggen.
+  supplier: [
+    "name", "registryOrgNumber", "externalKey", "registeredCountry", "industryCodeSystem", "industryCode", "status",
+    "registryState", "registrySnapshotId",
+  ],
   // Beløp som tekst i øre og land som kommaseparerte koder. Kjøpsbeskrivelsen (fritekst) logges aldri.
   supplierPeriod: ["spendOre", "purchaseCategory", "productionCountries", "upstreamUnknown"],
   // Bare status, antall og fellesvalg. Enkeltendringene står på importradene; filinnhold logges aldri.

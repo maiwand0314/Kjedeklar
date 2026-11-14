@@ -61,7 +61,15 @@ export const update = tenantMutation({
     const supplier = await getOwned(ctx, "suppliers", supplierId);
     if (supplier.rowVersion !== expectedRowVersion) throw appError("CONFLICT");
     const profile = await checkedProfile(ctx, args, supplier._id);
-    const changes = { ...CLEARED_PROFILE, ...profile, nameKey: nameKey(profile.name), rowVersion: supplier.rowVersion + 1 };
+    // En næringskode endret for hånd stammer ikke lenger fra registersvaret.
+    const industryEdited = profile.industryCode !== supplier.industryCode || profile.industryCodeSystem !== supplier.industryCodeSystem;
+    const changes = {
+      ...CLEARED_PROFILE,
+      ...profile,
+      ...(industryEdited && { industryCodeSource: undefined }),
+      nameKey: nameKey(profile.name),
+      rowVersion: supplier.rowVersion + 1,
+    };
     await ctx.db.patch("suppliers", supplier._id, changes);
     await writeAudit(ctx, {
       organizationId,

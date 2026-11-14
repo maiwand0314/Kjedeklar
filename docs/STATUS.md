@@ -16,6 +16,7 @@ Startpakke opprettet 6. november 2026. Dokumentasjonen ble samme dag skrevet om 
 | 10 | Implementert, verifisert lokalt og i CI, merget (PR #12 og #13) | Lokalt med Docker: lint, typecheck, 538 enhets-/convex-test-tester, 120 integrasjonstester, 16 e2e-tester og build | Bare forhåndsvisning; ingenting importeres før oppgave 11. Bare UTF-8. `externalKey` er fortsatt ikke unik. To lokale e2e-kjøringer fikk tidsavbrudd av uavklart årsak (se under) |
 | 11 | Implementert, verifisert lokalt og i CI, review-merknader rettet, merget (PR #14) | Lokalt med Docker: lint, typecheck, 601 enhets-/convex-test-tester, 145 integrasjonstester, 17 e2e-tester og build | Importen drives av nettleseren og fortsetter ikke av seg selv etter et avbrudd. Revisjonslogg per batch, ikke per leverandør. Feilrader kan ikke rettes i appen |
 | 12 | Implementert og verifisert lokalt (branch `feature/12-jobs`) | Lokalt med Docker: lint, typecheck, 636 enhets-/convex-test-tester, 160 integrasjonstester, 17 e2e-tester og build | Bare en kontrollert testtype; ingen jobbtype for produksjon og ingen visning i grensesnittet ennå. Workpool er under 1.0 (låst 0.4.15) |
+| 13 | Implementert og verifisert lokalt (branch `feature/13-brreg-enrichment`) | Lokalt med Docker: lint, typecheck, 676 enhets-/convex-test-tester, 175 integrasjonstester, 18 e2e-tester (med lokalt installert Chrome) og build | Registerverdier er forslag brukeren godtar; ingen automatisk utfylling. SN-versjon velges av bruker. Ikke kjørt mot ekte Enhetsregisteret. Risikomodulen finnes ikke, så ingenting merkes utdatert |
 
 Oppdater ved hver oppgave. Bruk «implementert», «verifisert» og «ekstern avklaring» presist. Et lokalt fake-resultat betyr ikke at en ekstern integrasjon er godkjent.
 
@@ -799,6 +800,60 @@ Underveis:
 - **Handlere må selv være idempotente mot eksterne tjenester.** Mekanismen hindrer bare dobbel skriving i databasen.
 - **Ikke prøvd mot Convex Cloud.** Workpool er bare kjørt i convex-test og mot lokal selvhostet backend.
 - **Én uforklart testfeil.** `tests/convex/jobs.test.ts` («dobbel innsending gir én jobb») feilet én gang i en full kjøring rett etter pakkeinstallasjon. Feilmeldingen ble ikke fanget opp, og testen har bestått i ti kjøringer etterpå, også med tom testbuffer. Årsaken er ikke funnet.
+
+## Oppgave 13 – Brreg-beriking av leverandører
+
+Beslutninger og begrunnelser står i `docs/decisions/0011-brreg-beriking.md`.
+
+### Endret
+- **Jobbtypen `brreg.enrich`** (`convex/suppliers/enrichmentJob.ts`), registrert i `convex/jobs/handlers.ts`: én jobb per leverandør, slår opp org.nr. med adapteren fra oppgave 06 (8 s timeout, én henting per forsøk), validerer svaret med Zod, og skriver snapshot og status i samme mutasjon som setter jobben fullført. Fire forsøk med 30 s, 2 min og 8 min ventetid; kontrakt som ikke stemmer prøves ikke på nytt. Køen begrenser til fem samtidige.
+- **`convex/suppliers/enrichment.ts`:** `request` og `requestMissing` (høyst 50 om gangen) oppretter jobber via `enqueueJob`; `get` gir status, registerprofil, datamangler og forslag; `applySuggestion` godtar ett forslag med versjonssjekk og revisjonslogg.
+- **Det generelle `jobs/mutations:enqueue` kan nå bare opprette testtyper** (funnet i review av oppgave 12). Produksjonstyper opprettes bare av egne tenantmutasjoner.
+- **Jobbmekanismen:** valgfri `onFailed`-hook i `JobHandler`, kalt fra sluttstatusen `failed`, så leverandøren kan vise feilen.
+- **Skjema:** `registrySnapshots` får `supplierId`, status `fetched` og indeksen `by_organizationId_and_supplierId_and_fetchedAt`. `suppliers` får `registryEnrichment` og `industryCodeSource` (rører ikke `rowVersion`). Ingen nye tabeller.
+- **Audit:** `supplier.registry_requested` og `supplier.registry_fetched`; godkjente forslag logges som `supplier.updated` med begrunnelse.
+- **Domene:** `src/domain/suppliers/registry.ts` (status, forslag, feiltekster); `registryProfileSchema` (Zod) i `src/domain/brreg/enhet.ts`.
+- **Grensesnitt:** status per leverandør i listen med «Hent fra Enhetsregisteret for alle», og en Enhetsregisteret-seksjon på leverandørsiden med status, hentetid, registerstatus, datamangler, forslag («Bruk registerverdien», kodeverk velges for næringskode) og «Hent på nytt». Siden oppdaterer seg selv hvert femte sekund mens noe hentes.
+- **Testoppsett:** `BRREG_ENHET_URL` leses av adapteren bare på lokal test-backend; `scripts/local-convex.mjs` setter den, og `compose.yml` gir `convex-test` `host.docker.internal`, så integrasjons- og e2e-testene kan kjøre en falsk Brreg på port 38100.
+
+### Akseptkriterier
+1. *Importen kan brukes mens beriking kjører; status per leverandør er synlig:* integrasjonstest oppretter og redigerer leverandører mens et oppslag står og venter; status vises i listen og på leverandørsiden (e2e).
+2. *429/timeout gir begrenset retry og delvis feilstatus uten tap av import:* convex-test med falske klokker (429 gir nøyaktig fire oppslag, så ingen flere; fire leverandører der tre lykkes og én feiler; timeout; kontrakt prøves én gang); integrasjonstest for første 429 og ventetid.
+3. *Bransjekode har kodeverkversjon og hentetid; manglende kode blir ikke lav risiko:* koden lagres med snapshot og hentetid og kodeverket brukeren velger; manglende kode gir ingen verdi, intet forslag og synlig datamangel.
+4. *Oppdatering gir audit og markerer vurderingsgrunnlag endret når risikomodulen finnes:* audit er dekket og rollback-testet. Risikomodulen finnes ikke; `rowVersion` og nytt snapshot er signalene den kan bruke (se 0011). Ingenting merkes utdatert i dag.
+
+### Tester
+- `tests/convex/enrichment.test.ts` (18): lykket henting uten profilendring, blanding av norske/ikke funnet/utenlandske/uten org.nr., 50-grense, dobbel forespørsel, manglende næringskode, 429 med maks forsøk, forbigående feil og delvis feil, timeout og endret kontrakt, beholdt siste snapshot, redigering og endret org.nr. mens jobben kjører, godkjenning av forslag (versjon, kodeverk, kilde, audit, tapt kilde), NUF, fremmed leverandør, «hent for alle» per organisasjon, stengt generelt endepunkt, jobb med fremmed referanse og intern query.
+- `tests/convex/enrichment-rollback.test.ts` (3): feiler revisjonsloggen, rulles forespørsel, godkjenning og skriving av registersvar tilbake.
+- `tests/unit/supplier-registry.test.ts` (7): status, forslagsregler og Zod-skjema.
+- `tests/integration/enrichment.test.ts` (6) mot lokal backend med falsk Brreg: blanding, redigering mens oppslaget pågår, 429 uten hamring, kontrakt, to samtidige faner og tenantisolasjon.
+- `tests/integration/tenancy.test.ts`: probe for `orgNumberFor`; `public-functions.ts`/`audited-mutations.ts` har de fire nye funksjonene og tre mutasjoner.
+- `tests/e2e/enrichment.spec.ts` (1): utenlandsk leverandør, henting, forslag, valg av kodeverk og liste.
+
+### Kjørte kommandoer (14.11.2026, lokalt med Docker)
+```text
+pnpm convex:deploy:test           OK (convex/_generated oppdatert)
+pnpm lint / pnpm typecheck        OK
+pnpm test:unit                    676/676
+pnpm test:integration             175/175
+pnpm exec playwright test         18/18 (med Google Chrome, se under)
+pnpm build                        OK
+```
+- **E2E ble kjørt med lokalt installert Google Chrome**, via en midlertidig Playwright-konfigurasjon (`channel: "chrome"`, ikke sjekket inn), fordi Playwrights egen Chromium ikke var installert og ikke ble lastet ned. CI bruker Playwrights Chromium.
+- Etter e2e-kjøringen ble én linje i `enrichmentJob.ts` forenklet (feilkoden fra et tidligere forsøk fjernes uten destrukturering). Etterpå er lint, typecheck og convex-testene for beriking og jobber kjørt på nytt (38/38); full integrasjons- og e2e-kjøring er ikke gjentatt.
+- Første e2e-kjøring avdekket at profilskjemaet beholdt gamle verdier etter at et forslag var godtatt (skjemaet har egen tilstand, beslutning 0007). Siden lastes nå på nytt etter godkjenning.
+
+### Manuell prøve
+- Ingen utover e2e. Enhetsregisteret er ikke kalt fra noen test; svarformen følger de syntetiske kontraktsfixturene fra oppgave 06.
+
+### Ikke gjort / begrensninger
+- **Ikke verifisert mot ekte Enhetsregisteret** i denne oppgaven (live-kontroll ble gjort i oppgave 06). Rate-grenser og `Retry-After` er ikke undersøkt; header leses ikke.
+- **Ingen automatisk utfylling og ingen avvisning av forslag.** Valgt for å aldri overskrive brukerrettelser; kan tas opp igjen når SN-versjon er avklart.
+- **SN-versjon oppgis ikke av Brreg**; brukeren velger. Spørsmålet om hvilken versjon Brreg følger er ikke avklart (side hos Brreg sier det ikke).
+- **Retry-tidene (30 s, 2 min, 8 min) er ikke prøvd i sanntid**; bare med falske klokker.
+- **«Hent for alle»** leser de første 2 000 aktive leverandørene og hopper over de som har feilet.
+- **Vurderingsgrunnlag:** risikomodulen finnes ikke, så ingenting merkes «endret».
+- **Statusoppdatering** er polling hvert femte sekund.
 
 ## Åpne eksterne avklaringer
 - Convex DPA, underleverandører og plassering av backup, logg og support (beslutning 0001). Må lukkes før ekte kundedata.
