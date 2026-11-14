@@ -137,6 +137,9 @@ describe("HTTP-ruter", () => {
   });
 });
 
+/** Globalt faggrunnlag (oppgave 14): ikke kundedata, skrives bare av interne funksjoner, og har aldri organizationId. */
+const GLOBAL_TABLES = ["riskDatasetVersions", "countryRiskEntries", "industryRiskEntries", "riskMethodVersions"] as const;
+
 describe("skjema og RLS-regler", () => {
   const tableNames = Object.keys(schema.tables).sort();
 
@@ -171,9 +174,16 @@ describe("skjema og RLS-regler", () => {
     });
   });
 
+  test("globale faggrunnlagstabeller er en eksplisitt liste og har aldri organizationId", () => {
+    for (const name of GLOBAL_TABLES) {
+      const fields = (schema.tables as Record<string, { validator: { fields: Record<string, unknown> } }>)[name].validator.fields;
+      expect(fields.organizationId, name).toBeUndefined();
+    }
+  });
+
   test("kundetabeller har påkrevd organizationId, og indekser starter med den", () => {
     for (const [name, table] of Object.entries(schema.tables)) {
-      if (name === "organizations") continue; // tenantroten
+      if (name === "organizations" || (GLOBAL_TABLES as readonly string[]).includes(name)) continue; // tenantroten og globale tabeller
       const field = (table.validator.fields as Record<string, { kind: string; tableName?: string; isOptional: string }>)
         .organizationId;
       expect(field, `${name}.organizationId`).toMatchObject({

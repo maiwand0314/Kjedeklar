@@ -20,6 +20,7 @@ import {
   type TwoTenants,
 } from "../helpers/local-backend";
 import { messagesTo } from "../helpers/mailpit";
+import { syntheticCountry } from "../helpers/risk-data";
 import {
   reviewedPublicFunctions,
   SYNTHETIC_REGISTRY_PROFILE,
@@ -49,6 +50,9 @@ async function waitFor(condition: () => boolean, timeoutMs = 15_000) {
     await new Promise((r) => setTimeout(r, 50));
   }
 }
+
+/** Gyldig risikodatafil som en klient ikke skal kunne importere. Unikt navn per kjøring, siden test-backenden består mellom kjøringer. */
+const probeRiskPayload = await syntheticCountry(`kapret-${Date.now()}`);
 
 describe("tenant-isolasjon mot lokal Convex-backend", () => {
   let env: TwoTenants;
@@ -220,6 +224,17 @@ describe("tenant-isolasjon mot lokal Convex-backend", () => {
         batchId: fx.orgB,
         kindCounts: { new_clean: 0, new_warning: 0, known: 0, unclear: 0, error: 0 },
       }),
+      verifyNoEffect: async () => {},
+    },
+    "risk/internal:importVersion": {
+      args: () => ({ operator: "kapret", payload: probeRiskPayload }),
+      // Hadde en klient kommet gjennom, ville versjonen alt finnes og operatørens import avvises.
+      verifyNoEffect: async () => {
+        expect(runInternal<{ status: string }>("risk/internal:importVersion", { operator: "kontroll", payload: probeRiskPayload }).status).toBe("imported");
+      },
+    },
+    "risk/internal:activateVersion": {
+      args: () => ({ operator: "kapret", kind: "country", version: "finnes-ikke" }),
       verifyNoEffect: async () => {},
     },
     "jobs/internal:begin": {

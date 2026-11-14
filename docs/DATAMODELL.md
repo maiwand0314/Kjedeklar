@@ -44,10 +44,10 @@ Disse tabellene er globalt faggrunnlag, ikke kundedata, og har ikke `organizatio
 
 | Tabell | Viktige felter | Relasjoner og integritet |
 |---|---|---|
-| riskDatasetVersions | kind, version, status, environment, sourceUrl, sourceTitle, sourceEdition, retrievedAt, reviewedAt, reviewDueAt, licenseStatus, approvedBy, checksum, schemaVersion | Uforanderlig innhold når godkjent. Demo og production skilles; ingen endring av samme versjon |
-| countryRiskEntries | datasetVersionId, iso2, originalIndicator, screeningLevel, transformationNote, sourceReference | Unik (datasetVersionId, iso2). Ingen oppdiktede datapunkter; landdekning måles |
-| industryRiskEntries | datasetVersionId, codeSystem, codeVersion, codePrefix? / productCategory?, screeningLevel, sourceReference, rationale | Eksakt mapping har prioritet fremfor prefiks; ugyldige/overlappende regler avvises eller løses eksplisitt |
-| riskMethodVersions | version, ruleDefinitions, unknownPolicy, priorityOrder, approvedBy, checksum | Selvstendig metodeversjon, ikke samme ting som kildeutgave |
+| riskDatasetVersions | kind (country/industry), version, status (`imported`/`active`/`retired`), environment (`demo`/`production`), schemaVersion, sourceTitle, sourceUrl, sourceEdition, retrievedAt, licenseStatus (`cleared`/`unclear`/`restricted`), codeSystem? (bransje), review? {reviewer, reviewedAt, reviewDueAt}, approval? {approvedBy, approvedAt}, checksum, entryCount, importedAt/By, activatedAt/By?, retiredAt? | Innholdet endres aldri etter import; bare status og tidsstempler. Unik (kind, version) via `by_kind_and_version`. Aktivering av produksjon krever avklart lisens, gjennomgang, godkjenning, gyldig review-dato og riktig checksum. Demo og production skilles. Se beslutning 0012 |
+| countryRiskEntries | datasetVersionId, iso2, originalIndicator, screeningLevel, transformationNote, sourceReference | Unik (datasetVersionId, iso2) valideres ved import. Ingen oppdiktede datapunkter; landdekning er `entryCount` på versjonen |
+| industryRiskEntries | datasetVersionId, codeExact? / codePrefix? / productCategory? (nøyaktig én), screeningLevel, sourceReference, rationale | Kodeverket står på versjonen. Eksakt mapping har prioritet fremfor prefiks, lengste prefiks vinner; samme nøkkel to ganger avvises |
+| riskMethodVersions | version, description, definition (se [risk-method-v0](decisions/risk-method-v0.md)), status, environment, review?, approval?, checksum, importedAt/By, activatedAt/By?, retiredAt? | Selvstendig metodeversjon, ikke samme ting som kildeutgave. Samme livsløp som dataversjonene |
 
 ## Vurderinger og aktsomhetsarbeid
 | Tabell | Viktige felter | Relasjoner og integritet |

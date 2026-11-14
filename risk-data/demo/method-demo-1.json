@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "risk-dataset-v1",
+  "environment": "demo",
+  "checksum": "c531fc58faab33478c52a5659edcf0b6cd5dad2cf059577fe65511f2e2073afb",
+  "kind": "method",
+  "version": "demo-method-1",
+  "description": "SYNTETISK DEMO av metodekontrakten (risk-method-v0). Ikke godkjent for kundebruk.",
+  "definition": {
+    "scope": "kjedeklar_screening",
+    "requiresProfessionalReview": true,
+    "levels": [
+      "low",
+      "moderate",
+      "high"
+    ],
+    "aggregation": "ordinal_max",
+    "unknownPolicy": {
+      "knownHighWins": true,
+      "materialGaps": [
+        "productionCountry",
+        "industryCode"
+      ],
+      "resultWhenMaterialGap": "unknown"
+    },
+    "priorityOrder": [
+      "high",
+      "unknown",
+      "moderate",
+      "low"
+    ],
+    "amountAffectsLevel": false,
+    "amountSortsWithinLevel": true,
+    "ruleDefinitions": [
+      {
+        "ruleId": "COUNTRY_LEVEL",
+        "kind": "risk_factor",
+        "factor": "country",
+        "description": "Nivå fra landdataene for kjente produksjonsland."
+      },
+      {
+        "ruleId": "INDUSTRY_LEVEL",
+        "kind": "risk_factor",
+        "factor": "industry",
+        "description": "Nivå fra bransjemappingen for leverandørens næringskode."
+      },
+      {
+        "ruleId": "PRODUCT_LEVEL",
+        "kind": "risk_factor",
+        "factor": "product",
+        "description": "Nivå fra produktkategorien for det som kjøpes."
+      },
+      {
+        "ruleId": "REGISTRY_STATUS_SIGNAL",
+        "kind": "control_signal",
+        "factor": "registry_status",
+        "description": "Konkurs, avvikling eller nystiftelse gir oppfølging, aldri et nivå."
+      },
+      {
+        "ruleId": "DATA_GAP_FOLLOW_UP",
+        "kind": "control_signal",
+        "factor": "data_gap",
+        "description": "Manglende grunnlag gir oppfølging og ukjent nivå, aldri lavt nivå."
+      }
+    ]
+  }
+}

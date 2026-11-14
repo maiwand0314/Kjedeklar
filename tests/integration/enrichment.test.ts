@@ -132,12 +132,13 @@ describe("Brreg-beriking mot lokal backend", () => {
   test("organisasjon B kan ikke be om, lese eller godta for A sin leverandør, og kan ikke omgå via jobbendepunktet", async () => {
     const mine = await create("Min Leverandør AS", OTHER_TENANT);
     const asB = { organizationId: env.fx.orgB };
+    // Funksjoner, ikke løfter: et løfte som avvises før det awaites gir «unhandled rejection».
     for (const attempt of [
-      env.b.mutation(api.suppliers.enrichment.request, { ...asB, supplierId: mine }),
-      env.b.query(api.suppliers.enrichment.get, { ...asB, supplierId: mine }),
-      env.b.mutation(api.suppliers.enrichment.applySuggestion, { ...asB, supplierId: mine, expectedRowVersion: 1, field: "name", expectedValue: "X" }),
+      () => env.b.mutation(api.suppliers.enrichment.request, { ...asB, supplierId: mine }),
+      () => env.b.query(api.suppliers.enrichment.get, { ...asB, supplierId: mine }),
+      () => env.b.mutation(api.suppliers.enrichment.applySuggestion, { ...asB, supplierId: mine, expectedRowVersion: 1, field: "name", expectedValue: "X" }),
     ]) {
-      expect((await errorOf(attempt)).code).toBe("NOT_FOUND");
+      expect((await errorOf(attempt())).code).toBe("NOT_FOUND");
     }
     // Eget org.nr.-oppslag via det generelle endepunktet er stengt for produksjonstyper.
     const generic = env.a.mutation(api.jobs.mutations.enqueue, { ...org(), type: "brreg.enrich", inputRef: mine, idempotencyKey: "omgå" });

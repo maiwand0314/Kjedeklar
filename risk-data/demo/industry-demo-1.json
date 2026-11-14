@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "risk-dataset-v1",
+  "environment": "demo",
+  "checksum": "df249b0ee6b5d338e5b81d811cf6759446d7bdd1ebb6a5c02b4b1bace1612140",
+  "kind": "industry",
+  "version": "demo-industry-1",
+  "codeSystem": "SN2007",
+  "sourceTitle": "SYNTETISK DEMO – ikke faglig grunnlag og ikke bruk på kundedata",
+  "sourceUrl": "https://example.com/syntetisk-demo",
+  "sourceEdition": "demo-1",
+  "retrievedAt": "2026-11-01",
+  "licenseStatus": "unclear",
+  "licenseNote": "Syntetiske verdier uten kilde. Kan ikke aktiveres i produksjon.",
+  "entries": [
+    {
+      "codePrefix": "00",
+      "screeningLevel": "moderate",
+      "sourceReference": "Syntetisk demo, ingen kilde",
+      "rationale": "Oppdiktet prefiks i en ubrukt kodedivisjon (00)."
+    },
+    {
+      "codePrefix": "00.1",
+      "screeningLevel": "high",
+      "sourceReference": "Syntetisk demo, ingen kilde",
+      "rationale": "Lengre prefiks vinner over kortere."
+    },
+    {
+      "codeExact": "00.100",
+      "screeningLevel": "low",
+      "sourceReference": "Syntetisk demo, ingen kilde",
+      "rationale": "Eksakt kode har prioritet foran prefiks."
+    },
+    {
+      "productCategory": "demo-produkt-a",
+      "screeningLevel": "high",
+      "sourceReference": "Syntetisk demo, ingen kilde",
+      "rationale": "Oppdiktet produktkategori."
+    }
+  ]
+}
