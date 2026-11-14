@@ -18,6 +18,7 @@ Startpakke opprettet 6. november 2026. Dokumentasjonen ble samme dag skrevet om 
 | 12 | Implementert og verifisert lokalt (branch `feature/12-jobs`) | Lokalt med Docker: lint, typecheck, 636 enhets-/convex-test-tester, 160 integrasjonstester, 17 e2e-tester og build | Bare en kontrollert testtype; ingen jobbtype for produksjon og ingen visning i grensesnittet ennå. Workpool er under 1.0 (låst 0.4.15) |
 | 13 | Implementert og verifisert lokalt (branch `feature/13-brreg-enrichment`) | Lokalt med Docker: lint, typecheck, 676 enhets-/convex-test-tester, 175 integrasjonstester, 18 e2e-tester (med lokalt installert Chrome) og build | Registerverdier er forslag brukeren godtar; ingen automatisk utfylling. SN-versjon velges av bruker. Ikke kjørt mot ekte Enhetsregisteret. Risikomodulen finnes ikke, så ingenting merkes utdatert |
 | 14 | Implementert og verifisert lokalt (branch `feature/14-risk-data`) | Lokalt med Docker: lint, typecheck, 741 enhets-/convex-test-tester, 187 integrasjonstester, 18 e2e-tester (med lokalt installert Chrome) og build | Ingen reelle risikodata og ingen fagreview: bare syntetiske demo-fixtures. Kommandoene er bare prøvd mot lokal backend, ikke Convex Cloud. Ingen motor (oppgave 15) |
+| 15 | Implementert og verifisert lokalt (branch `feature/15-risk-engine`) | Lokalt med Docker: lint, typecheck, 797 enhets-/convex-test-tester, 197 integrasjonstester (196 i første fulle kjøring, én gjeldende test rettet og kjørt på nytt), 18 e2e-tester (med lokalt installert Chrome; én flaky test bestod ved ny kjøring) og build | Bare syntetiske demo-data; uten aktive produksjonsdata gir motoren synlige mangler og ukjent. Ingen grensesnitt. Bulkgrenser målt bare mot lokal backend |
 
 Oppdater ved hver oppgave. Bruk «implementert», «verifisert» og «ekstern avklaring» presist. Et lokalt fake-resultat betyr ikke at en ekstern integrasjon er godkjent.
 
@@ -904,6 +905,58 @@ pnpm build                        OK
 - **Størrelse:** høyst 1 000 linjer per versjon, én mutasjon. Ingen CSV.
 - **Kunder leser ikke innholdet** i innholdstabellene ennå; oppgave 15 avgjør lesefunksjon.
 - E2E er ikke utvidet: oppgaven har ikke noe grensesnitt.
+
+## Oppgave 15 – deterministisk risikomotor
+
+Beslutninger og begrunnelser står i `docs/decisions/0013-risikovurdering.md`.
+
+### Endret
+- **`src/domain/risk/engine.ts`** (ren TypeScript): `assess`, `normalizeInput`, `inputHash`. Kjent høy faktor gir høy; ellers vesentlig mangel (fra metodens `unknownPolicy`) gir ukjent; ellers høyeste kjente nivå; uten faktorer ukjent. Beløp og registreringsland er ikke input. Land-, bransje- (eksakt, lengste prefiks, kodeverk må stemme) og produktfaktor, kontrollsignaler, `missingFields`, `staleSources`, `dataQuality`.
+- **`riskAssessments`** (ny kundetabell): ny uforanderlig rad per beregning med `inputSnapshot`, `inputHash`, versjonsreferanser, `engineVersion` og resultat. RLS: lesing og opprettelse i egen organisasjon, aldri endring.
+- **`convex/risk/assessments.ts`:** `assessPeriod` (200 leverandører per kall, markør), `latest` (med status `current`/`stale` og årsaker) og `history`. Uendrede leverandører får ingen ny rad. Én audit (`risk.assessed`) per kall med lagrede vurderinger.
+- **`risk/internal:engineData`** (intern query): innholdet i de aktive versjonene, siden kundefunksjoner ikke kan lese innholdstabellene.
+- **Utdatert** regnes ut ved lesing: endret input, metode, landdata, bransjedata, motorversjon eller kildefriskhet.
+- **Testfunksjon:** `ops/testing:seedSuppliersForRisk` (bare test-backend) til belastningstesten.
+- **Rettet:** `tests/integration/risk-data.test.ts` hadde en test som bare tillot to offentlige risikofunksjoner; oppdatert til de fem.
+
+### Akseptkriterier
+1. *Samme input og versjoner gir identisk resultat uten AI eller nettverk:* ren motor, enhetstest av determinisme, rekkefølge og hash.
+2. *Høy faktor kan ikke nøytraliseres av lav:* tabelltester og metamorfe egenskaper over et rutenett på 216 input (høy gir alltid høy, selv med ukjent oppstrøms, registerflagg og utgått kilde).
+3. *Ukjent/utgått kilde er synlig, og høy bevares ved andre mangler:* tabelltester og convex-test (utgått kilde etter vurdering gir `source_freshness_changed`, og ny vurdering beholder høy).
+4. *Ny input eller metode gir ny vurdering og merker gammel som utdatert; historikk bevares:* convex-tester (input, profil, metode, land, bransje, registerstatus) og integrasjonstest mot lokal backend; gamle rader er uendret.
+
+### Tester
+- `tests/unit/risk-engine.test.ts` (27): lav/moderat/høy/ukjent, ingen faktorer, høy+ukjent, utgått kilde, uklart produksjonsland, kodeversjon, dekning, kontrollsignaler, determinisme og metamorfe egenskaper (ingen fast-check; eget rutenett).
+- `tests/convex/risk-assess.test.ts` (15), `risk-assess-rollback.test.ts` (1): snapshot, versjoner, audit, beløp som aldri påvirker noe, registreringsland, uten innkjøpsdata, arkiverte, registerstatus, utdatert-årsaker, bulk med markør, tenantvern.
+- `tests/integration/risk-assess.test.ts` (2) mot lokal backend: 2 000 leverandører, ny kjøring uten ny beregning, annen organisasjon, ny aktiv versjon gir utdatert og ny rad, audit.
+- `tenant-tables.ts` (`getOwned`-/RLS-standardtester for `riskAssessments`), registrene (tre offentlige funksjoner, én mutasjon, interne prober).
+
+### Måling (lokal backend, 2 000 leverandører, tests/integration/risk-assess.test.ts)
+| Per kall | Kall | Tregeste kall |
+|---|---|---|
+| 200 | 11 | ca. 0,5 s |
+| 2 000 | 2 | ca. 2,1 s (gikk) |
+
+Tidene er veggtid fra testklienten, inkludert nettverk. 200 valgt for margin; ingen jobb eller kø innført. Ikke målt mot Convex Cloud.
+
+### Kjørte kommandoer (14.11.2026, lokalt med Docker)
+```text
+pnpm convex:deploy:test           OK
+pnpm lint / pnpm typecheck        OK
+pnpm test:unit                    797/797
+pnpm test:integration             196/197 i første fulle kjøring; den ene var en gammel test i risk-data.test.ts (rettet, 6/6 på nytt). Resten av suiten er ikke kjørt på nytt etter rettelsen
+pnpm exec playwright test         17/18 i første kjøring; navigation.spec.ts «lasting vises ved trege svar…» feilet med «Route is already handled», og bestod alene (5/5)
+pnpm build                        OK
+```
+E2E er kjørt med lokalt installert Google Chrome via en midlertidig konfigurasjon (ikke sjekket inn).
+
+### Ikke gjort / begrensninger
+- **Ingen grensesnitt**, ingen sortert oppfølgingsliste, ingen implementasjon av `priorityOrder`/beløpssortering.
+- **Ingen produksjonsdata**; alt er prøvd med syntetiske demo-data. Resultater har ingen faglig mening før data og metode er gjennomgått.
+- **Ingen kodeverkoversettelse.** Kodeverk som ikke stemmer med datasettet gir ingen mapping.
+- **Produktkategori** er fritekst og krever eksakt likhet (små bokstaver) med datasettet.
+- **Flaky e2e:** `navigation.spec.ts` feilet én gang med «Route is already handled» (test av treg lasting; ikke berørt av denne endringen) og bestod ved ny kjøring.
+- Bulkgrensene er ikke målt mot Convex Cloud.
 
 ## Åpne eksterne avklaringer
 - Convex DPA, underleverandører og plassering av backup, logg og support (beslutning 0001). Må lukkes før ekte kundedata.

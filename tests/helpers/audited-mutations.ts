@@ -44,6 +44,7 @@ export const auditedMutations: Record<string, AuditClassification> = {
     exempt: "Kaller requestOne for hver leverandør, som skriver supplier.registry_requested i samme mutasjon (dekket av beriketestene).",
   },
   "suppliers/enrichment:applySuggestion": { logged: true },
+  "risk/assessments:assessPeriod": { logged: true },
   "risk/internal:importVersion": {
     exempt: "Globalt faggrunnlag uten organisasjon; revisjonsloggen er per kunde. Hvem og når står på versjonsdokumentet (importedBy/importedAt), og innholdet endres aldri.",
   },
@@ -67,4 +68,5 @@ export const auditedMutations: Record<string, AuditClassification> = {
   },
   "ops/testing:expireInvitation": { exempt: "Testfunksjon, bare på test-backend." },
   "ops/testing:setImportRowName": { exempt: "Testfunksjon, bare på test-backend." },
+  "ops/testing:seedSuppliersForRisk": { exempt: "Testfunksjon for belastningstest, bare på test-backend." },
 };

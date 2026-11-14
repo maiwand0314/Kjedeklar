@@ -113,3 +113,29 @@ export const setImportRowName = internalMutation({
     return null;
   },
 });
+
+/**
+ * Test: setter inn syntetiske leverandører med innkjøpsdata for en periode, til
+ * belastningstest av screeningvurdering. Bare på test-backenden.
+ */
+export const seedSuppliersForRisk = internalMutation({
+  args: { organizationId: v.id("organizations"), reportingPeriodId: v.id("reportingPeriods"), from: v.number(), count: v.number() },
+  returns: v.null(),
+  handler: async (ctx, { organizationId, reportingPeriodId, from, count }) => {
+    assertLocalEnv(["test"]);
+    const countrySets = [["XA"], ["XB", "XC"], ["XC"], [], ["XA", "XB", "XC"]];
+    const codes = ["00.100", "00.150", "00.200", "99.999"];
+    for (let i = from; i < from + count; i++) {
+      const name = `Last ${String(i).padStart(5, "0")} AS`;
+      const supplierId = await ctx.db.insert("suppliers", {
+        organizationId, name, nameKey: name.toLowerCase(), status: "active", rowVersion: 1, createdAt: Date.now(), createdBy: "belastningstest",
+        industryCodeSystem: "SN2007", industryCode: codes[i % codes.length],
+      });
+      await ctx.db.insert("supplierPeriods", {
+        organizationId, supplierId, reportingPeriodId, productionCountries: countrySets[i % countrySets.length], upstreamUnknown: i % 2 === 0,
+        purchaseCategory: i % 3 === 0 ? "demo-produkt-a" : "annet", spendOre: BigInt(i) * 100n, rowVersion: 1, updatedAt: Date.now(), updatedBy: "belastningstest",
+      });
+    }
+    return null;
+  },
+});

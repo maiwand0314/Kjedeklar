@@ -11,7 +11,7 @@ import { RLS_CONFIG, tenantRules } from "../../convex/lib/rls";
 import { getOwned, type Tenant, type TenantTable } from "../../convex/lib/tenant";
 import schema from "../../convex/schema";
 import { expectAppError, setupTest, twoTenants } from "./setup";
-import { SYNTHETIC_IMPORT_BATCH, SYNTHETIC_PERIOD, SYNTHETIC_SUPPLIER_DOC } from "../helpers/public-functions";
+import { SYNTHETIC_IMPORT_BATCH, SYNTHETIC_METHOD_VERSION_DOC, SYNTHETIC_PERIOD, SYNTHETIC_SUPPLIER_DOC } from "../helpers/public-functions";
 import { insertRaw, tenantTableCases, type Owner, type TenantTableCase } from "./tenant-tables";
 
 const tables = Object.keys(tenantTableCases) as TenantTable[];
@@ -62,8 +62,9 @@ describe.each(tables)("referanser i %s", (table) => {
         ),
       ),
     );
-    const inA = (userId: string): Owner => ({ ...partA, importBatchId: batchA, userId });
-    const inB = (userId: string): Owner => ({ ...partB, importBatchId: batchB, userId });
+    const methodVersionId = await t.run((ctx) => ctx.db.insert("riskMethodVersions", SYNTHETIC_METHOD_VERSION_DOC));
+    const inA = (userId: string): Owner => ({ ...partA, importBatchId: batchA, methodVersionId, userId });
+    const inB = (userId: string): Owner => ({ ...partB, importBatchId: batchB, methodVersionId, userId });
     const ids = await t.run(async (ctx) => {
       const own = await insertRaw(ctx.db, table, inA(`eget-${table}`));
       const foreign = await insertRaw(ctx.db, table, inB(`fremmed-${table}`));

@@ -15,7 +15,8 @@ export type AppErrorCode =
   | "SUPPLIER_KEY_EXISTS"
   | "IMPORT_EXPIRED"
   | "IMPORT_STALE"
-  | "IMPORT_UNDECIDED";
+  | "IMPORT_UNDECIDED"
+  | "RISK_METHOD_MISSING";
 
 const messages: Record<AppErrorCode, string> = {
   UNAUTHENTICATED: "Du må logge inn.",
@@ -35,6 +36,7 @@ const messages: Record<AppErrorCode, string> = {
   IMPORT_STALE:
     "En annen import til samme rapportperiode pågår eller er gjennomført etter at dette grunnlaget ble laget. Fullfør en import som ikke er ferdig, og last opp filen på nytt, så forslagene bygger på leverandørene slik de er nå.",
   IMPORT_UNDECIDED: "Noen oppføringer mangler valg. Ta stilling til alle før importen bekreftes.",
+  RISK_METHOD_MISSING: "Det finnes ingen aktiv metodeversjon for risikoscreening ennå.",
 };
 
 export function appError(code: AppErrorCode) {

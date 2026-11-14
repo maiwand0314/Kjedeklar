@@ -9,7 +9,7 @@ import { visibleToTenants } from "../../src/domain/risk/datasets/lifecycle.ts";
 import { notFound } from "../lib/errors";
 import { tenantQuery } from "../lib/tenant";
 import { isLocalEnv } from "../ops/guard";
-import { versionView } from "./model";
+import { activeDocs, versionView } from "./model";
 import { versionViewValidator } from "./validators";
 
 /** De aktive versjonene som gjelder nå: produksjon, eller demo i lokale miljøer når ingen produksjonsversjon er aktiv. */
@@ -22,28 +22,12 @@ export const activeVersions = tenantQuery({
   }),
   handler: async (ctx) => {
     const now = Date.now();
-    const environments = isLocalEnv() ? (["production", "demo"] as const) : (["production"] as const);
-    const dataset = async (kind: "country" | "industry") => {
-      for (const environment of environments) {
-        const doc = await ctx.db
-          .query("riskDatasetVersions")
-          .withIndex("by_kind_and_environment_and_status", (q) => q.eq("kind", kind).eq("environment", environment).eq("status", "active"))
-          .first();
-        if (doc) return versionView(kind, doc, now);
-      }
-      return null;
+    const active = await activeDocs(ctx);
+    return {
+      country: active.country && versionView("country", active.country, now),
+      industry: active.industry && versionView("industry", active.industry, now),
+      method: active.method && versionView("method", active.method, now),
     };
-    const method = async () => {
-      for (const environment of environments) {
-        const doc = await ctx.db
-          .query("riskMethodVersions")
-          .withIndex("by_environment_and_status", (q) => q.eq("environment", environment).eq("status", "active"))
-          .first();
-        if (doc) return versionView("method", doc, now);
-      }
-      return null;
-    };
-    return { country: await dataset("country"), industry: await dataset("industry"), method: await method() };
   },
 });
 
