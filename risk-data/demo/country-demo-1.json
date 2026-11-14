@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "risk-dataset-v1",
+  "environment": "demo",
+  "checksum": "7a183a66999d8f3fdae8af295dc3ff33fe562e18d1c6dba2e52b4d973e37b951",
+  "kind": "country",
+  "version": "demo-country-1",
+  "sourceTitle": "SYNTETISK DEMO – ikke faglig grunnlag og ikke bruk på kundedata",
+  "sourceUrl": "https://example.com/syntetisk-demo",
+  "sourceEdition": "demo-1",
+  "retrievedAt": "2026-11-01",
+  "licenseStatus": "unclear",
+  "licenseNote": "Syntetiske verdier uten kilde. Kan ikke aktiveres i produksjon.",
+  "entries": [
+    {
+      "iso2": "XA",
+      "originalIndicator": "syntetisk 1",
+      "screeningLevel": "high",
+      "transformationNote": "Oppdiktet demo-verdi. Ingen faglig mapping.",
+      "sourceReference": "Syntetisk demo, ingen kilde"
+    },
+    {
+      "iso2": "XB",
+      "originalIndicator": "syntetisk 2",
+      "screeningLevel": "moderate",
+      "transformationNote": "Oppdiktet demo-verdi. Ingen faglig mapping.",
+      "sourceReference": "Syntetisk demo, ingen kilde"
+    },
+    {
+      "iso2": "XC",
+      "originalIndicator": "syntetisk 3",
+      "screeningLevel": "low",
+      "transformationNote": "Oppdiktet demo-verdi. Ingen faglig mapping.",
+      "sourceReference": "Syntetisk demo, ingen kilde"
+    }
+  ]
+}

@@ -17,6 +17,7 @@ Startpakke opprettet 6. november 2026. Dokumentasjonen ble samme dag skrevet om 
 | 11 | Implementert, verifisert lokalt og i CI, review-merknader rettet, merget (PR #14) | Lokalt med Docker: lint, typecheck, 601 enhets-/convex-test-tester, 145 integrasjonstester, 17 e2e-tester og build | Importen drives av nettleseren og fortsetter ikke av seg selv etter et avbrudd. Revisjonslogg per batch, ikke per leverandør. Feilrader kan ikke rettes i appen |
 | 12 | Implementert og verifisert lokalt (branch `feature/12-jobs`) | Lokalt med Docker: lint, typecheck, 636 enhets-/convex-test-tester, 160 integrasjonstester, 17 e2e-tester og build | Bare en kontrollert testtype; ingen jobbtype for produksjon og ingen visning i grensesnittet ennå. Workpool er under 1.0 (låst 0.4.15) |
 | 13 | Implementert og verifisert lokalt (branch `feature/13-brreg-enrichment`) | Lokalt med Docker: lint, typecheck, 676 enhets-/convex-test-tester, 175 integrasjonstester, 18 e2e-tester (med lokalt installert Chrome) og build | Registerverdier er forslag brukeren godtar; ingen automatisk utfylling. SN-versjon velges av bruker. Ikke kjørt mot ekte Enhetsregisteret. Risikomodulen finnes ikke, så ingenting merkes utdatert |
+| 14 | Implementert og verifisert lokalt (branch `feature/14-risk-data`) | Lokalt med Docker: lint, typecheck, 741 enhets-/convex-test-tester, 187 integrasjonstester, 18 e2e-tester (med lokalt installert Chrome) og build | Ingen reelle risikodata og ingen fagreview: bare syntetiske demo-fixtures. Kommandoene er bare prøvd mot lokal backend, ikke Convex Cloud. Ingen motor (oppgave 15) |
 
 Oppdater ved hver oppgave. Bruk «implementert», «verifisert» og «ekstern avklaring» presist. Et lokalt fake-resultat betyr ikke at en ekstern integrasjon er godkjent.
 
@@ -854,6 +855,55 @@ pnpm build                        OK
 - **«Hent for alle»** leser de første 2 000 aktive leverandørene og hopper over de som har feilet.
 - **Vurderingsgrunnlag:** risikomodulen finnes ikke, så ingenting merkes «endret».
 - **Statusoppdatering** er polling hvert femte sekund.
+
+## Oppgave 14 – versjonerte risikodata og faglig metodekontrakt
+
+Beslutninger og begrunnelser står i `docs/decisions/0012-risikodata.md` og `docs/decisions/risk-method-v0.md`.
+
+### Endret
+- **Fire globale tabeller** (uten `organizationId`): `riskDatasetVersions`, `countryRiskEntries`, `industryRiskEntries`, `riskMethodVersions`. RLS-reglene for alle tre kontekstene er utvidet: kunder leser bare aktiverte og pensjonerte versjoner (demo bare lokalt), innholdstabellene leses ikke, og ingenting kan skrives fra tenantfunksjoner.
+- **`src/domain/risk/datasets/`** (ren TypeScript): Zod-skjema for land-, bransje- og metodemanifest, semantisk validering (duplikat, tvetydig mapping, datoer, metodens regler), kanonisk SHA-256-checksum og livsløpsregler (hindre for aktivering, `freshness`, synlighet).
+- **`convex/risk/`:** `internal.ts` (`importVersion`, `activateVersion`, bare med admin/deploy key), `queries.ts` (`activeVersions`, `getVersion` som `tenantQuery`, bare metadata), `model.ts`, `validators.ts`.
+- **Kommandoer:** `pnpm risk-data:validate`, `risk-data:import` og `risk-data:activate` (`scripts/risk-data-*.ts`, kjørt direkte av Node 24). Admin key leses fra en env-fil lokalt, aldri fra appen.
+- **`risk-data/demo/`:** tre tydelig syntetiske fixtures (land `XA`–`XC`, bransjekoder i den ubrukte divisjonen `00`, metodedemo). Ingen reelle data.
+- **Metodekontrakten** (`risk-method-v0.md`): Kjedeklars screening, krav om faglig gjennomgang før kundebruk, ordinal max med ukjent-regel, prioritetsrekkefølge, og skillet mellom risikofaktorer og kontrollsignaler. Håndheves av valideringen (f.eks. `amountAffectsLevel: false`).
+- **Verktøy:** `allowImportingTsExtensions` i begge `tsconfig`-filer, og `.ts`-endelser på importene i `src/domain/risk/datasets/`.
+- **Rettet fra oppgave 13:** `tests/integration/enrichment.test.ts` laget tre avvisende løfter før de ble awaitet, som ga «unhandled rejection» og kunne gi utgangskode 1 uten at en test feilet. Nå lages de først når de brukes.
+
+### Akseptkriterier
+1. *Ny dataversjon kan importeres og aktiveres uten kodeendring; gammel forblir lesbar:* convex-test og integrasjonstest med de ekte kommandoene. Ny aktivering pensjonerer den gamle, som kan leses av kunder med uendret innhold og metadata.
+2. *Produksjonsaktivering av demo, uavklart lisens, manglende godkjenning eller ugyldig mapping avvises:* enhets-, convex- og integrasjonstester per hinder (også manglende gjennomgang, utgått review og endret checksum), og avvist aktivering lar eksisterende aktiv versjon stå.
+3. *Utdaterte kilder er en eksplisitt tilstand:* `freshness` er `current`, `review_overdue` eller `unreviewed`. En aktiv versjon som passerer forfallsdatoen forblir lesbar, men vises som `review_overdue`.
+4. *Metodekontrakten sier at dette er Kjedeklars screening med krav om faglig gjennomgang:* i `risk-method-v0.md`, og håndhevet: metodefilen må ha `scope: "kjedeklar_screening"` og `requiresProfessionalReview: true`, og produksjonsaktivering krever gjennomgang og godkjenning.
+
+### Tester
+- `tests/unit/risk-data.test.ts` (37): repoets filer er gyldige med riktig checksum og er bare demo, duplisert land, manglende kildereferanse, ugyldig ISO (og `XA` bare i demo), uventet kodeverk, tvetydig mapping, eksakt/prefiks, metoderegler, checksum (rekkefølge og endringer), alle hindre for aktivering, grensedagen for review, og kommandoen `risk-data:validate`.
+- `tests/convex/risk-data.test.ts` (22): import (gyldig, ugyldig, endret innhold, demo utenfor lokalt miljø, samme versjon to ganger, operatør), aktivering og historikk, hindre, RLS-reglene og utdatert kilde.
+- `tests/integration/risk-data.test.ts` (5) mot lokal backend med kommandoene og to innloggede kunder; `tests/integration/tenancy.test.ts` har probe for `importVersion` og `activateVersion` (import-proben sjekker at ingenting ble skrevet).
+- Registre: to offentlige queries, to interne mutasjoner (unntatt fra revisjonslogg med begrunnelse), og de fire tabellene som eksplisitt globale i `registry.test.ts`.
+
+### Kjørte kommandoer (14.11.2026, lokalt med Docker)
+```text
+pnpm risk-data:validate           OK (3 demo-filer)
+pnpm convex:deploy:test           OK
+pnpm lint / pnpm typecheck        OK
+pnpm test:unit                    741/741
+pnpm test:integration             187/187
+pnpm exec playwright test         18/18 (med Google Chrome, midlertidig konfigurasjon som ikke er sjekket inn)
+pnpm build                        OK
+```
+
+### Manuell prøve
+- Ingen utover de automatiske testene, som kjører de ekte kommandoene mot test-backenden.
+
+### Ikke gjort / begrensninger
+- **Ingen reelle risikodata.** Kilder, lisens og mapping fra indikator til nivå er ikke avklart og er ikke fagreviewet. Metodekontrakten er et forslag.
+- **Ikke prøvd mot Convex Cloud.** Kommandoene bruker admin key via `ConvexHttpClient` mot selvhostet backend; prosedyre for deploy key mot Cloud er ikke laget.
+- **Revisjonslogg:** import og aktivering har ingen `auditEvents` (loggen er per kunde); hvem og når står på versjonsdokumentet, og operatørnavnet er en påstand.
+- **Checksum er integritetsvern, ikke signatur;** gjennomgang og godkjenning er opplysninger i filen uten bevis.
+- **Størrelse:** høyst 1 000 linjer per versjon, én mutasjon. Ingen CSV.
+- **Kunder leser ikke innholdet** i innholdstabellene ennå; oppgave 15 avgjør lesefunksjon.
+- E2E er ikke utvidet: oppgaven har ikke noe grensesnitt.
 
 ## Åpne eksterne avklaringer
 - Convex DPA, underleverandører og plassering av backup, logg og support (beslutning 0001). Må lukkes før ekte kundedata.

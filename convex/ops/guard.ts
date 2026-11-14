@@ -28,3 +28,13 @@ export function assertLocalEnv(allowed: readonly LocalEnv[]): LocalEnv {
   }
   return env as LocalEnv;
 }
+
+/** Som assertLocalEnv, men gir svar i stedet for å kaste. */
+export function isLocalEnv(allowed: readonly LocalEnv[] = ["development", "test"]): boolean {
+  try {
+    assertLocalEnv(allowed);
+    return true;
+  } catch {
+    return false;
+  }
+}

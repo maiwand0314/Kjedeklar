@@ -13,6 +13,8 @@
  * Se docs/decisions/0002-tenant-boundary.md.
  */
 import type { Rules } from "convex-helpers/server/rowLevelSecurity";
+import { visibleToTenants } from "../../src/domain/risk/datasets/lifecycle.ts";
+import { isLocalEnv } from "../ops/guard";
 import type {
   DataModel,
   Doc,
@@ -85,8 +87,19 @@ export function tenantRules(scope: TenantScope): ExhaustiveRules {
     importRows: { read: sameTenant, modify: sameTenant, insert: deny },
     // Admin oppretter jobber i egen organisasjon. Status endres bare av interne jobbfunksjoner.
     jobs: { read: sameTenant, modify: deny, insert: sameTenant },
+    // Globalt faggrunnlag: kunder ser bare aktiverte og pensjonerte versjoner (demo bare lokalt),
+    // og kan aldri endre noe. Skriving skjer i interne funksjoner. Innholdstabellene leses ikke av
+    // tenantfunksjoner ennå; en lesefunksjon som trenger dem, går via en synlig versjon.
+    riskDatasetVersions: { read: visibleVersion, modify: deny, insert: deny },
+    riskMethodVersions: { read: visibleVersion, modify: deny, insert: deny },
+    countryRiskEntries: { read: deny, modify: deny, insert: deny },
+    industryRiskEntries: { read: deny, modify: deny, insert: deny },
   };
 }
+
+/** Kan en tenant se denne dataversjonen? Se `visibleToTenants`. */
+const visibleVersion = async (_ctx: RuleCtx, doc: { status: "imported" | "active" | "retired"; environment: "demo" | "production" }) =>
+  visibleToTenants(doc, isLocalEnv());
 
 /**
  * Regler for brukerfunksjoner uten valgt organisasjon (organisasjonsvelger).
@@ -119,6 +132,10 @@ export function userRules(
     importBatches: { read: deny, modify: deny, insert: deny },
     importRows: { read: deny, modify: deny, insert: deny },
     jobs: { read: deny, modify: deny, insert: deny },
+    riskDatasetVersions: { read: deny, modify: deny, insert: deny },
+    riskMethodVersions: { read: deny, modify: deny, insert: deny },
+    countryRiskEntries: { read: deny, modify: deny, insert: deny },
+    industryRiskEntries: { read: deny, modify: deny, insert: deny },
   };
 }
 
@@ -177,5 +194,9 @@ export function invitationRules(scope: InvitationScope): ExhaustiveRules {
     importBatches: { read: deny, modify: deny, insert: deny },
     importRows: { read: deny, modify: deny, insert: deny },
     jobs: { read: deny, modify: deny, insert: deny },
+    riskDatasetVersions: { read: deny, modify: deny, insert: deny },
+    riskMethodVersions: { read: deny, modify: deny, insert: deny },
+    countryRiskEntries: { read: deny, modify: deny, insert: deny },
+    industryRiskEntries: { read: deny, modify: deny, insert: deny },
   };
 }

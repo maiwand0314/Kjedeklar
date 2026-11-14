@@ -362,6 +362,29 @@ export const reviewedPublicFunctions: Record<string, PublicFunctionReview> = {
     note: "Én egen leverandør (getOwned) med innkjøpsdata for egen periode (getOwned).",
     prepareOwn: ownSupplier,
   },
+  "risk/queries:activeVersions": {
+    kind: "query",
+    ref: api.risk.queries.activeVersions,
+    boundary: "tenant",
+    sampleArgs: {},
+    note: "Metadata og datakvalitet for aktive risikodataversjoner (globalt faggrunnlag). Aldri uaktiverte versjoner og aldri innholdet.",
+  },
+  "risk/queries:getVersion": {
+    kind: "query",
+    ref: api.risk.queries.getVersion,
+    boundary: "tenant",
+    sampleArgs: { kind: "country", versionId: "ukjent" },
+    note: "Én aktiv eller pensjonert dataversjon (metadata). Uaktivert, ukjent og demo utenfor lokale miljøer gir «ikke funnet».",
+    prepareOwn: async (run) => ({
+      versionId: await run((db) =>
+        db.insert("riskDatasetVersions", {
+          kind: "country", version: "test-1", sourceTitle: "SYNTETISK TEST", sourceUrl: "https://example.com/test", sourceEdition: "test",
+          retrievedAt: "2026-11-01", licenseStatus: "unclear", entryCount: 0, status: "active", environment: "demo", schemaVersion: "risk-dataset-v1",
+          checksum: "0".repeat(64), importedAt: 0, importedBy: "test", activatedAt: 0, activatedBy: "test",
+        }),
+      ),
+    }),
+  },
   "suppliers/enrichment:request": {
     kind: "mutation",
     ref: api.suppliers.enrichment.request,

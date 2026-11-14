@@ -9,6 +9,7 @@ import {
 import { profileAnswerFields } from "./organizations/profileValidators";
 import { registryProfileValidator } from "./organizations/registryValidators";
 import { importBatchFields, importRowFields } from "./suppliers/import/validators";
+import { countryEntryFields, datasetVersionFields, industryEntryFields, methodVersionFields } from "./risk/validators";
 import { industryCodeSourceValidator, registryEnrichmentValidator, supplierPeriodFields, supplierProfileFields } from "./suppliers/validators";
 
 // Better Auth-tabellene ligger i komponenten @convex-dev/better-auth, ikke her.
@@ -157,6 +158,25 @@ export default defineSchema({
   })
     .index("by_organizationId_and_type_and_idempotencyKey", ["organizationId", "type", "idempotencyKey"])
     .index("by_organizationId", ["organizationId"]),
+
+  // Versjonerte risikodata (oppgave 14). Globalt faggrunnlag, ikke kundedata:
+  // ingen `organizationId`. Skrives bare av interne funksjoner kjørt av operatør.
+  // Innholdet endres aldri etter import; bare status og tidsstempler. Tenant-
+  // funksjoner leser bare aktiverte eller pensjonerte versjoner (se rls.ts).
+  riskDatasetVersions: defineTable(datasetVersionFields)
+    .index("by_kind_and_version", ["kind", "version"])
+    .index("by_kind_and_environment_and_status", ["kind", "environment", "status"]),
+  countryRiskEntries: defineTable({ datasetVersionId: v.id("riskDatasetVersions"), ...countryEntryFields }).index(
+    "by_datasetVersionId_and_iso2",
+    ["datasetVersionId", "iso2"],
+  ),
+  industryRiskEntries: defineTable({ datasetVersionId: v.id("riskDatasetVersions"), ...industryEntryFields }).index(
+    "by_datasetVersionId",
+    ["datasetVersionId"],
+  ),
+  riskMethodVersions: defineTable(methodVersionFields)
+    .index("by_version", ["version"])
+    .index("by_environment_and_status", ["environment", "status"]),
 
   memberships: defineTable({
     organizationId: v.id("organizations"),

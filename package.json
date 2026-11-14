@@ -16,7 +16,10 @@
     "seed:dev": "convex run ops/seed:seedDev --env-file .env.convex-dev.local",
     "test:unit": "vitest run --project unit --project convex",
     "test:integration": "node scripts/local-convex.mjs test deploy && vitest run --project integration",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "risk-data:validate": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/risk-data-validate.ts",
+    "risk-data:import": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/risk-data-import.ts",
+    "risk-data:activate": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/risk-data-import.ts --activate"
   },
   "dependencies": {
     "@convex-dev/better-auth": "0.13.0",
