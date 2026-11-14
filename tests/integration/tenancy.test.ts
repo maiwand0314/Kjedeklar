@@ -233,6 +233,11 @@ describe("tenant-isolasjon mot lokal Convex-backend", () => {
         expect(runInternal<{ status: string }>("risk/internal:importVersion", { operator: "kontroll", payload: probeRiskPayload }).status).toBe("imported");
       },
     },
+    "risk/internal:engineData": {
+      // Query: et vellykket kall ville gitt klienten innholdet i de aktive risikodataene. Avslaget er beviset.
+      args: () => ({}),
+      verifyNoEffect: async () => {},
+    },
     "risk/internal:activateVersion": {
       args: () => ({ operator: "kapret", kind: "country", version: "finnes-ikke" }),
       verifyNoEffect: async () => {},
@@ -279,6 +284,10 @@ describe("tenant-isolasjon mot lokal Convex-backend", () => {
     },
     "ops/testing:setImportRowName": {
       args: ({ fx }) => ({ rowId: fx.orgA, name: "Kapret AS" }),
+      verifyNoEffect: async () => {},
+    },
+    "ops/testing:seedSuppliersForRisk": {
+      args: ({ fx }) => ({ organizationId: fx.orgB, reportingPeriodId: fx.orgB, from: 0, count: 1 }),
       verifyNoEffect: async () => {},
     },
     "ops/testing:expireInvitation": {

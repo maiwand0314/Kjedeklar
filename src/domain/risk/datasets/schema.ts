@@ -154,3 +154,7 @@ export type ScreeningLevel = (typeof SCREENING_LEVELS)[number];
  */
 export const isDatasetCountry = (iso2: string, env: "demo" | "production") =>
   isCountryCode(iso2) || (env === "demo" && /^X[A-Z]$/.test(iso2));
+
+export type MethodDefinition = MethodManifest["definition"];
+export type CountryEntry = CountryManifest["entries"][number];
+export type IndustryEntry = IndustryManifest["entries"][number];

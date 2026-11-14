@@ -9,7 +9,7 @@ import {
 import { profileAnswerFields } from "./organizations/profileValidators";
 import { registryProfileValidator } from "./organizations/registryValidators";
 import { importBatchFields, importRowFields } from "./suppliers/import/validators";
-import { countryEntryFields, datasetVersionFields, industryEntryFields, methodVersionFields } from "./risk/validators";
+import { countryEntryFields, datasetVersionFields, industryEntryFields, methodVersionFields, riskAssessmentFields } from "./risk/validators";
 import { industryCodeSourceValidator, registryEnrichmentValidator, supplierPeriodFields, supplierProfileFields } from "./suppliers/validators";
 
 // Better Auth-tabellene ligger i komponenten @convex-dev/better-auth, ikke her.
@@ -177,6 +177,13 @@ export default defineSchema({
   riskMethodVersions: defineTable(methodVersionFields)
     .index("by_version", ["version"])
     .index("by_environment_and_status", ["environment", "status"]),
+
+  // Screeningvurderinger (oppgave 15). Ny rad per beregning; gamle endres aldri. «Utdatert»
+  // regnes ut ved lesing ved å sammenligne med gjeldende grunnlag. Indeksnavn: «period» er reportingPeriodId.
+  riskAssessments: defineTable({ organizationId: v.id("organizations"), ...riskAssessmentFields }).index(
+    "by_organizationId_and_period_and_supplier_and_assessedAt",
+    ["organizationId", "reportingPeriodId", "supplierId", "assessedAt"],
+  ),
 
   memberships: defineTable({
     organizationId: v.id("organizations"),

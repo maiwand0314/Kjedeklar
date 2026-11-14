@@ -19,7 +19,8 @@ export const AUDIT_DIFF_FIELDS: Record<AuditEntityType, readonly string[]> = {
   membership: ["role", "status"],
   invitation: ["status", "expiresAt"],
   applicability: ["result", "ruleVersion"],
-  reportingPeriod: ["startDate", "endDate", "publicationDueDate", "status"],
+  // riskAssessed/riskUnchanged: antall nye og uendrede screeningvurderinger i en kjøring (oppgave 15).
+  reportingPeriod: ["startDate", "endDate", "publicationDueDate", "status", "riskAssessed", "riskUnchanged"],
   // Versjon, bekreftelse og status per tema. Selve svarteksten logges aldri.
   businessProfile: [
     "revision", "confirmed", "organizationDescription", "operations", "countries", "responsibility",

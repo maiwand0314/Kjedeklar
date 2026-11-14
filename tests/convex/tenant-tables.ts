@@ -36,6 +36,8 @@ export type Owner = {
   reportingPeriodId: Id<"reportingPeriods">;
   supplierId: Id<"suppliers">;
   importBatchId: Id<"importBatches">;
+  /** Globalt faggrunnlag (ikke tenant): en metodeversjon som vurderinger peker på. */
+  methodVersionId: Id<"riskMethodVersions">;
 };
 
 export type TenantTableCase<T extends TenantTable> = {
@@ -139,6 +141,29 @@ export const tenantTableCases: { [T in TenantTable]: TenantTableCase<T> } = {
     patch: { upstreamUnknown: false },
     // Admin lagrer innkjøpsdata i egen organisasjon.
     tenantCanModifyOwn: true,
+    tenantCanInsertOwn: true,
+  },
+  riskAssessments: {
+    newDoc: ({ organizationId, userId, reportingPeriodId, supplierId, methodVersionId }) => ({
+      organizationId,
+      supplierId,
+      reportingPeriodId,
+      methodVersionId,
+      engineVersion: "risk-engine-v1",
+      inputSnapshot: { industry: null, productionCountries: [], upstreamUnknown: true, purchaseCategory: null, registry: null },
+      inputHash: "0".repeat(64),
+      screeningLevel: "unknown",
+      dataQuality: "insufficient",
+      missingFields: [],
+      triggeredRules: [],
+      controlSignals: [],
+      staleSources: [],
+      assessedAt: Date.now(),
+      assessedBy: userId,
+    }),
+    patch: { screeningLevel: "low" },
+    // Ny rad per beregning; historikk endres aldri fra tenantfunksjoner.
+    tenantCanModifyOwn: false,
     tenantCanInsertOwn: true,
   },
   importBatches: {

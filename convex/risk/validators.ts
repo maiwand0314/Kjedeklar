@@ -56,6 +56,14 @@ export const methodDefinitionValidator = v.object({
   ),
 });
 
+const industryEntryView = v.object({
+  codeExact: v.optional(v.string()),
+  codePrefix: v.optional(v.string()),
+  productCategory: v.optional(v.string()),
+  screeningLevel: screeningLevelValidator,
+  sourceReference: v.string(),
+});
+
 export const methodVersionFields = {
   version: v.string(),
   description: v.string(),
@@ -97,4 +105,79 @@ export const versionViewValidator = v.object({
   freshness: v.union(v.literal("current"), v.literal("review_overdue"), v.literal("unreviewed")),
   entryCount: v.union(v.number(), v.null()),
   activatedAt: v.union(v.number(), v.null()),
+});
+
+const levelWithUnknown = v.union(v.literal("low"), v.literal("moderate"), v.literal("high"), v.literal("unknown"));
+const nullableBool = v.union(v.boolean(), v.null());
+
+/** Det motoren så (src/domain/risk/engine.ts `EngineInput`): uten beløp, registreringsland og fritekst. */
+export const inputSnapshotValidator = v.object({
+  industry: v.union(v.null(), v.object({ codeSystem: v.string(), code: v.string() })),
+  productionCountries: v.array(v.string()),
+  upstreamUnknown: v.boolean(),
+  purchaseCategory: v.union(v.string(), v.null()),
+  registry: v.union(
+    v.null(),
+    v.object({ bankrupt: nullableBool, underLiquidation: nullableBool, underForcedLiquidation: nullableBool, deleted: v.boolean() }),
+  ),
+});
+
+/** Resultatet av motoren (`Assessment`). */
+export const assessmentResultFields = {
+  screeningLevel: levelWithUnknown,
+  dataQuality: v.union(v.literal("complete"), v.literal("incomplete"), v.literal("insufficient")),
+  missingFields: v.array(v.object({ field: v.string(), reason: v.string(), detail: v.optional(v.string()) })),
+  triggeredRules: v.array(
+    v.object({
+      ruleId: v.string(),
+      factor: v.string(),
+      level: screeningLevelValidator,
+      input: v.string(),
+      sourceRef: v.object({ dataset: v.string(), version: v.string(), entry: v.string(), sourceReference: v.string() }),
+    }),
+  ),
+  controlSignals: v.array(v.object({ ruleId: v.string(), factor: v.string(), detail: v.string() })),
+  staleSources: v.array(v.object({ source: v.string(), version: v.string(), freshness: v.string() })),
+};
+
+/** Uforanderlig vurdering av én leverandør i én periode. Ny rad per beregning. */
+export const riskAssessmentFields = {
+  supplierId: v.id("suppliers"),
+  reportingPeriodId: v.id("reportingPeriods"),
+  supplierPeriodId: v.optional(v.id("supplierPeriods")),
+  methodVersionId: v.id("riskMethodVersions"),
+  countryDatasetVersionId: v.optional(v.id("riskDatasetVersions")),
+  industryDatasetVersionId: v.optional(v.id("riskDatasetVersions")),
+  engineVersion: v.string(),
+  inputSnapshot: inputSnapshotValidator,
+  inputHash: v.string(),
+  ...assessmentResultFields,
+  assessedAt: v.number(),
+  assessedBy: v.string(),
+};
+
+const freshnessValidator = v.union(v.literal("current"), v.literal("review_overdue"), v.literal("unreviewed"));
+
+/** Aktive versjoner med innhold, bare til interne funksjoner. */
+export const engineDataValidator = v.object({
+  method: v.union(v.null(), v.object({ id: v.id("riskMethodVersions"), version: v.string(), freshness: freshnessValidator, definition: methodDefinitionValidator })),
+  country: v.union(
+    v.null(),
+    v.object({
+      id: v.id("riskDatasetVersions"),
+      version: v.string(),
+      freshness: freshnessValidator,
+      entries: v.array(v.object({ iso2: v.string(), screeningLevel: screeningLevelValidator, sourceReference: v.string() })),
+    }),
+  ),
+  industry: v.union(
+    v.null(),
+    v.object({
+      id: v.id("riskDatasetVersions"),
+      version: v.string(),
+      codeSystem: v.string(),
+      freshness: freshnessValidator,
+      entries: v.array(industryEntryView),
+    }),
+  ),
 });

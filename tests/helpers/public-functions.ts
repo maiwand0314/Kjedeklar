@@ -76,6 +76,29 @@ export const SYNTHETIC_SUPPLIER_DOC = {
 /** Syntetiske innkjøpsdata: alt ukjent. */
 export const SYNTHETIC_SUPPLIER_PERIOD = { productionCountries: [], upstreamUnknown: true };
 
+/** Syntetisk metodeversjon slik den lagres (global, uten organisasjon). */
+export const SYNTHETIC_METHOD_VERSION_DOC = {
+  version: "test-method",
+  description: "SYNTETISK TESTMETODE",
+  status: "active" as const,
+  environment: "demo" as const,
+  schemaVersion: "risk-dataset-v1",
+  checksum: "0".repeat(64),
+  importedAt: 0,
+  importedBy: "test",
+  definition: {
+    scope: "kjedeklar_screening" as const,
+    requiresProfessionalReview: true as const,
+    levels: ["low", "moderate", "high"],
+    aggregation: "ordinal_max" as const,
+    unknownPolicy: { knownHighWins: true as const, materialGaps: ["productionCountry"], resultWhenMaterialGap: "unknown" as const },
+    priorityOrder: ["high", "unknown", "moderate", "low"],
+    amountAffectsLevel: false as const,
+    amountSortsWithinLevel: true as const,
+    ruleDefinitions: [{ ruleId: "COUNTRY_LEVEL", kind: "risk_factor", factor: "country", description: "Testregel" }],
+  },
+};
+
 /** Syntetisk importgrunnlag slik det lagres (uten organisasjon, periode og bruker): ett utkast uten oppføringer som mangler valg. */
 export const SYNTHETIC_IMPORT_BATCH = {
   status: "draft",
@@ -383,6 +406,39 @@ export const reviewedPublicFunctions: Record<string, PublicFunctionReview> = {
           checksum: "0".repeat(64), importedAt: 0, importedBy: "test", activatedAt: 0, activatedBy: "test",
         }),
       ),
+    }),
+  },
+  "risk/assessments:assessPeriod": {
+    kind: "mutation",
+    ref: api.risk.assessments.assessPeriod,
+    boundary: "tenant",
+    sampleArgs: { reportingPeriodId: "ukjent", cursor: null },
+    note: "Beregner screening for egne aktive leverandører i egen periode (getOwned) og lagrer nye vurderinger. Kaster uten aktiv metodeversjon. Med revisjonslogg.",
+    prepareOwn: async (run, organizationId, userId) => {
+      await run((db) => db.insert("riskMethodVersions", SYNTHETIC_METHOD_VERSION_DOC));
+      return await ownPeriod(run, organizationId, userId);
+    },
+  },
+  "risk/assessments:latest": {
+    kind: "query",
+    ref: api.risk.assessments.latest,
+    boundary: "tenant",
+    sampleArgs: { supplierId: "ukjent", reportingPeriodId: "ukjent" },
+    note: "Siste vurdering med status for egen leverandør i egen periode (getOwned på begge).",
+    prepareOwn: async (run, organizationId, userId) => ({
+      ...(await ownSupplier(run, organizationId, userId)),
+      ...(await ownPeriod(run, organizationId, userId)),
+    }),
+  },
+  "risk/assessments:history": {
+    kind: "query",
+    ref: api.risk.assessments.history,
+    boundary: "tenant",
+    sampleArgs: { supplierId: "ukjent", reportingPeriodId: "ukjent" },
+    note: "Vurderingshistorikk for egen leverandør i egen periode (getOwned på begge).",
+    prepareOwn: async (run, organizationId, userId) => ({
+      ...(await ownSupplier(run, organizationId, userId)),
+      ...(await ownPeriod(run, organizationId, userId)),
     }),
   },
   "suppliers/enrichment:request": {

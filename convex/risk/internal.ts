@@ -10,11 +10,13 @@
  * hvem og når står på selve versjonsdokumentet (`importedBy`, `activatedBy`).
  */
 import { v } from "convex/values";
-import { activationBlockers, todayUtc } from "../../src/domain/risk/datasets/lifecycle.ts";
+import { activationBlockers, datasetFreshness, todayUtc } from "../../src/domain/risk/datasets/lifecycle.ts";
 import { validateManifest } from "../../src/domain/risk/datasets/validate.ts";
-import { internalMutation } from "../_generated/server";
+import { methodDefinitionSchema } from "../../src/domain/risk/datasets/schema.ts";
+import { internalMutation, internalQuery } from "../_generated/server";
 import { isLocalEnv } from "../ops/guard";
-import { checksumMatches, datasetManifest, methodManifest, riskDataError } from "./model";
+import { activeDocs, checksumMatches, datasetManifest, methodManifest, riskDataError } from "./model";
+import { engineDataValidator } from "./validators";
 
 const operator = v.string();
 const kindValidator = v.union(v.literal("country"), v.literal("industry"), v.literal("method"));
@@ -142,5 +144,45 @@ export const activateVersion = internalMutation({
     if (current) await ctx.db.patch("riskDatasetVersions", current._id, { status: "retired", retiredAt: now });
     await ctx.db.patch("riskDatasetVersions", doc._id, { status: "active", activatedAt: now, activatedBy });
     return { kind, version: doc.version, retiredVersion: current?.version ?? null };
+  },
+});
+
+/**
+ * De aktive versjonene med innhold, til vurderingsmutasjonen. Kundefunksjoner kan
+ * ikke lese innholdstabellene direkte (rls.ts), så innholdet går via denne interne
+ * queryen, som bare kalles fra annen Convex-kode. Metodedefinisjonen valideres på
+ * nytt (den ble validert ved aktivering).
+ */
+export const engineData = internalQuery({
+  args: {},
+  returns: engineDataValidator,
+  handler: async (ctx) => {
+    const today = todayUtc(Date.now());
+    const active = await activeDocs(ctx);
+    const country = active.country
+      ? {
+          id: active.country._id,
+          version: active.country.version,
+          freshness: datasetFreshness(active.country, today),
+          entries: (
+            await ctx.db.query("countryRiskEntries").withIndex("by_datasetVersionId_and_iso2", (q) => q.eq("datasetVersionId", active.country!._id)).take(1001)
+          ).map(({ iso2, screeningLevel, sourceReference }) => ({ iso2, screeningLevel, sourceReference })),
+        }
+      : null;
+    const industry = active.industry
+      ? {
+          id: active.industry._id,
+          version: active.industry.version,
+          codeSystem: active.industry.codeSystem ?? "",
+          freshness: datasetFreshness(active.industry, today),
+          entries: (
+            await ctx.db.query("industryRiskEntries").withIndex("by_datasetVersionId", (q) => q.eq("datasetVersionId", active.industry!._id)).take(1001)
+          ).map(({ codeExact, codePrefix, productCategory, screeningLevel, sourceReference }) => ({ codeExact, codePrefix, productCategory, screeningLevel, sourceReference })),
+        }
+      : null;
+    const method = active.method
+      ? { id: active.method._id, version: active.method.version, freshness: datasetFreshness(active.method, today), definition: methodDefinitionSchema.parse(active.method.definition) }
+      : null;
+    return { method, country, industry };
   },
 });

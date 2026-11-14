@@ -110,9 +110,13 @@ describe("risikodata mot lokal backend", () => {
     expect((await active(env.a, env.fx.orgA)).industry?.version).not.toBe(version);
   });
 
-  test("det finnes ingen offentlig skrivefunksjon for risikodata", () => {
+  test("det finnes ingen offentlig skrivefunksjon for de felles risikodataene", () => {
     const risk = Object.entries(reviewedPublicFunctions).filter(([path]) => path.startsWith("risk/"));
+    // Eneste mutasjon er kundens egen vurdering (riskAssessments i egen organisasjon); felles data leses bare.
     expect(risk.map(([path, r]) => [path, r.kind]).sort()).toEqual([
+      ["risk/assessments:assessPeriod", "mutation"],
+      ["risk/assessments:history", "query"],
+      ["risk/assessments:latest", "query"],
       ["risk/queries:activeVersions", "query"],
       ["risk/queries:getVersion", "query"],
     ]);

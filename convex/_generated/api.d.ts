@@ -56,6 +56,7 @@ import type * as organizations_registry from "../organizations/registry.js";
 import type * as organizations_registryInternal from "../organizations/registryInternal.js";
 import type * as organizations_registryValidators from "../organizations/registryValidators.js";
 import type * as organizations_reportingPeriods from "../organizations/reportingPeriods.js";
+import type * as risk_assessments from "../risk/assessments.js";
 import type * as risk_internal from "../risk/internal.js";
 import type * as risk_model from "../risk/model.js";
 import type * as risk_queries from "../risk/queries.js";
@@ -128,6 +129,7 @@ declare const fullApi: ApiFromModules<{
   "organizations/registryInternal": typeof organizations_registryInternal;
   "organizations/registryValidators": typeof organizations_registryValidators;
   "organizations/reportingPeriods": typeof organizations_reportingPeriods;
+  "risk/assessments": typeof risk_assessments;
   "risk/internal": typeof risk_internal;
   "risk/model": typeof risk_model;
   "risk/queries": typeof risk_queries;
