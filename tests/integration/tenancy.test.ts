@@ -286,6 +286,10 @@ describe("tenant-isolasjon mot lokal Convex-backend", () => {
       args: ({ fx }) => ({ rowId: fx.orgA, name: "Kapret AS" }),
       verifyNoEffect: async () => {},
     },
+    "ops/testing:setPeriodCountries": {
+      args: ({ fx }) => ({ supplierId: fx.orgA, reportingPeriodId: fx.orgA, productionCountries: ["XA"] }),
+      verifyNoEffect: async () => {},
+    },
     "ops/testing:seedSuppliersForRisk": {
       args: ({ fx }) => ({ organizationId: fx.orgB, reportingPeriodId: fx.orgB, from: 0, count: 1 }),
       verifyNoEffect: async () => {},

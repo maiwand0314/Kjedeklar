@@ -55,7 +55,7 @@ En utdatert vurdering gjelder fortsatt slik den ble regnet. `assessPeriod` lager
 Kundefunksjonene kan ikke lese innholdstabellene (rls.ts). Motoren får innholdet via `risk/internal:engineData`, en intern query som mutasjonen kaller (probe i integrasjonstestene). Alle tre kundefunksjoner (`assessPeriod`, `latest`, `history`) laster leverandør og periode med `getOwned`; en annen organisasjons id gir `NOT_FOUND`.
 
 ## Kjente begrensninger
-- **Ingen grensesnitt** og ingen sortert oppfølgingsliste ennå. Prioriteringsrekkefølge og beløpssortering innenfor nivå (metodens `priorityOrder`) er ikke implementert; beløp er bevisst utenfor motoren.
+- **Grensesnitt og prioritert liste** kom i oppgave 16 (se [0014](0014-risikoliste-og-kundevurdering.md)). Beløp er fortsatt utenfor motoren; listen bruker det bare til sortering innenfor nivå.
 - **Ingen dataversjoner i produksjon.** Alt er prøvd med syntetiske demo-data. Uten aktive produksjonsdata gir motoren synlige mangler og `unknown`.
 - **Ingen kodeverkoversettelse** (SN2007 → SN2025/NACE).
 - **Kjøpskategori er fritekst** i dag; treff krever eksakt likhet (etter små bokstaver og trimming) med datasettets kategori.

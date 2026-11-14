@@ -16,7 +16,9 @@ export type AppErrorCode =
   | "IMPORT_EXPIRED"
   | "IMPORT_STALE"
   | "IMPORT_UNDECIDED"
-  | "RISK_METHOD_MISSING";
+  | "RISK_METHOD_MISSING"
+  | "RATIONALE_INVALID"
+  | "REVIEW_STALE";
 
 const messages: Record<AppErrorCode, string> = {
   UNAUTHENTICATED: "Du må logge inn.",
@@ -37,6 +39,9 @@ const messages: Record<AppErrorCode, string> = {
     "En annen import til samme rapportperiode pågår eller er gjennomført etter at dette grunnlaget ble laget. Fullfør en import som ikke er ferdig, og last opp filen på nytt, så forslagene bygger på leverandørene slik de er nå.",
   IMPORT_UNDECIDED: "Noen oppføringer mangler valg. Ta stilling til alle før importen bekreftes.",
   RISK_METHOD_MISSING: "Det finnes ingen aktiv metodeversjon for risikoscreening ennå.",
+  RATIONALE_INVALID: "Begrunnelsen må forklare vurderingen med minst fire ord og 20 tegn.",
+  REVIEW_STALE:
+    "Grunnlaget for screeningen er endret siden den ble beregnet. Kjør screeningen på nytt og se gjennom resultatet før du bekrefter eller overstyrer.",
 };
 
 export function appError(code: AppErrorCode) {

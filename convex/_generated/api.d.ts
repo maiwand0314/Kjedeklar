@@ -60,6 +60,7 @@ import type * as risk_assessments from "../risk/assessments.js";
 import type * as risk_internal from "../risk/internal.js";
 import type * as risk_model from "../risk/model.js";
 import type * as risk_queries from "../risk/queries.js";
+import type * as risk_reviews from "../risk/reviews.js";
 import type * as risk_validators from "../risk/validators.js";
 import type * as suppliers_enrichment from "../suppliers/enrichment.js";
 import type * as suppliers_enrichmentJob from "../suppliers/enrichmentJob.js";
@@ -133,6 +134,7 @@ declare const fullApi: ApiFromModules<{
   "risk/internal": typeof risk_internal;
   "risk/model": typeof risk_model;
   "risk/queries": typeof risk_queries;
+  "risk/reviews": typeof risk_reviews;
   "risk/validators": typeof risk_validators;
   "suppliers/enrichment": typeof suppliers_enrichment;
   "suppliers/enrichmentJob": typeof suppliers_enrichmentJob;

@@ -145,7 +145,7 @@ export async function assessmentInput(ctx: Reader, supplier: Doc<"suppliers">, r
     purchaseCategory: row?.purchaseCategory,
     registry: snapshot && snapshot.organizationId === supplier.organizationId ? snapshot.selectedFields : null,
   });
-  return { input, supplierPeriodId: row?._id };
+  return { input, supplierPeriodId: row?._id, spendOre: row?.spendOre ?? null };
 }
 
 export type Basis = {
@@ -191,3 +191,31 @@ export function staleReasons(a: Doc<"riskAssessments">, basis: Basis): string[] 
   if (staleKey(a.staleSources) !== basis.staleSources) reasons.push("source_freshness_changed");
   return reasons;
 }
+
+/**
+ * Siste screening for en leverandør i en periode, med årsaker til at den er utdatert (tom liste = gjeldende) og
+ * periodens innkjøpsbeløp. Beløpet er aldri motorinput; det brukes bare til sortering.
+ */
+export async function latestAssessment(ctx: Reader, supplier: Doc<"suppliers">, reportingPeriodId: Id<"reportingPeriods">, active?: Awaited<ReturnType<typeof activeDocs>>) {
+  const assessment = await ctx.db
+    .query("riskAssessments")
+    .withIndex("by_organizationId_and_period_and_supplier_and_assessedAt", (q) =>
+      q.eq("organizationId", supplier.organizationId).eq("reportingPeriodId", reportingPeriodId).eq("supplierId", supplier._id),
+    )
+    .order("desc")
+    .first();
+  const { input, spendOre } = await assessmentInput(ctx, supplier, reportingPeriodId);
+  if (!assessment) return { assessment: null, reasons: [] as string[], spendOre };
+  const reasons = staleReasons(assessment, await basisOf(input, active ?? (await activeDocs(ctx)), Date.now()));
+  return { assessment, reasons, spendOre };
+}
+
+/** Kundens gjeldende vurdering: den siste for leverandøren i perioden (append-only, så siste rad gjelder). */
+export const latestReview = (ctx: Reader, organizationId: Id<"organizations">, reportingPeriodId: Id<"reportingPeriods">, supplierId: Id<"suppliers">) =>
+  ctx.db
+    .query("assessmentReviews")
+    .withIndex("by_organizationId_and_period_and_supplier_and_reviewedAt", (q) =>
+      q.eq("organizationId", organizationId).eq("reportingPeriodId", reportingPeriodId).eq("supplierId", supplierId),
+    )
+    .order("desc")
+    .first();

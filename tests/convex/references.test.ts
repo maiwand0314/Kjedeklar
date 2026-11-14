@@ -12,7 +12,7 @@ import { getOwned, type Tenant, type TenantTable } from "../../convex/lib/tenant
 import schema from "../../convex/schema";
 import { expectAppError, setupTest, twoTenants } from "./setup";
 import { SYNTHETIC_IMPORT_BATCH, SYNTHETIC_METHOD_VERSION_DOC, SYNTHETIC_PERIOD, SYNTHETIC_SUPPLIER_DOC } from "../helpers/public-functions";
-import { insertRaw, tenantTableCases, type Owner, type TenantTableCase } from "./tenant-tables";
+import { insertRaw, syntheticAssessmentDoc, tenantTableCases, type Owner, type TenantTableCase } from "./tenant-tables";
 
 const tables = Object.keys(tenantTableCases) as TenantTable[];
 
@@ -63,8 +63,11 @@ describe.each(tables)("referanser i %s", (table) => {
       ),
     );
     const methodVersionId = await t.run((ctx) => ctx.db.insert("riskMethodVersions", SYNTHETIC_METHOD_VERSION_DOC));
-    const inA = (userId: string): Owner => ({ ...partA, importBatchId: batchA, methodVersionId, userId });
-    const inB = (userId: string): Owner => ({ ...partB, importBatchId: batchB, methodVersionId, userId });
+    const [assessmentA, assessmentB] = await t.run((ctx) =>
+      Promise.all([partA, partB].map((part) => ctx.db.insert("riskAssessments", syntheticAssessmentDoc({ ...part, methodVersionId, userId: "oppsett" })))),
+    );
+    const inA = (userId: string): Owner => ({ ...partA, importBatchId: batchA, methodVersionId, assessmentId: assessmentA, userId });
+    const inB = (userId: string): Owner => ({ ...partB, importBatchId: batchB, methodVersionId, assessmentId: assessmentB, userId });
     const ids = await t.run(async (ctx) => {
       const own = await insertRaw(ctx.db, table, inA(`eget-${table}`));
       const foreign = await insertRaw(ctx.db, table, inB(`fremmed-${table}`));

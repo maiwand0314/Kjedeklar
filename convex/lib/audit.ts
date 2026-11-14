@@ -33,6 +33,8 @@ export const AUDIT_DIFF_FIELDS: Record<AuditEntityType, readonly string[]> = {
   ],
   // Beløp som tekst i øre og land som kommaseparerte koder. Kjøpsbeskrivelsen (fritekst) logges aldri.
   supplierPeriod: ["spendOre", "purchaseCategory", "productionCountries", "upstreamUnknown"],
+  // Bare valg og nivå. Begrunnelsen og notatet står på vurderingen (assessmentReviews), aldri i loggen.
+  assessmentReview: ["decision", "originalLevel", "chosenLevel", "assessmentId"],
   // Bare status, antall og fellesvalg. Enkeltendringene står på importradene; filinnhold logges aldri.
   importBatch: [
     "status", "rowCount", "entryCount", "policyKnown", "policyNewWarning", "policyError", "policyUnclear",

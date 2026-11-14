@@ -107,7 +107,7 @@ export const versionViewValidator = v.object({
   activatedAt: v.union(v.number(), v.null()),
 });
 
-const levelWithUnknown = v.union(v.literal("low"), v.literal("moderate"), v.literal("high"), v.literal("unknown"));
+export const levelWithUnknown = v.union(v.literal("low"), v.literal("moderate"), v.literal("high"), v.literal("unknown"));
 const nullableBool = v.union(v.boolean(), v.null());
 
 /** Det motoren så (src/domain/risk/engine.ts `EngineInput`): uten beløp, registreringsland og fritekst. */
@@ -181,3 +181,24 @@ export const engineDataValidator = v.object({
     }),
   ),
 });
+
+export const reviewDecisionValidator = v.union(v.literal("confirm"), v.literal("override"), v.literal("revoke"));
+
+/**
+ * Kundens bekreftelse, overstyring eller tilbaketrekking av en screening (oppgave 16). Ny rad per beslutning, endres
+ * aldri. `originalLevel` er screeningnivået slik det var da kunden valgte; `previousReviewId` er vurderingen som gjaldt.
+ * `supplierId` og `reportingPeriodId` følger vurderingen og gir indeksen for «gjeldende».
+ */
+export const assessmentReviewFields = {
+  assessmentId: v.id("riskAssessments"),
+  supplierId: v.id("suppliers"),
+  reportingPeriodId: v.id("reportingPeriods"),
+  decision: reviewDecisionValidator,
+  originalLevel: levelWithUnknown,
+  chosenLevel: v.optional(screeningLevelValidator),
+  previousReviewId: v.optional(v.id("assessmentReviews")),
+  rationale: v.string(),
+  evidenceNote: v.optional(v.string()),
+  actorId: v.string(),
+  reviewedAt: v.number(),
+};

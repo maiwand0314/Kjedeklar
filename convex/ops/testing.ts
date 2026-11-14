@@ -115,6 +115,35 @@ export const setImportRowName = internalMutation({
 });
 
 /**
+ * Test: setter produksjonsland for en leverandør i en periode, med demo-kodene XA–XC som skjemaet i appen (med rette)
+ * ikke tar imot, så integrasjons- og e2e-tester kan få høy/moderat/lav screening. Bare på test-backenden.
+ */
+export const setPeriodCountries = internalMutation({
+  args: { supplierId: v.id("suppliers"), reportingPeriodId: v.id("reportingPeriods"), productionCountries: v.array(v.string()) },
+  returns: v.null(),
+  handler: async (ctx, { supplierId, reportingPeriodId, productionCountries }) => {
+    assertLocalEnv(["test"]);
+    const supplier = await ctx.db.get("suppliers", supplierId);
+    if (!supplier) throw new ConvexError({ code: "NOT_FOUND", message: "Ukjent leverandør" });
+    const existing = await ctx.db
+      .query("supplierPeriods")
+      .withIndex("by_organizationId_and_supplierId_and_reportingPeriodId", (q) =>
+        q.eq("organizationId", supplier.organizationId).eq("supplierId", supplierId).eq("reportingPeriodId", reportingPeriodId),
+      )
+      .unique();
+    if (existing) {
+      await ctx.db.patch("supplierPeriods", existing._id, { productionCountries, upstreamUnknown: false, rowVersion: existing.rowVersion + 1 });
+    } else {
+      await ctx.db.insert("supplierPeriods", {
+        organizationId: supplier.organizationId, supplierId, reportingPeriodId, productionCountries, upstreamUnknown: false,
+        rowVersion: 1, updatedAt: Date.now(), updatedBy: "test",
+      });
+    }
+    return null;
+  },
+});
+
+/**
  * Test: setter inn syntetiske leverandører med innkjøpsdata for en periode, til
  * belastningstest av screeningvurdering. Bare på test-backenden.
  */

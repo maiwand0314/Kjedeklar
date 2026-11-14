@@ -19,6 +19,7 @@
 import type { FunctionReference } from "convex/server";
 import { api } from "../../convex/_generated/api";
 import type { RegistryProfile } from "../../src/domain/brreg/enhet";
+import { ENGINE_VERSION, inputHash, normalizeInput } from "../../src/domain/risk/engine";
 import { emptyAnswers, type ProfileAnswers } from "../../src/domain/reporting/profile";
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- registeret holder funksjoner med ulike argumenttyper */
@@ -440,6 +441,52 @@ export const reviewedPublicFunctions: Record<string, PublicFunctionReview> = {
       ...(await ownSupplier(run, organizationId, userId)),
       ...(await ownPeriod(run, organizationId, userId)),
     }),
+  },
+  "risk/reviews:list": {
+    kind: "query",
+    ref: api.risk.reviews.list,
+    boundary: "tenant",
+    sampleArgs: { reportingPeriodId: "ukjent", offset: 0, limit: 10 },
+    note: "Risikoprioritert liste og tellinger for egen periode (getOwned). Leser bare egne leverandører og vurderinger.",
+    prepareOwn: async (run, organizationId, userId) => await ownPeriod(run, organizationId, userId),
+  },
+  "risk/reviews:detail": {
+    kind: "query",
+    ref: api.risk.reviews.detail,
+    boundary: "tenant",
+    sampleArgs: { supplierId: "ukjent", reportingPeriodId: "ukjent" },
+    note: "Forklaring og kundens vurdering for egen leverandør i egen periode (getOwned på begge).",
+    prepareOwn: async (run, organizationId, userId) => ({
+      ...(await ownSupplier(run, organizationId, userId)),
+      ...(await ownPeriod(run, organizationId, userId)),
+    }),
+  },
+  "risk/reviews:record": {
+    kind: "mutation",
+    ref: api.risk.reviews.record,
+    boundary: "tenant",
+    sampleArgs: {
+      supplierId: "ukjent", reportingPeriodId: "ukjent", assessmentId: "ukjent", expectedReviewId: null, decision: "confirm",
+      rationale: "Syntetisk begrunnelse som er lang nok.",
+    },
+    note: "Bekrefter, overstyrer eller trekker tilbake en screening: getOwned på leverandør, periode og vurdering, begrunnelse, versjonssjekk og revisjonslogg.",
+    // En egen, gjeldende vurdering: hashen og kildene stemmer med grunnlaget akkurat nå, så eget kall lykkes.
+    prepareOwn: async (run, organizationId, userId) => {
+      const supplier = await ownSupplier(run, organizationId, userId);
+      const period = await ownPeriod(run, organizationId, userId);
+      const methodVersionId = await run((db) => db.insert("riskMethodVersions", SYNTHETIC_METHOD_VERSION_DOC));
+      const input = normalizeInput({ productionCountries: [], upstreamUnknown: true });
+      const assessmentId = await run(async (db) =>
+        db.insert("riskAssessments", {
+          organizationId, supplierId: supplier.supplierId, reportingPeriodId: period.reportingPeriodId, methodVersionId,
+          engineVersion: ENGINE_VERSION, inputSnapshot: input, inputHash: await inputHash(input),
+          screeningLevel: "unknown", dataQuality: "insufficient", missingFields: [], triggeredRules: [], controlSignals: [],
+          staleSources: [{ source: "method", version: SYNTHETIC_METHOD_VERSION_DOC.version, freshness: "unreviewed" }],
+          assessedAt: Date.now(), assessedBy: userId,
+        }),
+      );
+      return { ...supplier, ...period, assessmentId };
+    },
   },
   "suppliers/enrichment:request": {
     kind: "mutation",

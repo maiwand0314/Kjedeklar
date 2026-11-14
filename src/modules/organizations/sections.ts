@@ -13,14 +13,7 @@ export const SECTIONS: readonly Section[] = [
   { slug: "", label: "Oversikt" },
   { slug: "virksomheten", label: "Virksomheten" },
   { slug: "leverandorer", label: "Leverandører" },
-  {
-    slug: "risikovurderinger",
-    label: "Risikovurderinger",
-    placeholder: {
-      title: "Ingen risikovurderinger",
-      text: "Her skal du se og bekrefte risikotriagen for leverandørene. Funksjonen er ikke tilgjengelig ennå.",
-    },
-  },
+  { slug: "risikovurderinger", label: "Risikovurderinger" },
   {
     slug: "funn-og-tiltak",
     label: "Funn og tiltak",
