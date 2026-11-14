@@ -10,7 +10,7 @@ import type { Doc } from "../_generated/dataModel";
 import { writeAudit } from "../lib/audit";
 import { appError } from "../lib/errors";
 import { getOwned, tenantMutation, tenantQuery } from "../lib/tenant";
-import { activeDocs, assessmentInput, basisOf, staleReasons } from "./model";
+import { activeDocs, assessmentInput, basisOf, latestAssessment, staleReasons } from "./model";
 import { assessmentResultFields } from "./validators";
 
 /**
@@ -101,7 +101,7 @@ async function loadEngineData(ctx: { runQuery: (ref: typeof internal.risk.intern
 const versionLabel = async (ctx: { db: { get: (table: "riskDatasetVersions" | "riskMethodVersions", id: never) => Promise<{ version: string } | null> } }, table: "riskDatasetVersions" | "riskMethodVersions", id: string | undefined) =>
   id ? ((await ctx.db.get(table, id as never))?.version ?? null) : null;
 
-const summaryFields = {
+export const summaryFields = {
   id: v.id("riskAssessments"),
   assessedAt: v.number(),
   screeningLevel: assessmentResultFields.screeningLevel,
@@ -111,7 +111,7 @@ const summaryFields = {
   industryVersion: v.union(v.string(), v.null()),
 };
 
-const summary = async (ctx: Parameters<typeof versionLabel>[0], a: Doc<"riskAssessments">) => ({
+export const summary = async (ctx: Parameters<typeof versionLabel>[0], a: Doc<"riskAssessments">) => ({
   id: a._id,
   assessedAt: a.assessedAt,
   screeningLevel: a.screeningLevel,
@@ -141,16 +141,8 @@ export const latest = tenantQuery({
   handler: async (ctx, args) => {
     const supplier = await getOwned(ctx, "suppliers", args.supplierId);
     const period = await getOwned(ctx, "reportingPeriods", args.reportingPeriodId);
-    const latest = await ctx.db
-      .query("riskAssessments")
-      .withIndex("by_organizationId_and_period_and_supplier_and_assessedAt", (q) =>
-        q.eq("organizationId", ctx.tenant.organizationId).eq("reportingPeriodId", period._id).eq("supplierId", supplier._id),
-      )
-      .order("desc")
-      .first();
+    const { assessment: latest, reasons } = await latestAssessment(ctx, supplier, period._id);
     if (!latest) return null;
-    const { input } = await assessmentInput(ctx, supplier, period._id);
-    const reasons = staleReasons(latest, await basisOf(input, await activeDocs(ctx), Date.now()));
     return {
       ...(await summary(ctx, latest)),
       screeningLevel: latest.screeningLevel,

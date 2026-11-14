@@ -9,7 +9,7 @@ import {
 import { profileAnswerFields } from "./organizations/profileValidators";
 import { registryProfileValidator } from "./organizations/registryValidators";
 import { importBatchFields, importRowFields } from "./suppliers/import/validators";
-import { countryEntryFields, datasetVersionFields, industryEntryFields, methodVersionFields, riskAssessmentFields } from "./risk/validators";
+import { countryEntryFields, datasetVersionFields, industryEntryFields, methodVersionFields, riskAssessmentFields, assessmentReviewFields } from "./risk/validators";
 import { industryCodeSourceValidator, registryEnrichmentValidator, supplierPeriodFields, supplierProfileFields } from "./suppliers/validators";
 
 // Better Auth-tabellene ligger i komponenten @convex-dev/better-auth, ikke her.
@@ -183,6 +183,13 @@ export default defineSchema({
   riskAssessments: defineTable({ organizationId: v.id("organizations"), ...riskAssessmentFields }).index(
     "by_organizationId_and_period_and_supplier_and_assessedAt",
     ["organizationId", "reportingPeriodId", "supplierId", "assessedAt"],
+  ),
+
+  // Kundens bekreftelse, overstyring eller tilbaketrekking av en screening (oppgave 16). Append-only: ny rad per
+  // beslutning, aldri endret. Gjeldende er den siste per (periode, leverandør). Indeksnavn: «period» er reportingPeriodId.
+  assessmentReviews: defineTable({ organizationId: v.id("organizations"), ...assessmentReviewFields }).index(
+    "by_organizationId_and_period_and_supplier_and_reviewedAt",
+    ["organizationId", "reportingPeriodId", "supplierId", "reviewedAt"],
   ),
 
   memberships: defineTable({

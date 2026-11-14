@@ -19,6 +19,7 @@ Startpakke opprettet 6. november 2026. Dokumentasjonen ble samme dag skrevet om 
 | 13 | Implementert og verifisert lokalt (branch `feature/13-brreg-enrichment`) | Lokalt med Docker: lint, typecheck, 676 enhets-/convex-test-tester, 175 integrasjonstester, 18 e2e-tester (med lokalt installert Chrome) og build | Registerverdier er forslag brukeren godtar; ingen automatisk utfylling. SN-versjon velges av bruker. Ikke kjørt mot ekte Enhetsregisteret. Risikomodulen finnes ikke, så ingenting merkes utdatert |
 | 14 | Implementert og verifisert lokalt (branch `feature/14-risk-data`) | Lokalt med Docker: lint, typecheck, 741 enhets-/convex-test-tester, 187 integrasjonstester, 18 e2e-tester (med lokalt installert Chrome) og build | Ingen reelle risikodata og ingen fagreview: bare syntetiske demo-fixtures. Kommandoene er bare prøvd mot lokal backend, ikke Convex Cloud. Ingen motor (oppgave 15) |
 | 15 | Implementert og verifisert lokalt (branch `feature/15-risk-engine`) | Lokalt med Docker: lint, typecheck, 797 enhets-/convex-test-tester, 197 integrasjonstester (196 i første fulle kjøring, én gjeldende test rettet og kjørt på nytt), 18 e2e-tester (med lokalt installert Chrome; én flaky test bestod ved ny kjøring) og build | Bare syntetiske demo-data; uten aktive produksjonsdata gir motoren synlige mangler og ukjent. Ingen grensesnitt. Bulkgrenser målt bare mot lokal backend |
+| 16 | Implementert og verifisert lokalt (branch `feature/16-risk-review`) | Lokalt med Docker: lint, typecheck, 847 enhets-/convex-tester, 208 integrasjonstester, 19 e2e-tester (med lokalt installert Chrome) og build | Bare syntetiske demo-data. Listen leser opptil 2 000 leverandører per kall, målt bare mot lokal backend. Ingen funn/tiltak (oppgave 17). To flaky tester, se under |
 
 Oppdater ved hver oppgave. Bruk «implementert», «verifisert» og «ekstern avklaring» presist. Et lokalt fake-resultat betyr ikke at en ekstern integrasjon er godkjent.
 
@@ -957,6 +958,51 @@ E2E er kjørt med lokalt installert Google Chrome via en midlertidig konfigurasj
 - **Produktkategori** er fritekst og krever eksakt likhet (små bokstaver) med datasettet.
 - **Flaky e2e:** `navigation.spec.ts` feilet én gang med «Route is already handled» (test av treg lasting; ikke berørt av denne endringen) og bestod ved ny kjøring.
 - Bulkgrensene er ikke målt mot Convex Cloud.
+
+## Oppgave 16 – risikoliste, forklaring og kundens vurdering
+
+Beslutninger og begrunnelser står i `docs/decisions/0014-risikoliste-og-kundevurdering.md`.
+
+### Endret
+- **`assessmentReviews`** (ny kundetabell, append-only): bekreftelse, overstyring eller tilbaketrekking med begrunnelse, bruker, tidspunkt og opprinnelig nivå. RLS: lese og opprette i egen organisasjon, aldri endre.
+- **`convex/risk/reviews.ts`:** `list` (risikoprioritert, filter, paginering, tellinger som skiller screening fra kundens vurdering), `detail` (forklaring, kilder, mangler, historikk) og `record` (begrunnelse, `getOwned`, optimistisk lås med `expectedReviewId`, avvisning ved utdatert grunnlag, audit `risk.reviewed`).
+- **`src/domain/risk/review.ts`:** `checkRationale`, `effectiveReview`, `groupOrder`, `prioritySort` (ren logikk).
+- **Grensesnitt:** `/risikovurderinger` (liste) og `/risikovurderinger/[supplierId]` (forklaring, skjema, historikk) erstatter plassholderen. Knapp for å kjøre screeningen.
+- **Testfunksjon:** `ops/testing:setPeriodCountries` (bare test-backend): demo-kodene XA–XC er ikke ISO-land, så appen tar dem ikke imot.
+- **Rettet:** `tests/integration/risk-data.test.ts` forventet bare to risikomutasjoner/-queries; utvidet.
+
+### Akseptkriterier
+1. *Forstå hvorfor en regel slo ut og hva som mangler:* detaljvisningen viser regel, kilde, utgave, linje, beskrivelse og mangler (e2e).
+2. *Overstyring uten begrunnelse avvises, originalen bevares:* enhets-, convex- og e2e-tester; screeningsradene er uendret.
+3. *Liste og tellinger er tenant-/periodeavgrenset og skiller screening fra review:* convex- og integrasjonstester.
+4. *Overstyrt lavt nivå skjuler ikke høy screening eller ukjent oppstrøms:* convex-test og e2e; listen sorteres etter screeningen.
+
+### Tester
+- `tests/unit/risk-review.test.ts` (20): begrunnelse, effektiv vurdering, sortering over alle kombinasjoner av nivå og beløp.
+- `tests/convex/risk-review.test.ts` (19), `risk-review-rollback.test.ts` (1): sortering/tellinger, filter, forklaring, begrunnelse, ugyldige valg, låsing, tilbaketrekking, endret input, ny screening, fremmed vurdering, audit uten fritekst, rollback.
+- `tests/integration/risk-review.test.ts` (4) mot lokal backend: samtidige vurderinger (én vinner), input endret etter visning, fremmed vurdering/leverandør/periode, 2 000 leverandører i listen og `truncated` over grensen.
+- `tests/e2e/risk.spec.ts` (1): forklaring → avvist kort begrunnelse → overstyring → historikk → endret grunnlag → utdatert → ny screening → ny bekreftelse.
+- Tenant-sjekkliste (`getOwned`/RLS), registre for offentlige funksjoner og audit.
+
+### Måling (lokal backend)
+Listen med 1 990 leverandører i én spørring: 1,3 s inkludert nettverk. En første variant som kontrollerte grunnlaget for alle leverandører gikk i 1 000 (1,1 s) men feilet i 2 000, og ble bygget om (se 0014).
+
+### Kjørte kommandoer (14.11.2026, lokalt med Docker)
+```text
+pnpm convex:deploy:test           OK
+pnpm lint / pnpm typecheck        OK
+pnpm test:unit                    847/847
+pnpm test:integration             206/208 i første fulle kjøring: én gammel forventning i risk-data.test.ts (rettet) og tenancy.test.ts «samtidige kall…» (Server Error på en enkel query under last; bestod ved ny kjøring av begge filene, 144/144). Resten er ikke kjørt på nytt
+pnpm exec playwright test         18/19 i full kjøring: navigation.spec.ts «lasting vises ved trege svar…» feilet (kjent flaky), bestod alene (5/5)
+pnpm build                        OK
+```
+E2E er kjørt med lokalt installert Google Chrome via en midlertidig konfigurasjon (ikke sjekket inn).
+
+### Ikke gjort / begrunnelser
+- **Ingen reelle data eller fagreview;** alt er prøvd med syntetiske demo-data.
+- **Listen er ikke målt mot Convex Cloud** og leser opptil 2 000 leverandører; flere gir «ikke komplett».
+- **Tenancy-flaken er ikke forklart:** en enkel query ga Server Error under samtidig last én gang.
+- **Begrunnelsessjekken er syntaktisk.** Ingen kobling til funn/tiltak, ingen eksport av listen.
 
 ## Åpne eksterne avklaringer
 - Convex DPA, underleverandører og plassering av backup, logg og support (beslutning 0001). Må lukkes før ekte kundedata.

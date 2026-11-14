@@ -89,6 +89,8 @@ export function tenantRules(scope: TenantScope): ExhaustiveRules {
     jobs: { read: sameTenant, modify: deny, insert: sameTenant },
     // Ny rad per beregning; historikk endres aldri. Opprettes av vurderingsmutasjonen i egen organisasjon.
     riskAssessments: { read: sameTenant, modify: deny, insert: sameTenant },
+    // Kundens bekreftelser og overstyringer: append-only, en ny rad per beslutning (oppgave 16).
+    assessmentReviews: { read: sameTenant, modify: deny, insert: sameTenant },
     // Globalt faggrunnlag: kunder ser bare aktiverte og pensjonerte versjoner (demo bare lokalt),
     // og kan aldri endre noe. Skriving skjer i interne funksjoner. Innholdstabellene leses ikke av
     // tenantfunksjoner ennå; en lesefunksjon som trenger dem, går via en synlig versjon.
@@ -135,6 +137,7 @@ export function userRules(
     importRows: { read: deny, modify: deny, insert: deny },
     jobs: { read: deny, modify: deny, insert: deny },
     riskAssessments: { read: deny, modify: deny, insert: deny },
+    assessmentReviews: { read: deny, modify: deny, insert: deny },
     riskDatasetVersions: { read: deny, modify: deny, insert: deny },
     riskMethodVersions: { read: deny, modify: deny, insert: deny },
     countryRiskEntries: { read: deny, modify: deny, insert: deny },
@@ -198,6 +201,7 @@ export function invitationRules(scope: InvitationScope): ExhaustiveRules {
     importRows: { read: deny, modify: deny, insert: deny },
     jobs: { read: deny, modify: deny, insert: deny },
     riskAssessments: { read: deny, modify: deny, insert: deny },
+    assessmentReviews: { read: deny, modify: deny, insert: deny },
     riskDatasetVersions: { read: deny, modify: deny, insert: deny },
     riskMethodVersions: { read: deny, modify: deny, insert: deny },
     countryRiskEntries: { read: deny, modify: deny, insert: deny },

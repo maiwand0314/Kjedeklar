@@ -16,6 +16,7 @@ export const auditEventTypes = v.union(
   v.literal("supplier.registry_fetched"),
   v.literal("supplier_period.saved"),
   v.literal("risk.assessed"),
+  v.literal("risk.reviewed"),
   v.literal("import.created"),
   v.literal("import.confirmed"),
   v.literal("import.applied"),
@@ -39,6 +40,7 @@ export const auditEntityTypes = v.union(
   v.literal("businessProfile"),
   v.literal("supplier"),
   v.literal("supplierPeriod"),
+  v.literal("assessmentReview"),
   v.literal("importBatch"),
   v.literal("job"),
 );

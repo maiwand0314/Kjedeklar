@@ -38,7 +38,34 @@ export type Owner = {
   importBatchId: Id<"importBatches">;
   /** Globalt faggrunnlag (ikke tenant): en metodeversjon som vurderinger peker på. */
   methodVersionId: Id<"riskMethodVersions">;
+  /** En screeningvurdering i samme organisasjon, for tabeller som peker på den. */
+  assessmentId: Id<"riskAssessments">;
 };
+
+/** Et gyldig screeningdokument. Brukes både som sjekklistens `riskAssessments` og som oppsett for tabeller som peker på det. */
+export const syntheticAssessmentDoc = ({
+  organizationId,
+  userId,
+  reportingPeriodId,
+  supplierId,
+  methodVersionId,
+}: Pick<Owner, "organizationId" | "userId" | "reportingPeriodId" | "supplierId" | "methodVersionId">): WithoutSystemFields<Doc<"riskAssessments">> => ({
+  organizationId,
+  supplierId,
+  reportingPeriodId,
+  methodVersionId,
+  engineVersion: "risk-engine-v1",
+  inputSnapshot: { industry: null, productionCountries: [], upstreamUnknown: true, purchaseCategory: null, registry: null },
+  inputHash: "0".repeat(64),
+  screeningLevel: "unknown",
+  dataQuality: "insufficient",
+  missingFields: [],
+  triggeredRules: [],
+  controlSignals: [],
+  staleSources: [],
+  assessedAt: Date.now(),
+  assessedBy: userId,
+});
 
 export type TenantTableCase<T extends TenantTable> = {
   /** Et gyldig nytt dokument i organisasjonen. */
@@ -144,25 +171,26 @@ export const tenantTableCases: { [T in TenantTable]: TenantTableCase<T> } = {
     tenantCanInsertOwn: true,
   },
   riskAssessments: {
-    newDoc: ({ organizationId, userId, reportingPeriodId, supplierId, methodVersionId }) => ({
-      organizationId,
-      supplierId,
-      reportingPeriodId,
-      methodVersionId,
-      engineVersion: "risk-engine-v1",
-      inputSnapshot: { industry: null, productionCountries: [], upstreamUnknown: true, purchaseCategory: null, registry: null },
-      inputHash: "0".repeat(64),
-      screeningLevel: "unknown",
-      dataQuality: "insufficient",
-      missingFields: [],
-      triggeredRules: [],
-      controlSignals: [],
-      staleSources: [],
-      assessedAt: Date.now(),
-      assessedBy: userId,
-    }),
+    newDoc: syntheticAssessmentDoc,
     patch: { screeningLevel: "low" },
     // Ny rad per beregning; historikk endres aldri fra tenantfunksjoner.
+    tenantCanModifyOwn: false,
+    tenantCanInsertOwn: true,
+  },
+  assessmentReviews: {
+    newDoc: ({ organizationId, userId, reportingPeriodId, supplierId, assessmentId }) => ({
+      organizationId,
+      assessmentId,
+      supplierId,
+      reportingPeriodId,
+      decision: "confirm",
+      originalLevel: "unknown",
+      rationale: "Syntetisk begrunnelse for sjekklisten.",
+      actorId: userId,
+      reviewedAt: Date.now(),
+    }),
+    patch: { rationale: "Skrevet om i etterkant av en annen bruker." },
+    // Append-only: en ny rad per beslutning, aldri endret fra tenantfunksjoner.
     tenantCanModifyOwn: false,
     tenantCanInsertOwn: true,
   },

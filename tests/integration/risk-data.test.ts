@@ -112,13 +112,16 @@ describe("risikodata mot lokal backend", () => {
 
   test("det finnes ingen offentlig skrivefunksjon for de felles risikodataene", () => {
     const risk = Object.entries(reviewedPublicFunctions).filter(([path]) => path.startsWith("risk/"));
-    // Eneste mutasjon er kundens egen vurdering (riskAssessments i egen organisasjon); felles data leses bare.
+    // Mutasjonene er kundens egne vurderinger (riskAssessments og assessmentReviews i egen organisasjon); felles data leses bare.
     expect(risk.map(([path, r]) => [path, r.kind]).sort()).toEqual([
       ["risk/assessments:assessPeriod", "mutation"],
       ["risk/assessments:history", "query"],
       ["risk/assessments:latest", "query"],
       ["risk/queries:activeVersions", "query"],
       ["risk/queries:getVersion", "query"],
+      ["risk/reviews:detail", "query"],
+      ["risk/reviews:list", "query"],
+      ["risk/reviews:record", "mutation"],
     ]);
   });
 });
